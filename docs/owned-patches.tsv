@@ -838,3 +838,4 @@ ISSUE_394_FAILED_CLAUDE_RESULTS	code-ready	fix(claude): preserve failed SDK resu
 ISSUE_394_RESULT_VERIFICATION	code-ready	fix(claude): align native result predicate and verify failure reporting	.dev/issue-394-source-evidence.md
 ISSUE_394_CHANGELOG_CAPTURES	code-ready	test(app): refresh failed Claude result changelog captures	.dev/issue-394-source-evidence.md
 ISSUE_364_AGY_CONTEXT_UNAVAILABLE	code-ready	fix(context): explain unavailable Antigravity native context	.dev/skills/happyherd-update-provider/references/antigravity.md
+ISSUE_364_AGY_VALIDATION	code-ready	test(context): record Antigravity unavailable validation	.dev/issue-364-acceptance.md

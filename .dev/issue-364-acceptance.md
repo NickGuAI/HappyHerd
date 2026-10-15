@@ -82,3 +82,85 @@ budget was weakened to turn these gaps green.
 
 Status: **Not signed off**. Merge, deployment, restart, issue closure and
 publication were not performed. Parent owns final coordination and handoff.
+
+
+## Exclusive no-browser validation — 2026-10-15
+
+This later authorized stage supersedes only the earlier pending no-browser
+checks, not its historical source-only receipt or native/rendering limits.
+Tested source: `606190d7bfbd3ae382df3668d2c98ad9c4f4440d`, tree
+`c29a6027bf453c201ceece0cf620eaf8a6e2ab3d`; initial tracked tree clean.
+Input and final lockfile SHA-256 both
+`79bd621c488cbabaab545159e95b9c685be430e0573eac3d8b7cc10a750fcae4`.
+Node **20.20.2**, pnpm **10.11.0**, selected through task-owned PATH wrappers
+for the parent-specified existing binaries. No tool install or HOME override.
+
+One filtered frozen install used `--filter @happyherd/cli... --filter
+happyherd-app... --ignore-scripts` and the own store
+`/private/tmp/happyherd-364-astra-20261015-pnpm-store`. Lifecycle scripts were
+not broadly enabled. The unchanged root postinstall ran once (maintained
+patches and wire build), followed by explicit control-agent and CLI builds.
+No separate explicit wire build ran. The existing CLI global setup remained
+intact and printed its own build output; the prior explicit build independently
+proved natural success.
+
+| Assigned stage | Natural exit | Seconds |
+|---|---:|---:|
+| install | 0 | 25.42 |
+| root-postinstall | 0 | 4.47 |
+| control-build | 0 | 3.40 |
+| cli-build | 0 | 9.74 |
+| wire-test | 0 | 1.03 |
+| cli-test | 0 | 20.58 |
+| app-unit | 0 | 1.16 |
+| cli-typecheck | 0 | 5.37 |
+| app-typecheck | 0 | 17.49 |
+| inventory | 0 | 2.18 |
+| i18n | 0 | 3.29 |
+| parser | 0 | 1.08 |
+
+Focused evidence: wire `src/contextWindow.test.ts` **4 passed**; CLI
+`src/contextWindow/readContextWindow.test.ts` and
+`src/api/apiMachine.contextWindow.test.ts` **29 passed**; app
+`sources/sync/contextWindow.test.ts` **28 passed**. Total **61 tests**.
+Both declared package typechecks passed. No tests or failed stages were retried;
+no test assertions, budgets, worker policy or configs changed. There was no
+natural stage failure. Preserved warnings include the workspace expo-tailcat
+Node >=22 engine warning on the assigned Node20 and pkgroll bin/empty-chunk
+warnings; all assigned commands exited 0.
+
+The maintained inventory generator and full `i18n:check` passed: **45 routes,
+349 surfaces, 84 smoke cases, 1737 catalog keys**, zero production hardcoded-copy
+exceptions. Generated JSON and HTML differ only in their source fingerprint;
+all route/surface/key/smoke content is identical to the committed input.
+New source fingerprint: `afad531377518b9b65231feff7000746e52ce64aae902d16e4c0fc7ef9bbb43c`.
+Artifact fingerprint:
+`1324e3fbe00fd14be387b96afe8693f8ef172d046b363d65c76aee08b804fe97`.
+The official `pnpm --filter happyherd-app exec tsx
+sources/scripts/parseChangelog.ts` produced **200 entries**, latest
+**October 15 — Explain unavailable Antigravity context**, with no JSON diff
+from the source-phase result. No manual parser adaptation was used this stage.
+
+Complete per-stage command argv, cwd, stdout/stderr, exit, timing, PID/PGID,
+space samples and final parity receipt are retained under the task-owned
+`.artifacts/issue-364/validation/`; `logs.sha256.json` fingerprints every full
+stdout/stderr file. The finite runner charged **185.59s**, including
+its conservative 90-second preflight allowance, against the single 1800s
+budget. No stage budget reset. Minimum observed free bytes:
+**13987229696**; stage-final free bytes **13993631744** (both >8 GiB).
+All recorded owned process groups were absent at terminal inspection; no
+process cleanup or signals were needed. Targeted footprint: root node_modules
+3,600,548 KiB; app-local node_modules 15,152 KiB; CLI-local 164 KiB; own store
+3,451,560 KiB. These `du` figures must not be summed as physical consumption
+because pnpm can hard-link store and installation files.
+
+Only the two expected generated artifacts changed during validation. Every
+other tracked source/config/lock file retained input parity. The subsequent
+local commit contains those generated outputs plus this evidence and the
+required ledger line; it does not change the tested production/test sources.
+Exact-head independent review remains pending. Browser screenshots/gestures,
+web export, full app/package/contract/CI checks and authenticated live reads
+are **not run in this stage**, and are not implied by these passes. Native
+full-context recovery remains unproved; implemented support is the authorized
+unavailable-with-Retry alternative. No push, PR, deployment, restart or provider
+invocation occurred. Status remains **Not signed off** pending later evidence.
