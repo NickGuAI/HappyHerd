@@ -373,3 +373,64 @@ were recaptured, provider/account/IDE invoked, context recovered, dependencies
 installed, or timeout/worker defaults changed. Prior native-recovery limits
 and capture provenance remain in force. Publication/golden import remain
 held for independent committed-head review; no push or new CI authorized.
+
+
+## Exact diagnostic-head CI and approved golden import (October 16)
+
+All four ordinary first-attempt workflows on
+`1889e4c069968631e56f7f75a0ba816114db2f37` reached terminal status before import:
+Contracts38973056151 SUCCESS, Native installer38973055555 SUCCESS,
+Server image38973056064 SUCCESS, Quality38973055462 FAILURE solely at the
+four changelog golden comparisons. Every other Quality job passed. Actual
+app unit results:399 files passed,4632 tests passed/10 skipped; all166
+side-chat and50 desktop browser cases passed, including both Antigravity
+widths and the quoted standalone1440 missing-path case. No new failure
+operation/channel receipts were emitted; success-silent private observation
+availability/restoration and original timeout cause remain unproved.
+
+Contracts ended `contract-suite: ok`; retained result rows include app
+399 files/4632 passed+10 skipped,16/88,12/260,11/52,208/2269 and40/227
+(files/tests respectively). These are distinct suite counts, not additive
+unique-test claims. Native installer passed all four prepared build/test
+and four latest-stable install jobs; its optional public-auth job was
+skipped. Complete first logs, jobs and artifact catalogs remain private
+under `.artifacts/issue-364/publication-1889/ci/`.
+
+After whole Quality completion, inspection downloaded artifact12077594328
+(`kilv-golden-38973055462`) once. Its summary pins source1889e4c0 and28
+variants/4 failures. All12 new expected/actual/diff images were personally
+reviewed; root independently approved the exact artifact. The four changed
+images add the October15 unavailable-context changelog entry and displace
+older entries, readable in both themes at1440/390. Other24 variants match
+current baseline bytes. No historical30cd capture was substituted.
+
+After all-four-terminal evidence and fresh local/remote/GitHub1889/main632
+preflight, the unchanged maintained `scripts/kilv-golden-update.mjs` ran
+ONCE with pinned Node20.20.2, natural exit0 in1.86s. Its internal exact-head
+artifact download was separately authorized as importer behavior, distinct
+from the one inspection download. The script selected run38973055462 and
+rewrote28 baseline destinations; only the four approved PNG bytes changed.
+All28 pathsets/file modes remained unchanged and all24 other PNGs stayed
+byte-identical. Post-import comparison verified no other tracked changes;
+source/test/config/lock/native inputs, changelog and eight public fixture
+captures remain unchanged. Own importer process group absent after exit.
+Receipt/catalog: `.artifacts/issue-364/golden-import-1889/`.
+
+Imported actual capture SHA-256 values (captured on1889, not the later
+baseline/evidence commit):
+
+- `production-changelog-latest-entries-dark-1440.png`: `eb5ed60052dbde705283cb1503abee5eeda1c461aede12573f2f02b0de4888a9`
+- `production-changelog-latest-entries-dark-390.png`: `2cfd3cfd774f5d3c1a49143d18a366fe72d19e36b1d2b5a2bd4c6540cead143e`
+- `production-changelog-latest-entries-light-1440.png`: `e300438ac74948b2e8d301f77f6473596ba87bf2525894834458a8ab7064f7fe`
+- `production-changelog-latest-entries-light-390.png`: `d80820821266e1d865f395e98ed7a996dd9962dd4bbe42c1648c8414e61b271c`
+
+The first30cd browser/golden failures and missed local selector remain
+historical failures/incomplete selection; this import does not retroactively
+make them green. Passing1889 controls do not prove the earlier cause fixed.
+No local unit/type/browser/i18n/export/native/provider/account checks were
+repeated for these PNG/evidence changes. The product remains the issue's
+allowed honest unavailable+Retry alternative; native full content/current
+window/identity/compaction/fork/rollback recovery is unproved. No Antigravity
+account or installation was needed or invoked. This local capture commit
+awaits independent exact-head review and separate publication authority;
+no push, PR-body/comment mutation, new CI, ready mark or merge.
