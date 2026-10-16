@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 15 — Daemon startup diagnostics",
+      "summary": "",
+      "markdown": "- Failed daemon startup now includes a bounded readiness summary for troubleshooting. This diagnostic does not automatically fix or retry startup."
+    },
+    {
       "title": "October 15 — Claude child completion notifications",
       "summary": "",
       "markdown": "- Claude child cards retain completed, failed, or cancelled outcomes from prefixed provider notifications in remote sessions. Background launch receipts and parent completion still leave active children running."
@@ -1001,5 +1006,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 15 — Claude child completion notifications"
+  "latestTitle": "October 15 — Daemon startup diagnostics"
 }

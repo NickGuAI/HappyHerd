@@ -1,3 +1,7 @@
+# October 15 — Daemon startup diagnostics
+
+- Failed daemon startup now includes a bounded readiness summary for troubleshooting. This diagnostic does not automatically fix or retry startup.
+
 # October 15 — Claude child completion notifications
 
 - Claude child cards retain completed, failed, or cancelled outcomes from prefixed provider notifications in remote sessions. Background launch receipts and parent completion still leave active children running.
