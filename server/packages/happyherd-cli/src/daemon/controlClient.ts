@@ -59,7 +59,7 @@ async function daemonPost(path: string, body?: any, timeoutOverride?: number): P
       // Mostly increased for stress test
       signal: AbortSignal.timeout(timeout)
     });
-    
+
     if (!response.ok) {
       let detail = '';
       try {
@@ -77,7 +77,7 @@ async function daemonPost(path: string, body?: any, timeoutOverride?: number): P
         error: errorMessage
       };
     }
-    
+
     return await response.json();
   } catch (error) {
     const errorMessage = `Request failed: ${path}, ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -303,24 +303,24 @@ export async function stopDaemonHttp(): Promise<void> {
  * the daemon is still running, and it recieves a new message to spawn a new session.
  * This is a tough case - we need to somehow figure out to restart ourselves,
  * yet still handle the original request.
- * 
+ *
  * Options:
  * 1. Periodically check during the health checks whether our version is the same as CLIs version. If not - restart.
  * 2. Wait for a command from the machine session, or any other signal to
  * check for version & restart.
  *   a. Handle the request first
  *   b. Let the request fail, restart and rely on the client retrying the request
- * 
+ *
  * I like option 1 a little better.
- * Maybe we can ... wait for it ... have another daemon to make sure 
+ * Maybe we can ... wait for it ... have another daemon to make sure
  * our daemon is always alive and running the latest version.
- * 
+ *
  * That seems like an overkill and yet another process to manage - lets not do this :D
- * 
+ *
  * TODO: This function should return a state object with
  * clear state - if it is running / or errored out or something else.
  * Not just a boolean.
- * 
+ *
  * We can destructure the response on the caller for richer output.
  * For instance when running `happyherd daemon status` we can show more information.
  */
@@ -379,7 +379,7 @@ export async function checkIfDaemonRunningAndCleanupStaleState(
  * Check if the running daemon version matches the current CLI version.
  * This should work from both the daemon itself & a new CLI process.
  * Works via the daemon.state.json file.
- * 
+ *
  * @returns true if versions match, false if versions differ or no daemon running
  */
 export async function isDaemonRunningCurrentlyInstalledHappyHerdVersion(): Promise<boolean> {
@@ -395,7 +395,7 @@ export async function isDaemonRunningCurrentlyInstalledHappyHerdVersion(): Promi
     logger.debug('[DAEMON CONTROL] No daemon state found, returning false');
     return false;
   }
-  
+
   // Compare the running daemon's recorded version against THIS CLI invocation's
   // bundled version. Both are read from the same source of truth: the `version`
   // field baked into `dist/` at build time via `import packageJson from '../package.json'`.
