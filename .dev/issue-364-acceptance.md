@@ -305,3 +305,71 @@ suites, or required PR CI. This later evidence-only commit does not alter the
 exported production/test sources; no heavy check was repeated for prose.
 No push/PR, deployment, restart or issue closure. New exact-head review and
 remaining parent gates are still required before publication/sign-off.
+
+## Reviewed browser-boundary diagnostics and separate local controls (October 16)
+
+PR #436 first head `30cd86843df3b3c693ca101340ec204bd7c7cce9` retained
+Contracts/Native installer/Server image success and Quality failure. Quality
+reported the unchanged side-chat beforeAll 30-second timeout (all 166 cases,
+including both Antigravity cases, skipped), an unchanged desktop missing-path
+10-second case timeout, and four changelog golden differences. First full
+logs and the once-downloaded golden artifact remain immutable. The other
+24 golden variants matched baseline bytes. No golden import or CI retry.
+
+Root reviewed the external four-file candidate patch SHA-256
+`64f428d5eabf3045b6bab684b196a61b86d35e2cb7bf3a4a37876db770d5ffb5`
+before application. This test-only change records fixed operation categories
+around unchanged desktop awaits and observes private, instance-owned context
+and page channel boundaries only during the existing side warmup newPage.
+Original startup trace/pipe observer, hook/case budgets, assertions, poll
+callbacks, product source and browser options remain unchanged. The private
+adapter is gated to the installed Playwright 1.62.1. Actual app runner is
+Vitest 3.2.4 nested beneath server/node_modules/vitest, not the separate root
+runner4.1.5 initially cited in the external proposal.
+
+Desktop failure receipts freeze at the task-finished callback, AFTER runner
+onTaskFinished/afterEach/fixture cleanup. They retain event-relative times,
+callbackElapsedMs, activeAtCallback, and the original taskBudgetMs=10000.
+A late test body may progress before this callback: the snapshot does not
+establish the operation active at the deadline. Diagnostics cannot establish
+the cause of the earlier23-second initial protocol wait. A passing control
+also cannot explain or reproduce that historical failure.
+
+First authorized local phase applied only the four reviewed files and used
+own Node20.20.2/pnpm10.11.0/frozen dependencies. Natural exits were all0:
+39 helper tests (25 startup/diagnostic +14 pipe), app typecheck, the exact
+parent browser selector, and i18n. Semantic inspection found the selector
+omitted quotes around Vitest's rendered `'standalone'` parameter: only the
+two Antigravity cases passed, with214 unselected (all50 desktop cases
+skipped). This first receipt remains explicitly INCOMPLETE; it is never
+represented as three selected passes. The sequential runner reached i18n
+on browser exit0 before semantic row review; i18n passed without rerun.
+First receipt/logs and acceptance-review are retained privately under
+`.artifacts/issue-364/diagnostic-validation-first/`. Minimum/final free bytes
+were14943236096/14952652800. The phase released all known owned groups,
+removed its ephemeral profile and closed its observed loopback listener.
+
+Root then authorized one separately bounded, corrected desktop-only control:
+
+```sh
+pnpm --filter happyherd-app exec vitest run sources/components/desktopWorkspace.browser.test.ts -t "keeps Workspace machine choices compact and recovers a missing path: 'standalone' 1440" --maxWorkers=1 --no-file-parallelism
+```
+
+Natural exit0; exact quoted desktop case PASSED, **1 passed/49 unselected**.
+The case took2011ms; runner duration4.09s and whole preflight/final phase5.93s.
+Semantic row/count checks passed immediately after the command. No failure
+or cleanup diagnostic emitted. Minimum/final free bytes14939127808/14946660352;
+all known owned PIDs/groups absent, observed profile removed/no active match,
+and observed loopback closed. Source/lock/config parity held. Receipt and full
+logs: `.artifacts/issue-364/diagnostic-desktop-first/`. Slot RELEASED.
+
+These are39 synthetic helper tests + prior two Antigravity rendered controls
++ one separately selected desktop control, not a single three-case run or
+full package/default CI proof. Success-silent channel observation does not
+independently prove runtime availability/restoration from emitted records;
+helper integrity tests provide separate synthetic evidence. Unit/type/i18n
+were not repeated for the corrected selection or this prose. No screenshots
+were recaptured, provider/account/IDE invoked, context recovered, dependencies
+installed, or timeout/worker defaults changed. Prior native-recovery limits
+and capture provenance remain in force. Publication/golden import remain
+held for independent committed-head review; no push or new CI authorized.
