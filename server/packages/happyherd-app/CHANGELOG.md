@@ -1,3 +1,11 @@
+# October 15 — Daemon startup diagnostics
+
+- Failed daemon startup now includes a bounded readiness summary for troubleshooting. This diagnostic does not automatically fix or retry startup.
+
+# October 15 — Claude child completion notifications
+
+- Claude child cards retain completed, failed, or cancelled outcomes from prefixed provider notifications in remote sessions. Background launch receipts and parent completion still leave active children running.
+
 # October 14 — Use local voice in every composer
 
 - New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it.

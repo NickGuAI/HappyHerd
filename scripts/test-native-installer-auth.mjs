@@ -15,6 +15,7 @@ import {
   classifyDaemonStartup,
   isOwnedDaemonLogPath,
 } from './native-installer-startup-diagnostic.mjs';
+import { reportWithReadinessSummary } from './native-installer-readiness-summary.mjs';
 
 const [installRoot, testHome, serverUrl, separator, ...rerun] = process.argv.slice(2);
 assert(installRoot && testHome && serverUrl && separator === '--' && rerun.length,
@@ -126,15 +127,14 @@ async function collectDaemonStartupDiagnostic(foregroundOutput) {
 async function reportDaemonStartupDiagnostic(foregroundOutput) {
   let timer;
   try {
-    const diagnostic = await Promise.race([
+    await reportWithReadinessSummary(foregroundOutput, () => Promise.race([
       collectDaemonStartupDiagnostic(foregroundOutput),
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error('daemon startup diagnostic timed out')), 10_000);
       }),
-    ]);
-    if (diagnostic) {
+    ]), diagnostic => {
       console.error(`native-installer-auth: daemon startup diagnostic: ${JSON.stringify(diagnostic)}`);
-    }
+    });
   } catch {
     // The original daemon start failure remains authoritative.
   } finally {

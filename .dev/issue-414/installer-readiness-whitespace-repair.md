@@ -1,0 +1,11 @@
+# Diagnostic source lint repair chronology
+
+The diagnostic commit edfb3da703070749a3b3bd137b5dccb46bc763d4 passed the separate 201-entry changelog parser. Its first maintained default source lint exited 1 for ten trailing-whitespace lines in controlClient.ts; subsequent gates were not run. That original failure log and the actual tested 5f12aa9f packet proof remain preserved.
+
+The authorized follow-up removes only trailing ASCII spaces from lines 62, 80, 306, 313, 315, 317, 319, 323, 382 and 398 of that committed file. Each line is blank or JSDoc comment text. Exact line comparison proves these ten lines are the sole source delta, with no string literal or executable-body changes. Normalizing only those approved line endings makes the old and new bytes identical. The other seven diagnostic source/test files remain byte-identical to the tested packet; raw byte identity is not claimed for controlClient.ts.
+
+No unit, typecheck or build rerun was performed for this trivia-only change. The existing 10 Node tests, 30 Vitest tests, build and typecheck results describe the earlier working-tree packet, with normalized source parity for this revision. The changelog remains at the previously parsed 201 entries. Default source lint and the remaining light gates will be recorded separately against the exact follow-up commit. No new CI, native installer or live-provider evidence is claimed, and the original native failure remains unresolved.
+
+## Commit subject correction
+
+The first follow-up commit 3618a4a36d724676797fda2127baa77d7224dbd2 passed default source lint, whitespace, both declared rename checks and full-history public-boundary verification. Patch discipline then exited 1 because the root-authorized `style(cli)` subject prefix is not in its maintained conventional-subject allowlist. Root acknowledged the incorrect prefix and authorized this metadata-only correction to `chore(cli): remove daemon control trailing whitespace`, with the matching ledger row replaced. The original commit is retained under a local task ref and its failed gate log is unchanged. Source, tests, changelog and image blobs are unchanged; this note does not claim the corrected gate has passed. Only patch discipline is rerun against the amended clean head, with its result retained separately.

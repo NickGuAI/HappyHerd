@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RawJSONLines } from '../types';
+import { RawJSONLinesSchema, type RawJSONLines } from '../types';
 import { SDKToLogConverter } from './sdkToLogConverter';
 import { closeClaudeTurnWithStatus, mapClaudeLogMessageToSessionEnvelopes, type ClaudeSessionProtocolState } from './sessionProtocolMapper';
 
@@ -21,7 +21,85 @@ function map(state: ClaudeSessionProtocolState, row: unknown) {
     return mapClaudeLogMessageToSessionEnvelopes(row as RawJSONLines, state).envelopes;
 }
 
+function prefixedNotification(status: string, taskId = 'task-1') {
+    return {
+        type: 'user', isSynthetic: true, origin: { kind: 'task-notification' },
+        message: { role: 'user', content: [{ type: 'text', text:
+            `[SYSTEM NOTIFICATION - NOT USER INPUT]\n<task-notification><task-id>${taskId}</task-id><status>${status}</status><summary>Child outcome</summary></task-notification>`,
+        }] },
+    };
+}
+
 describe('Claude background child lifecycle (#344)', () => {
+    it.each(['completed', 'failed', 'stopped'] as const)('retains prefixed SDK meta notification identity through conversion: %s (#414)', (status) => {
+        const replay = () => {
+            const converter = new SDKToLogConverter({ sessionId: 'session', cwd: '/tmp', version: 'test', gitBranch: 'main' });
+            const state: ClaudeSessionProtocolState = { currentTurnId: null };
+            const convertAndMap = (row: unknown) => map(state, converter.convert(row as any));
+            const first = convertAndMap(launch()).find(e => e.ev.t === 'start')!;
+            expect(convertAndMap(ack())).toEqual([]);
+            const sibling = convertAndMap(launch('sibling')).find(e => e.ev.t === 'start')!;
+            expect(convertAndMap(ack('sibling', 'task-2'))).toEqual([]);
+            expect(closeClaudeTurnWithStatus(state, 'completed').envelopes.map(e => e.ev.t)).toEqual(['turn-end']);
+            const notification = prefixedNotification(status);
+            const terminal = convertAndMap(notification);
+            expect(terminal).toEqual([expect.objectContaining({
+                turn: first.turn, subagent: first.subagent,
+                ev: { t: 'stop', status: status === 'stopped' ? 'cancelled' : status, authoritative: true, detail: 'Child outcome' },
+            })]);
+            expect(convertAndMap(notification)).toEqual([]);
+            expect(convertAndMap(lifecycle('task_progress', { summary: 'Late activity' }))[0])
+                .toMatchObject({ subagent: first.subagent, ev: { t: 'text', text: 'Late activity' } });
+            expect(state.activeSubagents?.has(first.subagent!)).toBe(false);
+            expect(state.activeSubagents?.has(sibling.subagent!)).toBe(true);
+            return terminal.map(e => e.ev);
+        };
+        expect(replay()).toEqual(replay());
+    });
+
+    it.each(['ordinary user', 'wrong meta origin'] as const)('does not stop an active child from %s through conversion (#414)', (kind) => {
+        const converter = new SDKToLogConverter({ sessionId: 'session', cwd: '/tmp', gitBranch: 'main' });
+        const state: ClaudeSessionProtocolState = { currentTurnId: null };
+        const convertAndMap = (row: unknown) => map(state, converter.convert(row as any));
+        const child = convertAndMap(launch()).find(e => e.ev.t === 'start')!.subagent!;
+        convertAndMap(ack());
+        const notification = prefixedNotification('failed');
+        const invalid = kind === 'ordinary user'
+            ? { ...notification, isSynthetic: false }
+            : { ...notification, origin: { kind: 'other' } };
+        expect(convertAndMap(invalid).some(e => e.ev.t === 'stop')).toBe(false);
+        expect(state.activeSubagents?.has(child)).toBe(true);
+        expect(state.subagentStops?.has(child) ?? false).toBe(false);
+    });
+
+    it('correlates converted notifications arriving before launch receipts and preserves identities on JSONL replay (#414)', () => {
+        const converter = new SDKToLogConverter({ sessionId: 'session', cwd: '/tmp', gitBranch: 'main' });
+        const rows = [
+            launch(), launch('sibling'),
+            prefixedNotification('failed'), prefixedNotification('cancelled', 'task-2'),
+            ack('sibling', 'task-2'), ack(),
+            lifecycle('task_progress', { task_id: 'task-2', summary: 'Late sibling activity' }),
+            prefixedNotification('failed'),
+        ].map(row => RawJSONLinesSchema.parse(JSON.parse(JSON.stringify(converter.convert(row as any)))));
+        expect(rows[2]).toMatchObject({ isMeta: true, origin: { kind: 'task-notification' } });
+        const replay = () => {
+            const state: ClaudeSessionProtocolState = { currentTurnId: null };
+            const batches = rows.map(row => map(state, row));
+            const first = batches[0].find(e => e.ev.t === 'start')!;
+            const sibling = batches[1].find(e => e.ev.t === 'start')!;
+            expect(batches[2]).toEqual([]);
+            expect(batches[3]).toEqual([]);
+            expect(batches[4]).toEqual([expect.objectContaining({ subagent: sibling.subagent, ev: expect.objectContaining({ t: 'stop', status: 'cancelled' }) })]);
+            expect(batches[5]).toEqual([expect.objectContaining({ subagent: first.subagent, ev: expect.objectContaining({ t: 'stop', status: 'failed' }) })]);
+            expect(batches[6][0]).toMatchObject({ subagent: sibling.subagent, ev: { t: 'text', text: 'Late sibling activity' } });
+            expect(batches[7]).toEqual([]);
+            expect(state.activeSubagents?.size).toBe(0);
+            return batches.flat().filter(e => e.ev.t === 'start' || e.ev.t === 'stop')
+                .map(({ id, turn, subagent, ev }) => ({ id, turn, subagent, ev }));
+        };
+        expect(replay()).toEqual(replay());
+    });
+
     it('preserves the SDK structured launch result before mapping it', () => {
         const converter = new SDKToLogConverter({ sessionId: 'session', cwd: '/tmp', version: 'test', gitBranch: 'main' });
         const row = ack();
