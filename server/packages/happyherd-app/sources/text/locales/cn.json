@@ -2132,7 +2132,8 @@
       "unsupported": "尚不支持此提供方的上下文窗口。",
       "offline": "会话所在机器离线或不可用。请重新连接后重试。",
       "missing": "此机器上缺少提供方的会话记录或会话标识。",
-      "unreadable": "无法读取上下文窗口。请检查机器连接和提供方版本，然后重试。"
+      "unreadable": "无法读取上下文窗口。请检查机器连接和提供方版本，然后重试。",
+      "agy_context_unavailable": "无法恢复此会话的 Antigravity 当前上下文。HappyHerd 没有经过验证的原生会话标识或当前上下文窗口记录。重试会再次检查可用性，不会启动 Antigravity。"
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "此会话记录不包含 Claude Code 的内置系统提示词。",

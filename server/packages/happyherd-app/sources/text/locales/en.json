@@ -2132,7 +2132,8 @@
       "unsupported": "This provider’s context window is not supported yet.",
       "offline": "The session’s machine is offline or unavailable. Reconnect it and retry.",
       "missing": "The provider transcript or session identity is missing on this machine.",
-      "unreadable": "The context window could not be read. Check the machine connection and provider version, then retry."
+      "unreadable": "The context window could not be read. Check the machine connection and provider version, then retry.",
+      "agy_context_unavailable": "Antigravity’s current context cannot be recovered for this session. HappyHerd has no verified native conversation identity or current-window trace. Retry checks availability again; it does not start Antigravity."
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "Claude Code’s built-in system prompt is not recorded in this transcript.",

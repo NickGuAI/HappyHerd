@@ -36,7 +36,7 @@ export const ContextWindowResponseSchema = z.discriminatedUnion('type', [
     }),
     z.object({
         type: z.literal('error'),
-        reason: z.enum(['unsupported', 'missing', 'unreadable']),
+        reason: z.enum(['unsupported', 'missing', 'unreadable', 'agy_context_unavailable']),
     }),
 ]);
 

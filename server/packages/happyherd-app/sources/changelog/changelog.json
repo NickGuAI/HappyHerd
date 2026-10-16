@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 15 — Explain unavailable Antigravity context",
+      "summary": "",
+      "markdown": "- The experimental Context window explains why an Antigravity session’s current context cannot yet be recovered and offers Retry on its original machine, without starting the provider or showing another conversation’s history."
+    },
+    {
       "title": "October 14 — Use local voice in every composer",
       "summary": "",
       "markdown": "- New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it."
@@ -996,5 +1001,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 14 — Use local voice in every composer"
+  "latestTitle": "October 15 — Explain unavailable Antigravity context"
 }

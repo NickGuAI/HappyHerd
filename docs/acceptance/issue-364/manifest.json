@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "rendered synthetic RPC fixture; no authenticated native context capture",
+  "comparisonBase": "632dc24332e49bfd773c5163ab8c045a3b74a5cf",
+  "testedProductionCommit": "606190d7bfbd3ae382df3668d2c98ad9c4f4440d",
+  "captureParentCommit": "5cfbff006c44df1355871be8fc2e4b2b0afadca8",
+  "captureSourceChange": "Only animations: 'disabled' added to the optional screenshot helper for the two Antigravity cases; captured before committing that change.",
+  "captureTestFile": "server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts",
+  "captureTestFileSha256": "7499f7ed46d5669cb00f257e2de76b9abe21172211aa9519a39cdf723d4c40f4",
+  "captureChangeCommittedAs": "71b3ff9cdc9f8628b583b1ccffe377ead8fa3285",
+  "result": {
+    "passed": 2,
+    "unselected": 164,
+    "viewports": [
+      "1440x900",
+      "390x844"
+    ]
+  },
+  "images": [
+    {
+      "filename": "agy-1440-entry.png",
+      "width": 1440,
+      "height": 900,
+      "bytes": 62013,
+      "sha256": "2b403cad993fc120cc9a998a036ab1f645bf5464406c8c3cda4bb5848658a2d2"
+    },
+    {
+      "filename": "agy-1440-retry-reload.png",
+      "width": 1440,
+      "height": 900,
+      "bytes": 40168,
+      "sha256": "1768318b8a4486bee4cc6f70d7a65b72c6527135c8e902ddbb546d7378619914"
+    },
+    {
+      "filename": "agy-1440-switch.png",
+      "width": 1440,
+      "height": 900,
+      "bytes": 128046,
+      "sha256": "3c804930a18ca24a5b0785a7cd36cc460f1c165dfa1037f863f286f98c9300dd"
+    },
+    {
+      "filename": "agy-1440-unavailable.png",
+      "width": 1440,
+      "height": 900,
+      "bytes": 40168,
+      "sha256": "1768318b8a4486bee4cc6f70d7a65b72c6527135c8e902ddbb546d7378619914"
+    },
+    {
+      "filename": "agy-390-entry.png",
+      "width": 390,
+      "height": 844,
+      "bytes": 33934,
+      "sha256": "17467f57a25e903f709eff9feadcb53df7351b191b48e5bb1f497301f3a4b887"
+    },
+    {
+      "filename": "agy-390-retry-reload.png",
+      "width": 390,
+      "height": 844,
+      "bytes": 36360,
+      "sha256": "05cf0173d00f4ed18493c72329610cbbe420cb11fb1a0108f995c1c09dce2351"
+    },
+    {
+      "filename": "agy-390-switch.png",
+      "width": 390,
+      "height": 844,
+      "bytes": 70949,
+      "sha256": "81ce6e382ba7a5df2fac37af898f7b663a3a087b4a8bacafee45ce22232ec88f"
+    },
+    {
+      "filename": "agy-390-unavailable.png",
+      "width": 390,
+      "height": 844,
+      "bytes": 36360,
+      "sha256": "05cf0173d00f4ed18493c72329610cbbe420cb11fb1a0108f995c1c09dce2351"
+    }
+  ]
+}

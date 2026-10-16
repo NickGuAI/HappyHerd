@@ -280,6 +280,17 @@ describe('read-only machine trace lookup', () => {
         expect(await readContextWindow({ provider: 'codex', directory: '/fixture/project', codexThreadId, codexHome })).toEqual(parseCodexContextWindow(text));
     });
 
+    it('does not infer Antigravity context from a cwd or another provider identity', async () => {
+        const request = {
+            provider: 'agy', directory: '/fixture/shared-workspace', sessionId: 'happyherd-session',
+            homeDir: '/fixture/original-home', codexHome: '/fixture/unrelated-state',
+            codexThreadId: 'other-thread', claudeSessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        };
+        for (let attempt = 0; attempt < 2; attempt++) {
+            expect(await readContextWindow(request)).toEqual({ type: 'error', reason: 'agy_context_unavailable' });
+        }
+    });
+
     it('returns unsupported, missing, and unreadable receipts and succeeds after an incomplete append is retried', async () => {
         const root = await temporaryRoot();
         const directory = '/fixture/project';
