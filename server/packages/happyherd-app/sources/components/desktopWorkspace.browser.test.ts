@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, onTestFinished } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import { transformSync } from '@babel/core';
 
-import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
+import { traceBrowserStartup, recordWorkspaceAwaitFailure } from './__testdata__/browserStartupTrace';
 import { browserFixtureSetup } from './__testdata__/browserFixtureSetup';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -869,52 +869,127 @@ describe('Desktop workspace browser interaction', () => {
         { surface: 'embedded', width: 1440, height: 900 },
         { surface: 'embedded', width: 390, height: 844 },
     ])('keeps Workspace machine choices compact and recovers a missing path: $surface $width', async ({ surface, width, height }) => {
+        const phase = surface === 'standalone' && width === 1440 ? recordWorkspaceAwaitFailure() : undefined;
+        if (phase) {
+            onTestFinished(() => phase.freeze());
+            onTestFailed(() => phase.fail());
+        }
+        phase?.begin('page-create');
         const page = await browser.newPage({ viewport: { width, height } });
+        phase?.end('page-create');
         const errors = recordPageErrors(page);
+        phase?.begin('fixture-navigate');
         await page.goto(`${origin}/?workspace-browser=${surface}`);
+        phase?.end('fixture-navigate');
+        phase?.begin('missing-initial-wait');
         await page.getByText('workspace.missingPathTitle', { exact: true }).waitFor();
+        phase?.end('missing-initial-wait');
         const machine = page.getByRole('button', { name: 'remote', exact: true });
+        phase?.begin('machine-box');
         const box = await machine.boundingBox();
+        phase?.end('machine-box');
+        phase?.begin('assertion');
         if (!box) throw new Error('Workspace machine choice is not rendered');
+        phase?.end('assertion');
         const evidenceDirectory = process.env.HAPPYHERD_WORKSPACE_LAYOUT_EVIDENCE_DIR?.trim();
-        if (evidenceDirectory) await page.screenshot({ path: resolve(evidenceDirectory, `workspace-${surface}-${width}-missing.png`) });
+        if (evidenceDirectory) {
+            phase?.begin('missing-capture');
+            await page.screenshot({ path: resolve(evidenceDirectory, `workspace-${surface}-${width}-missing.png`) });
+            phase?.end('missing-capture');
+        }
+        phase?.begin('assertion');
         expect(box.height).toBeGreaterThanOrEqual(38);
         expect(box.height).toBeLessThanOrEqual(48);
+        phase?.end('assertion');
 
         const recentChip = page.getByText('~/projects/a-long-project-folder/materials/reference-documents', { exact: true }).locator('..');
+        phase?.begin('recent-box');
         const recentBox = await recentChip.boundingBox();
+        phase?.end('recent-box');
+        phase?.begin('assertion');
         expect(recentBox?.height).toBeGreaterThanOrEqual(32);
         expect(recentBox?.height).toBeLessThanOrEqual(40);
+        phase?.end('assertion');
         const recentStrip = recentChip.locator('../..');
+        phase?.begin('recent-hover');
         await recentStrip.hover();
+        phase?.end('recent-hover');
+        phase?.begin('recent-wheel');
         await page.mouse.wheel(600, 0);
+        phase?.end('recent-wheel');
+        phase?.begin('recent-scroll-poll');
         await expect.poll(() => recentStrip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+        phase?.end('recent-scroll-poll');
+        phase?.begin('root-click');
         await page.getByText('~', { exact: true }).click();
+        phase?.end('root-click');
+        phase?.begin('root-file-wait');
         await page.getByText('remote.md', { exact: true }).waitFor();
+        phase?.end('root-file-wait');
 
         const path = page.getByPlaceholder('Path');
+        phase?.begin('missing-path-fill');
         await path.fill('/machine-root/deleted-worktree');
+        phase?.end('missing-path-fill');
+        phase?.begin('missing-path-submit');
         await path.press('Enter');
+        phase?.end('missing-path-submit');
+        phase?.begin('missing-again-wait');
         await page.getByText('workspace.missingPathTitle', { exact: true }).waitFor();
+        phase?.end('missing-again-wait');
 
+        phase?.begin('home-click');
         await page.getByText('Home', { exact: true }).click();
+        phase?.end('home-click');
+        phase?.begin('home-file-wait');
         await page.getByText('remote.md', { exact: true }).waitFor();
+        phase?.end('home-file-wait');
+        phase?.begin('missing-count-assert');
         await expect(page.getByText('workspace.missingPathTitle', { exact: true }).count()).resolves.toBe(0);
+        phase?.end('missing-count-assert');
+        phase?.begin('home-path-assert');
         await expect(page.getByPlaceholder('Path').inputValue()).resolves.toBe('/machine-root');
+        phase?.end('home-path-assert');
+        phase?.begin('directory-call-assert');
         await expect(page.evaluate(() => window.__MACHINE_DIRECTORY_CALLS__?.at(-1))).resolves.toEqual({
             machineId: 'machine-2', path: '/machine-root', depth: 1,
         });
+        phase?.end('directory-call-assert');
+        phase?.begin('loaded-machine-box');
         const loadedBox = await machine.boundingBox();
+        phase?.end('loaded-machine-box');
+        phase?.begin('assertion');
         expect(loadedBox?.height).toBeLessThanOrEqual(48);
+        phase?.end('assertion');
+        phase?.begin('session-click');
         await page.getByRole('button', { name: 'session', exact: true }).click();
+        phase?.end('session-click');
+        phase?.begin('session-path-poll');
         await expect.poll(() => page.getByPlaceholder('Path').inputValue()).toBe('/workspace');
+        phase?.end('session-path-poll');
+        phase?.begin('machine-click');
         await machine.click();
+        phase?.end('machine-click');
+        phase?.begin('machine-missing-wait');
         await page.getByText('workspace.missingPathTitle', { exact: true }).waitFor();
+        phase?.end('machine-missing-wait');
+        phase?.begin('parent-click');
         await page.getByText('Parent', { exact: true }).click();
+        phase?.end('parent-click');
+        phase?.begin('parent-file-wait');
         await page.getByText('remote.md', { exact: true }).waitFor();
-        if (evidenceDirectory) await page.screenshot({ path: resolve(evidenceDirectory, `workspace-${surface}-${width}.png`) });
+        phase?.end('parent-file-wait');
+        if (evidenceDirectory) {
+            phase?.begin('loaded-capture');
+            await page.screenshot({ path: resolve(evidenceDirectory, `workspace-${surface}-${width}.png`) });
+            phase?.end('loaded-capture');
+        }
+        phase?.begin('assertion');
         expect(errors).toEqual([]);
+        phase?.end('assertion');
+        phase?.begin('page-close');
         await page.close();
+        phase?.end('page-close');
     }, 10_000);
 
     it('keeps the top bar above the real session header and collapses the panel from it', async () => {

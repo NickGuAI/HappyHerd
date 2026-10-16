@@ -10,7 +10,7 @@ import { darkTheme, lightTheme } from '@/theme';
 import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
 import { contextWindowReply } from './__testdata__/contextWindow.browser.fixture';
 
-import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
+import { traceBrowserStartup, observeWarmupChannels } from './__testdata__/browserStartupTrace';
 import { browserFixtureSetup } from './__testdata__/browserFixtureSetup';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -1511,6 +1511,7 @@ describe('Side chats browser interaction', () => {
     let server: Server;
     let origin: string;
     let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
+    let warmupTrace: ReturnType<typeof observeWarmupChannels> | undefined;
     let fixtureSetup: ReturnType<typeof browserFixtureSetup<Server, Browser, Server>> | undefined;
 
     beforeAll(async () => {
@@ -1652,7 +1653,15 @@ describe('Side chats browser interaction', () => {
                 // Blank renderer warmup remains inside the unchanged hook budget.
                 assertActive();
                 const warmupStartedAt = performance.now();
-                const warmup = await setupStage('warmup-new-page', () => acquiredBrowser.newPage());
+                warmupTrace = observeWarmupChannels(acquiredBrowser);
+                let warmup!: Page;
+                let pageCreated = false;
+                try {
+                    warmup = await setupStage('warmup-new-page', () => acquiredBrowser.newPage());
+                    pageCreated = true;
+                } finally {
+                    warmupTrace.stop(pageCreated ? 'success' : 'failure');
+                }
                 let failed = false;
                 try {
                     assertActive();
@@ -1673,7 +1682,10 @@ describe('Side chats browser interaction', () => {
             closeServer: (acquiredServer) => new Promise<void>((resolveClosed, reject) => {
                 acquiredServer.close(error => error ? reject(error) : resolveClosed());
             }),
-            onStop: () => startupTrace?.stop('hook-teardown'),
+            onStop: () => {
+                warmupTrace?.stop('teardown');
+                startupTrace?.stop('hook-teardown');
+            },
             onCleanupFailure: (resource) => console.info('[browser fixture cleanup]', {
                 fixture: 'sideChatHeader', resource, status: 'failed',
             }),
