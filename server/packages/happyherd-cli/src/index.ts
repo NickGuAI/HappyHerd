@@ -16,6 +16,7 @@ import { authAndSetupMachineIfNeeded } from './ui/auth'
 import packageJson from '../package.json'
 import { z } from 'zod'
 import { startDaemon } from './daemon/run'
+import { createDaemonReadinessRecorder, emitDaemonReadinessFailure } from './daemon/startupReadiness'
 import { checkIfDaemonRunningAndCleanupStaleState, isDaemonRunningCurrentlyInstalledHappyHerdVersion, stopDaemon } from './daemon/controlClient'
 import { getLatestDaemonLog } from './ui/logger'
 import { killRunawayHappyHerdProcesses } from './daemon/doctor'
@@ -584,8 +585,9 @@ Conversation history is preserved on the server, but in-flight tool calls are in
 
       // Wait for daemon to write state file (up to 5 seconds)
       let started = false;
+      const readiness = createDaemonReadinessRecorder();
       for (let i = 0; i < 50; i++) {
-        if (await checkIfDaemonRunningAndCleanupStaleState()) {
+        if (await checkIfDaemonRunningAndCleanupStaleState(readiness.observe)) {
           started = true;
           break;
         }
@@ -596,6 +598,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
         console.log('Daemon started successfully');
       } else {
         console.error('Failed to start daemon');
+        emitDaemonReadinessFailure(readiness);
         process.exit(1);
       }
       process.exit(0);

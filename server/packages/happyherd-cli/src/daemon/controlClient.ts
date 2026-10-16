@@ -8,6 +8,7 @@ import {
   type DevicePairingCreateResponse, type DevicePairingCancelResponse,
 } from '@happyherd/wire';
 import { logger } from '@/ui/logger';
+import type { DaemonReadinessObservation } from './startupReadiness';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
@@ -323,9 +324,15 @@ export async function stopDaemonHttp(): Promise<void> {
  * We can destructure the response on the caller for richer output.
  * For instance when running `happyherd daemon status` we can show more information.
  */
-export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<boolean> {
+export async function checkIfDaemonRunningAndCleanupStaleState(
+  observer?: (observation: DaemonReadinessObservation) => void,
+): Promise<boolean> {
+  const observe = (reason: DaemonReadinessObservation['reason'], ready: boolean) => {
+    try { observer?.({ reason, ready }); } catch { /* Diagnostics cannot change readiness. */ }
+  };
   const state = await readDaemonState();
   if (!state) {
+    observe('state-unavailable', false);
     return false;
   }
 
@@ -335,12 +342,15 @@ export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<boolea
   } catch {
     logger.debug('[DAEMON RUN] Daemon PID not running, cleaning up state');
     await cleanupDaemonState();
+    observe('process-check-failed', false);
     return false;
   }
 
   // PID is alive, but on Windows PIDs get reused after reboot.
   // Verify it's actually our daemon by HTTP pinging its control server.
+  let acceptedReason: DaemonReadinessObservation['reason'] = 'accepted-without-port';
   if (state.httpPort) {
+    acceptedReason = 'accepted-after-http-non-ok';
     try {
       const response = await fetch(`http://127.0.0.1:${state.httpPort}/list`, {
         method: 'POST',
@@ -349,16 +359,19 @@ export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<boolea
         signal: AbortSignal.timeout(5000)
       });
       if (response.ok) {
+        observe('http-ok', true);
         return true;
       }
     } catch {
       // HTTP check failed - the PID is not our daemon (likely reused by OS after reboot)
       logger.debug(`[DAEMON RUN] PID ${state.pid} is alive but HTTP health check failed on port ${state.httpPort}, cleaning up stale state`);
       await cleanupDaemonState();
+      observe('http-request-failed', false);
       return false;
     }
   }
 
+  observe(acceptedReason, true);
   return true;
 }
 
