@@ -4,11 +4,13 @@ import { View, ScrollView, Pressable } from 'react-native';
 import { Text } from '@/components/StyledText';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { UsageDataPoint, usageMetricTotal } from '@/sync/apiUsage';
+import { formatUsageChartLabel } from './usageChartLabels';
 
 import { t } from '@/text';
 interface UsageChartProps {
     data: UsageDataPoint[];
     metric: 'tokens' | 'cost';
+    groupBy: 'hour' | 'day';
     height?: number;
     onBarPress?: (dataPoint: UsageDataPoint, index: number) => void;
 }
@@ -65,6 +67,7 @@ const styles = StyleSheet.create((theme) => ({
 export const UsageChart: React.FC<UsageChartProps> = ({
     data,
     metric,
+    groupBy,
     height = 200,
     onBarPress
 }) => {
@@ -87,15 +90,7 @@ export const UsageChart: React.FC<UsageChartProps> = ({
     
     // Format date label
     const formatLabel = (timestamp: number): string => {
-        const date = new Date(timestamp * 1000);
-        const now = new Date();
-        const isToday = date.toDateString() === now.toDateString();
-        
-        if (isToday) {
-            return date.toLocaleTimeString('en-US', { hour: 'numeric' });
-        } else {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
+        return formatUsageChartLabel(timestamp, groupBy);
     };
     
     // Format value for display

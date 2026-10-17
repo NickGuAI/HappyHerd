@@ -21,6 +21,7 @@ import {
 } from '@/credentialPool/providerLimits';
 import { pluginsFromArgs } from './utils/pluginsFromArgs';
 import { claudeProviderAuthMessage } from './utils/providerAuth';
+import type { ClaudeModelUsageLike } from '@/usage/providerUsage';
 
 export async function claudeRemote(opts: {
 
@@ -59,6 +60,12 @@ export async function claudeRemote(opts: {
     onSDKMetadata?: (metadata: { tools?: string[]; slashCommands?: string[]; mcpServers?: { name: string; status: string }[]; skills?: string[] }) => void,
     /** Per-turn plan rate-limit delta; the launcher merges it into agent state. */
     onUsageLimits?: (patch: UsageLimitsPatch) => void,
+    /** Cumulative model usage restored by the provider when resuming a session. */
+    onUsageBaseline?: (baseline: {
+        sessionId: string;
+        available: boolean;
+        modelUsage?: Record<string, ClaudeModelUsageLike>;
+    }) => void | Promise<void>,
     /** One coalesced hard-limit signal for credential-pool rotation. Return false when delivery failed and may be retried. */
     onProviderHardLimit?: (limit: ProviderHardLimit) => boolean | void | Promise<boolean | void>,
 }): Promise<'quota-exhausted' | void> {
@@ -185,19 +192,12 @@ export async function claudeRemote(opts: {
         }
     };
 
-    // Push initial message
+    // Create the input stream empty. A resumed Claude process restores its
+    // session ledger during initialization, before it accepts the first user
+    // message, so read that baseline before pushing the prompt.
     let messages = new PushableAsyncIterable<SDKUserMessage>();
     let nextMessageFailed = false;
     let nextMessageFailure: unknown;
-    messages.push({
-        type: 'user',
-        parent_tool_use_id: null,
-        message: {
-            role: 'user',
-            content: initial.message,
-        },
-    });
-
     // Start the loop
     const response = query({
         prompt: messages,
@@ -210,6 +210,47 @@ export async function claudeRemote(opts: {
             setPermissionMode: (mode: string) => response.setPermissionMode(mode as any),
         });
     }
+
+    if (startFrom) {
+        let resumedSessionId = startFrom;
+        let baselineAvailable = false;
+        let modelUsage: Record<string, ClaudeModelUsageLike> | undefined;
+        try {
+            await response.initializationResult();
+            const usageFn = (response as any).usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET;
+            if (typeof usageFn !== 'function') {
+                throw new Error('Claude SDK does not expose get_usage for resumed usage baseline');
+            }
+            const usage = await usageFn.call(response, { skipBehaviors: true });
+            const restoredModelUsage = usage?.session?.model_usage;
+            if (restoredModelUsage && typeof restoredModelUsage === 'object' && !Array.isArray(restoredModelUsage)) {
+                modelUsage = restoredModelUsage as Record<string, ClaudeModelUsageLike>;
+                baselineAvailable = true;
+            } else {
+                throw new Error('Claude SDK get_usage did not return session.model_usage');
+            }
+        } catch (error) {
+            logger.debug('[claudeRemote] resumed usage baseline lookup failed (ignored)', error);
+        }
+        try {
+            await opts.onUsageBaseline?.({
+                sessionId: resumedSessionId,
+                available: baselineAvailable,
+                ...(modelUsage ? { modelUsage } : {}),
+            });
+        } catch (error) {
+            logger.debug('[claudeRemote] resumed usage baseline callback failed (ignored)', error);
+        }
+    }
+
+    messages.push({
+        type: 'user',
+        parent_tool_use_id: null,
+        message: {
+            role: 'user',
+            content: initial.message,
+        },
+    });
 
     // Plan rate-limit accumulation: events are buffered and flushed once per
     // result (coalescing agent-state writes to at most one per turn). The seed

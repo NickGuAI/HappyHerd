@@ -18,6 +18,11 @@ export type UsageCounterSnapshot = {
     reasoning: number;
 };
 
+export type ClaudeUsageCursor = {
+    tokens: UsageCounterSnapshot;
+    costUsd?: number;
+};
+
 export type ProviderUsageReport = {
     key: string;
     provider: SupportedUsageProvider;

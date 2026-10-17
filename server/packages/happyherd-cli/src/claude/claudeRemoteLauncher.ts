@@ -30,7 +30,8 @@ import {
     usageCounterDelta,
     usageReportKey,
     usageTokens,
-    type UsageCounterSnapshot,
+    type ClaudeUsageCursor,
+    type ClaudeModelUsageLike,
 } from '@/usage/providerUsage';
 
 interface PermissionsField {
@@ -155,74 +156,206 @@ export async function claudeRemoteLauncher(
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
     let notifiedQuestionToolCalls = new Set<string>();
     let heartbeatProviderResult: { status: 'completed' | 'failed'; message: string | null } | null = null;
-    const previousUsageByModel = new Map<string, { tokens: UsageCounterSnapshot; costUsd?: number }>();
+    const previousUsageBySessionModel = new Map<string, Map<string, ClaudeUsageCursor>>(
+        Object.entries(session.client.getAgentState?.()?.usageCursors?.claudeTokens ?? {})
+            .map(([providerSessionId, modelCursors]) => [providerSessionId, new Map(Object.entries(modelCursors))]),
+    );
     const reportedUsageEventIds = new Set<string>();
+    const resumedBaselineUnavailableSessions = new Set<string>();
+    let usageReportChain: Promise<void> = Promise.resolve();
+
+    const applyUsageBaseline = (baseline: {
+        sessionId: string;
+        available: boolean;
+        modelUsage?: Record<string, ClaudeModelUsageLike>;
+    }) => {
+        if (!baseline.available) {
+            resumedBaselineUnavailableSessions.add(baseline.sessionId);
+            return;
+        }
+
+        const baselineCursors = new Map<string, ClaudeUsageCursor>();
+        for (const [model, rawUsage] of Object.entries(baseline.modelUsage ?? {})) {
+            const snapshot = claudeModelUsageSnapshot(rawUsage);
+            baselineCursors.set(model, {
+                tokens: snapshot.tokens,
+                ...(snapshot.costUsd !== undefined ? { costUsd: snapshot.costUsd } : {}),
+            });
+        }
+
+        // This provider snapshot is authoritative for a resumed session, even
+        // when it is empty (which means the restored provider ledger reset).
+        previousUsageBySessionModel.set(baseline.sessionId, baselineCursors);
+        resumedBaselineUnavailableSessions.delete(baseline.sessionId);
+    };
+
+    const sendProviderUsageReportDurably = (
+        report: Parameters<typeof session.client.sendProviderUsageReport>[0],
+        options?: Parameters<typeof session.client.sendProviderUsageReport>[1],
+    ) => new Promise<void>((resolve, reject) => {
+        let durable = false;
+        const onDurable = () => {
+            durable = true;
+            try {
+                options?.onDurable?.();
+            } finally {
+                resolve();
+            }
+        };
+        let delivery: Promise<void>;
+        try {
+            delivery = session.client.sendProviderUsageReport(report, {
+                ...options,
+                onDurable,
+            });
+        } catch (error) {
+            reject(error);
+            return;
+        }
+        void delivery.then(() => {
+            if (!durable) reject(new Error('Provider usage report completed before its durable callback'));
+        }, (error) => {
+            if (!durable) reject(error);
+        });
+    });
+
+    const reportResultUsage = async (
+        message: Extract<SDKMessage, { type: 'result' }>,
+        usageOccurredAt: number,
+    ) => {
+        const modelUsage = message.modelUsage ?? {};
+        const entries = Object.entries(modelUsage);
+        const usageEventId = typeof message.uuid === 'string' ? message.uuid : null;
+        const providerSessionId = typeof message.session_id === 'string'
+            ? message.session_id
+            : session.sessionId;
+        const succeeded = message.subtype === 'success' && message.is_error !== true;
+        if (entries.length === 0 && usageEventId) {
+            await sendProviderUsageReportDurably({
+                key: usageReportKey(['claude', 'sdk-result', usageEventId, 'unavailable']),
+                provider: 'claude',
+                model: null,
+                source: 'claude-sdk-result-model-usage',
+                occurredAt: usageOccurredAt,
+                tokens: emptyUsageTokens(),
+                cost: { total: 0 },
+                costBasis: 'unavailable',
+                tokensAvailable: false,
+                costAvailable: false,
+                limitations: [
+                    'tokens-not-reported-by-provider',
+                    'cost-not-reported-by-provider',
+                    ...(providerSessionId && resumedBaselineUnavailableSessions.has(providerSessionId)
+                        ? ['resumed-session-baseline-unavailable']
+                        : []),
+                ],
+            }, {
+                onDurable: () => reportedUsageEventIds.add(usageReportKey(['claude', 'sdk-result', usageEventId, 'unavailable'])),
+            });
+        }
+        if (!usageEventId || !providerSessionId) {
+            if (entries.length > 0) {
+                logger.debug('[remote]: Claude result usage lacked a stable event or provider session id; skipping report');
+            }
+            return;
+        }
+
+        let unknownBaselineSeeded = false;
+        for (const [model, rawUsage] of entries) {
+            const reportKey = usageReportKey(['claude', 'sdk-result', usageEventId, model]);
+            if (reportedUsageEventIds.has(reportKey)) continue;
+
+            const current = claudeModelUsageSnapshot(rawUsage);
+            const sessionCursors = previousUsageBySessionModel.get(providerSessionId);
+            const previous = sessionCursors?.get(model);
+            const unknownResumedBaseline = resumedBaselineUnavailableSessions.has(providerSessionId) && !previous;
+            // Claude documents zeroed modelUsage placeholders on startup and
+            // crash failures. They are not measured usage or a new baseline.
+            const zeroFailurePlaceholder = !succeeded
+                && current.tokens.total === 0
+                && (current.costUsd ?? 0) === 0;
+            const tokenDelta = zeroFailurePlaceholder || unknownResumedBaseline
+                ? emptyUsageTokens()
+                : usageTokens(usageCounterDelta(current.tokens, previous?.tokens));
+            const costAvailable = !zeroFailurePlaceholder && !unknownResumedBaseline && current.costUsd !== undefined;
+            const costTotal = costAvailable
+                ? cumulativeCostDelta(current.costUsd!, previous?.costUsd)
+                : 0;
+            const nextCursor: ClaudeUsageCursor = {
+                tokens: current.tokens,
+                ...(current.costUsd !== undefined
+                    ? { costUsd: current.costUsd }
+                    : previous?.costUsd !== undefined ? { costUsd: previous.costUsd } : {}),
+            };
+
+            // A replayed result can already be represented by its durable
+            // cursor. Do not upsert a zero delta over its original event.
+            if (!zeroFailurePlaceholder
+                && tokenDelta.total === 0
+                && costTotal === 0
+                && previous
+                && current.tokens.total === previous.tokens.total) {
+                reportedUsageEventIds.add(reportKey);
+                continue;
+            }
+
+            await sendProviderUsageReportDurably({
+                key: reportKey,
+                provider: 'claude',
+                model,
+                source: 'claude-sdk-result-model-usage',
+                occurredAt: usageOccurredAt,
+                tokens: tokenDelta,
+                cost: { total: costTotal },
+                costBasis: costAvailable ? 'provider-estimate' : 'unavailable',
+                tokensAvailable: !zeroFailurePlaceholder && !unknownResumedBaseline,
+                costAvailable,
+                limitations: zeroFailurePlaceholder || unknownResumedBaseline
+                    ? ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider']
+                        .concat(unknownResumedBaseline ? ['resumed-session-baseline-unavailable'] : [])
+                    : (costAvailable ? [] : ['cost-not-reported-by-provider']),
+            }, {
+                ...(zeroFailurePlaceholder ? {} : {
+                    mutateAgentState: (currentState) => ({
+                        ...currentState,
+                        usageCursors: {
+                            ...currentState.usageCursors,
+                            claudeTokens: {
+                                ...currentState.usageCursors?.claudeTokens,
+                                [providerSessionId]: Object.fromEntries(
+                                    new Map(sessionCursors).set(model, nextCursor),
+                                ),
+                            },
+                        },
+                    }),
+                }),
+                onDurable: () => {
+                    reportedUsageEventIds.add(reportKey);
+                    if (!zeroFailurePlaceholder) {
+                        const currentSessionCursors = previousUsageBySessionModel.get(providerSessionId)
+                            ?? new Map<string, ClaudeUsageCursor>();
+                        currentSessionCursors.set(model, nextCursor);
+                        previousUsageBySessionModel.set(providerSessionId, currentSessionCursors);
+                    }
+                },
+            });
+            if (unknownResumedBaseline && !zeroFailurePlaceholder) {
+                unknownBaselineSeeded = true;
+            }
+        }
+        if (unknownBaselineSeeded) resumedBaselineUnavailableSessions.delete(providerSessionId);
+    };
 
     function onMessage(message: SDKMessage) {
 
         if (message.type === 'result') {
             const usageOccurredAt = Date.now();
-            const modelUsage = message.modelUsage ?? {};
-            const entries = Object.entries(modelUsage);
-            const usageEventId = typeof message.uuid === 'string' ? message.uuid : null;
             const succeeded = message.subtype === 'success' && message.is_error !== true;
-            if (entries.length === 0 && usageEventId) {
-                void session.client.sendProviderUsageLimitation({
-                    key: usageReportKey(['claude', 'sdk-result', usageEventId, 'unavailable']),
-                    provider: 'claude',
-                    model: null,
-                    source: 'claude-sdk-result-model-usage',
-                    occurredAt: usageOccurredAt,
-                    tokensAvailable: false,
-                    costAvailable: false,
-                    limitations: ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider'],
+            usageReportChain = usageReportChain
+                .then(() => reportResultUsage(message, usageOccurredAt))
+                .catch((error) => {
+                    logger.debug('[remote]: Claude usage report failed; cursor remains unchanged', error);
                 });
-            }
-            for (const [model, rawUsage] of entries) {
-                if (!usageEventId) {
-                    logger.debug('[remote]: Claude result usage had no stable event id; skipping report');
-                    continue;
-                }
-                const reportKey = usageReportKey(['claude', 'sdk-result', usageEventId, model]);
-                if (reportedUsageEventIds.has(reportKey)) {
-                    continue;
-                }
-                const current = claudeModelUsageSnapshot(rawUsage);
-                const previous = previousUsageByModel.get(model);
-                const tokenDelta = usageCounterDelta(current.tokens, previous?.tokens);
-                // Claude documents zeroed modelUsage placeholders on startup
-                // and crash failures. Those zeros are not measured usage.
-                const zeroFailurePlaceholder = !succeeded
-                    && current.tokens.total === 0
-                    && (current.costUsd ?? 0) === 0;
-                const costAvailable = !zeroFailurePlaceholder && current.costUsd !== undefined;
-                const costTotal = costAvailable
-                    ? cumulativeCostDelta(current.costUsd!, previous?.costUsd)
-                    : 0;
-                void session.client.sendProviderUsageReport({
-                    key: reportKey,
-                    provider: 'claude',
-                    model,
-                    source: 'claude-sdk-result-model-usage',
-                    occurredAt: usageOccurredAt,
-                    tokens: zeroFailurePlaceholder ? emptyUsageTokens() : usageTokens(tokenDelta),
-                    cost: { total: costTotal },
-                    costBasis: costAvailable ? 'provider-estimate' : 'unavailable',
-                    tokensAvailable: !zeroFailurePlaceholder,
-                    costAvailable,
-                    limitations: zeroFailurePlaceholder
-                        ? ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider']
-                        : (costAvailable ? [] : ['cost-not-reported-by-provider']),
-                }, {
-                    onDurable: () => {
-                        reportedUsageEventIds.add(reportKey);
-                        previousUsageByModel.set(model, {
-                            tokens: current.tokens,
-                            ...(current.costUsd !== undefined ? { costUsd: current.costUsd } : {}),
-                        });
-                    },
-                });
-            }
             const detail = succeeded
                 ? null
                 : ('errors' in message && Array.isArray(message.errors) && message.errors.length > 0
@@ -427,10 +560,6 @@ export async function claudeRemoteLauncher(
                 // A previous query has ended. Its setter must never receive an
                 // initial mode for the next resumptive query.
                 permissionHandler.clearPermissionModeUpdater();
-                // Claude SDK modelUsage is cumulative only within one query()
-                // process. A resumed query starts a new accounting epoch even
-                // when its first counters are larger than the prior process.
-                previousUsageByModel.clear();
                 const remoteResult = await claudeRemote({
                     sessionId: session.sessionId,
                     path: session.path,
@@ -547,6 +676,14 @@ export async function claudeRemoteLauncher(
                             usageLimits: mergeUsageLimits(currentAgentState.usageLimits, patch),
                         }));
                     },
+                    onUsageBaseline: (baseline) => {
+                        usageReportChain = usageReportChain
+                            .then(() => applyUsageBaseline(baseline))
+                            .catch((error) => {
+                                logger.debug('[remote]: Claude resumed usage baseline could not be persisted', error);
+                            });
+                        return usageReportChain;
+                    },
                     onProviderHardLimit: (hardLimit) => {
                         return reportProviderHardLimitOnce({
                             sessionId: session.client.sessionId,
@@ -593,6 +730,7 @@ export async function claudeRemoteLauncher(
                     },
                     signal: abortController.signal,
                 });
+                await usageReportChain;
 
                 if (remoteResult === 'quota-exhausted') {
                     await finishQuotaFailure();

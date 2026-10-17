@@ -37,6 +37,7 @@ import {
     usageReportKey,
     type ProviderUsageReport,
     type UsageCounterSnapshot,
+    type ClaudeUsageCursor,
 } from '@/usage/providerUsage';
 import { DurableUsageOutbox, type DurableUsageOutboxRecord } from '@/usage/usageOutbox';
 
@@ -1376,6 +1377,12 @@ export class ApiSessionClient extends EventEmitter {
                     ...desired?.codexTokens,
                 },
             } : {}),
+            ...(current?.claudeTokens || desired?.claudeTokens ? {
+                claudeTokens: {
+                    ...current?.claudeTokens,
+                    ...desired?.claudeTokens,
+                },
+            } : {}),
         };
     }
 
@@ -1388,7 +1395,32 @@ export class ApiSessionClient extends EventEmitter {
             ([key, value]) => current?.acpCostUsd?.[key] === value,
         ) && Object.entries(desired.codexTokens ?? {}).every(
             ([key, value]) => this.sameUsageCounterSnapshot(current?.codexTokens?.[key], value),
+        ) && Object.entries(desired.claudeTokens ?? {}).every(
+            ([sessionId, modelCursors]) => this.sameClaudeUsageCursorMap(
+                current?.claudeTokens?.[sessionId],
+                modelCursors,
+            ),
         );
+    }
+
+    private sameClaudeUsageCursorMap(
+        left: Record<string, ClaudeUsageCursor> | undefined,
+        right: Record<string, ClaudeUsageCursor>,
+    ): boolean {
+        if (!left) return false;
+        const leftModels = Object.keys(left);
+        const rightModels = Object.keys(right);
+        return leftModels.length === rightModels.length
+            && rightModels.every((model) => this.sameClaudeUsageCursor(left[model], right[model]));
+    }
+
+    private sameClaudeUsageCursor(
+        left: ClaudeUsageCursor | undefined,
+        right: ClaudeUsageCursor,
+    ): boolean {
+        return left !== undefined
+            && this.sameUsageCounterSnapshot(left.tokens, right.tokens)
+            && left.costUsd === right.costUsd;
     }
 
     private sameUsageCounterSnapshot(

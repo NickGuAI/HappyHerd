@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateUsageReports, filterUsageReportsByPeriod } from './usageAggregation';
+import { aggregateUsageReports, filterUsageReportsByPeriod, isValidUsageTimeZone } from './usageAggregation';
 
 function report(
     id: string,
@@ -30,6 +30,12 @@ function report(
 }
 
 describe('aggregateUsageReports', () => {
+    it('accepts valid IANA timezones and rejects unknown timezone names', () => {
+        expect(isValidUsageTimeZone('UTC')).toBe(true);
+        expect(isValidUsageTimeZone('America/New_York')).toBe(true);
+        expect(isValidUsageTimeZone('America/Not_A_Real_Place')).toBe(false);
+    });
+
     it('sums only canonical totals and makes the provider breakdown reconcile', () => {
         const result = aggregateUsageReports([
             report('1', 'claude', 'claude-sonnet', 100, 0.1),
@@ -100,6 +106,33 @@ describe('aggregateUsageReports', () => {
         expect(septemberFourth).toHaveLength(0);
         expect(aggregateUsageReports(septemberThird, 'day').usage[0].timestamp)
             .toBe(new Date('2026-09-03T00:00:00.000Z').getTime() / 1000);
+    });
+
+    it('buckets daily usage at midnight in the requested viewer timezone', () => {
+        const beforeViewerMidnight = report('ny-midnight', 'claude', 'claude-sonnet', 100, 0.1);
+        beforeViewerMidnight.data.occurredAt = new Date('2026-10-17T03:30:00.000Z').getTime();
+
+        const result = aggregateUsageReports([beforeViewerMidnight], 'day', 'America/New_York');
+
+        expect(result.usage).toHaveLength(1);
+        expect(result.usage[0].timestamp).toBe(new Date('2026-10-16T04:00:00.000Z').getTime() / 1000);
+        expect(result.usage[0].tokens.total).toBe(100);
+        expect(result.usage[0].cost.total).toBe(0.1);
+    });
+
+    it('uses the correct viewer midnight offset on both sides of daylight-saving time', () => {
+        const beforeClockChange = report('dst-before', 'claude', 'claude-sonnet', 40, 0.04);
+        beforeClockChange.data.occurredAt = new Date('2026-11-02T03:30:00.000Z').getTime();
+        const afterClockChange = report('dst-after', 'claude', 'claude-sonnet', 60, 0.06);
+        afterClockChange.data.occurredAt = new Date('2026-11-03T04:30:00.000Z').getTime();
+
+        const result = aggregateUsageReports([beforeClockChange, afterClockChange], 'day', 'America/New_York');
+
+        expect(result.usage.map(({ timestamp, tokens }) => [timestamp, tokens.total])).toEqual([
+            [new Date('2026-11-01T04:00:00.000Z').getTime() / 1000, 40],
+            [new Date('2026-11-02T05:00:00.000Z').getTime() / 1000, 60],
+        ]);
+        expect(result.usage.reduce((sum, bucket) => sum + bucket.tokens.total, 0)).toBe(100);
     });
 
     it('marks mixed provider reporting as partial without adding unavailable zeros', () => {

@@ -233,4 +233,50 @@ describe('UsagePanel browser behavior', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
+
+    it.each([
+        ['Desktop', { width: 1440, height: 900 }],
+        ['Mobile', { width: 390, height: 844 }],
+    ] as const)('uses viewer-local dates and period labels on %s', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport, reducedMotion: 'reduce', timezoneId: 'America/New_York' });
+        await page.clock.install({ time: new Date('2026-10-17T16:00:00.000Z') });
+        await page.goto(`${origin}?chart-regression=1`);
+
+        const requests = () => page.evaluate(() => (globalThis as typeof globalThis & {
+            __USAGE_REQUESTS__: Array<{ groupBy?: string; timeZone?: string }>;
+        }).__USAGE_REQUESTS__);
+        await expect(page.getByTestId('usage-stat-tokens').getByText('130', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByTestId('usage-stat-cost').getByText('$0.1300', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('Oct 17', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('Oct 16', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByText('12 AM', { exact: true }).count()).resolves.toBe(0);
+        await expect.poll(async () => (await requests()).length).toBe(1);
+        expect((await requests())[0]).toMatchObject({ groupBy: 'day', timeZone: 'America/New_York' });
+
+        const evidence = process.env.HAPPYHERD_ACCEPTANCE_DIR?.trim();
+        if (evidence) {
+            mkdirSync(evidence, { recursive: true });
+            await page.screenshot({ path: resolve(evidence, `usage-chart-daily-${viewport.width}.png`), fullPage: true });
+        }
+
+        await page.getByRole('radio', { name: 'Cost', exact: true }).click();
+        await expect(page.getByRole('radio', { name: 'Cost', exact: true }).getAttribute('aria-checked')).resolves.toBe('true');
+        await page.getByRole('radio', { name: 'Today', exact: true }).click();
+        await expect.poll(async () => (await requests()).length).toBe(2);
+        expect((await requests())[1]).toMatchObject({ groupBy: 'hour', timeZone: 'America/New_York' });
+        await expect.poll(() => page.getByText('12 AM', { exact: true }).count()).toBe(1);
+
+        if (evidence) {
+            await page.screenshot({ path: resolve(evidence, `usage-chart-hourly-${viewport.width}.png`), fullPage: true });
+        }
+
+        await page.getByRole('radio', { name: 'Last 7 days', exact: true }).click();
+        await expect.poll(async () => (await requests()).length).toBe(3);
+        expect((await requests())[2]).toMatchObject({ groupBy: 'day', timeZone: 'America/New_York' });
+        await expect.poll(() => page.getByText('Oct 17', { exact: true }).count()).toBe(1);
+        await expect.poll(() => page.getByText('12 AM', { exact: true }).count()).toBe(0);
+        await page.getByRole('radio', { name: 'Tokens', exact: true }).click();
+        await expect(page.getByTestId('usage-stat-tokens').getByText('130', { exact: true }).count()).resolves.toBe(1);
+        await page.close();
+    }, 30_000);
 });

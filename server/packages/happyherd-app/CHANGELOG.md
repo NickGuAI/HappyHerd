@@ -1,3 +1,8 @@
+# October 17 — More accurate usage totals
+
+- Resuming a Claude Code conversation counts only new tokens and estimated cost, including after reconnecting the session.
+- Daily usage charts group activity by your local calendar day, including daylight-saving changes.
+
 # October 14 — Use local voice in every composer
 
 - New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it.
