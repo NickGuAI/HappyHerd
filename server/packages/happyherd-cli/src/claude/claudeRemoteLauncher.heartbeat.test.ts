@@ -68,6 +68,118 @@ import type { AgentState } from '@/api/types';
 import type { EnhancedMode } from './loop';
 import { claudeRemoteLauncher } from './claudeRemoteLauncher';
 
+function usageResult(uuid: string, session_id: string, inputTokens: number, costUSD: number): {
+    type: 'result';
+    uuid: string;
+    session_id: string;
+    subtype: 'success';
+    is_error: false;
+    modelUsage: Record<string, {
+        inputTokens: number;
+        outputTokens: number;
+        cacheCreationInputTokens: number;
+        cacheReadInputTokens: number;
+        costUSD: number;
+    }>;
+} {
+    return {
+        type: 'result',
+        uuid,
+        session_id,
+        subtype: 'success',
+        is_error: false,
+        modelUsage: {
+            'claude-test': {
+                inputTokens,
+                outputTokens: 0,
+                cacheCreationInputTokens: 0,
+                cacheReadInputTokens: 0,
+                costUSD,
+            },
+        },
+    };
+}
+
+async function launchUsageResults(options: {
+    results: any[];
+    agentState?: AgentState;
+    baseline?: { sessionId: string; available: boolean; modelUsage?: Record<string, any> };
+    pendingAfterDurable?: boolean;
+    afterResult?: (index: number) => void;
+    beforeDurable?: (report: unknown, options?: { mutateAgentState?: (state: AgentState) => AgentState; onDurable?: () => void }) => Promise<void>;
+}) {
+    let agentState = options.agentState ?? {};
+    const reports: unknown[] = [];
+    const sendProviderUsageReport = vi.fn(async (report: unknown, deliveryOptions?: {
+        mutateAgentState?: (state: AgentState) => AgentState;
+        onDurable?: () => void;
+    }) => {
+        const durableOptions = deliveryOptions ? {
+            ...deliveryOptions,
+            onDurable: () => {
+                if (deliveryOptions.mutateAgentState) {
+                    agentState = deliveryOptions.mutateAgentState(agentState);
+                }
+                deliveryOptions.onDurable?.();
+            },
+        } : undefined;
+        if (options.beforeDurable) {
+            await options.beforeDurable(report, durableOptions);
+        } else {
+            durableOptions?.onDurable?.();
+        }
+        reports.push(report);
+        if (options.pendingAfterDurable) await new Promise<void>(() => {});
+    });
+    const client = {
+        sessionId: 'happyherd-session-one',
+        getAgentState: () => agentState,
+        rpcHandlerManager: { registerHandler: vi.fn() },
+        updateAgentState: vi.fn(async (update: (state: AgentState) => AgentState) => {
+            agentState = update(agentState);
+        }),
+        updateMetadata: vi.fn(),
+        closeClaudeSessionTurn: vi.fn(),
+        sendSessionEvent: vi.fn(),
+        sendClaudeSessionMessage: vi.fn(),
+        sendProviderUsageReport,
+        sendProviderUsageLimitation: vi.fn(),
+        getMetadata: vi.fn(() => ({})),
+    };
+    const queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode));
+    queue.push('usage test prompt', { permissionMode: 'default' });
+    queue.close();
+    mocks.claudeRemote.mockImplementation(async (remoteOptions: any) => {
+        await remoteOptions.nextMessage();
+        if (options.baseline) await remoteOptions.onUsageBaseline(options.baseline);
+        for (const [index, result] of options.results.entries()) {
+            remoteOptions.onMessage(result);
+            options.afterResult?.(index);
+        }
+        await remoteOptions.onReady();
+    });
+
+    await claudeRemoteLauncher({
+        sessionId: 'claude-session-one',
+        path: '/srv/app',
+        logPath: '/tmp/claude.log',
+        allowedTools: [],
+        mcpServers: {},
+        hookSettingsPath: '/tmp/settings.json',
+        jsRuntime: 'node',
+        queue,
+        client,
+        api: { push: () => ({ sendSessionNotification: vi.fn() }) },
+        onAbort: vi.fn(),
+        onSessionFound: vi.fn(),
+        onThinkingChange: vi.fn(),
+        clearSessionId: vi.fn(),
+        consumeOneTimeFlags: vi.fn(),
+    } as any);
+
+    return { agentState, reports, sendProviderUsageReport, updateAgentState: client.updateAgentState };
+}
+
 describe('claudeRemoteLauncher heartbeat receipt', () => {
     it.each([false, true])('persists a failed terminal receipt for a Claude error result (quota exhaustion: %s)', async (quotaExhausted) => {
         let agentState: AgentState = {};
@@ -288,9 +400,363 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
         }));
         expect(sendProviderUsageReport.mock.calls[1][0]).toEqual(expect.objectContaining({
             key: 'usage-v2:claude:sdk-result:result-2:claude-test',
-            tokens: expect.objectContaining({ total: 200 }),
-            cost: { total: 0.02 },
+            tokens: expect.objectContaining({ total: 15 }),
+            cost: { total: 0.006 },
         }));
+    });
+
+    it('counts resumed cumulative usage once and restores the cursor after a launcher restart', async () => {
+        const first = await launchUsageResults({
+            results: [usageResult('result-100', 'claude-provider-session', 100, 0.10)],
+        });
+        expect(first.reports).toHaveLength(1);
+        expect(first.reports[0]).toMatchObject({ tokens: { total: 100 }, cost: { total: 0.10 } });
+
+        const resumed = await launchUsageResults({
+            agentState: first.agentState,
+            results: [usageResult('result-130', 'claude-provider-session', 130, 0.13)],
+        });
+        expect(resumed.reports).toHaveLength(1);
+        expect(resumed.reports[0]).toMatchObject({ tokens: { total: 30 }, cost: { total: 0.03 } });
+    });
+
+    it('uses the provider baseline as the resumed query cursor without reporting inherited usage', async () => {
+        const result = await launchUsageResults({
+            baseline: {
+                sessionId: 'claude-provider-session',
+                available: true,
+                modelUsage: {
+                    'claude-test': {
+                        inputTokens: 100,
+                        outputTokens: 0,
+                        cacheCreationInputTokens: 0,
+                        cacheReadInputTokens: 0,
+                        costUSD: 0.10,
+                    },
+                },
+            },
+            results: [usageResult('resumed-after-inherited-history', 'claude-provider-session', 130, 0.13)],
+        });
+
+        expect(result.reports).toHaveLength(1);
+        expect(result.reports[0]).toMatchObject({ tokens: { total: 30 }, cost: { total: 0.03 } });
+        expect(result.agentState.usageCursors?.claudeTokens).toMatchObject({
+            'claude-provider-session': {
+                'claude-test': {
+                    tokens: { total: 130 },
+                    costUsd: 0.13,
+                },
+            },
+        });
+        expect(result.updateAgentState).not.toHaveBeenCalled();
+    });
+
+    it('treats an empty provider baseline as a reset and counts the next larger result whole', async () => {
+        const result = await launchUsageResults({
+            agentState: {
+                usageCursors: {
+                    claudeTokens: {
+                        'claude-provider-session': {
+                            'claude-test': {
+                                tokens: { total: 100, input: 100, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                                costUsd: 0.10,
+                            },
+                        },
+                    },
+                },
+            },
+            baseline: { sessionId: 'claude-provider-session', available: true, modelUsage: {} },
+            results: [usageResult('after-empty-ledger', 'claude-provider-session', 200, 0.20)],
+        });
+
+        expect(result.reports[0]).toMatchObject({ tokens: { total: 200 }, cost: { total: 0.20 } });
+    });
+
+    it('preserves a saved cursor when resumed baseline lookup fails', async () => {
+        const result = await launchUsageResults({
+            agentState: {
+                usageCursors: {
+                    claudeTokens: {
+                        'claude-provider-session': {
+                            'claude-test': {
+                                tokens: { total: 100, input: 100, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                                costUsd: 0.10,
+                            },
+                        },
+                    },
+                },
+            },
+            baseline: { sessionId: 'claude-provider-session', available: false },
+            results: [usageResult('after-failed-baseline', 'claude-provider-session', 130, 0.13)],
+        });
+
+        expect(result.reports[0]).toMatchObject({ tokens: { total: 30 }, cost: { total: 0.03 } });
+    });
+
+    it('marks the first result unavailable after a missing baseline, then counts later increments', async () => {
+        const result = await launchUsageResults({
+            baseline: { sessionId: 'claude-provider-session', available: false },
+            results: [
+                usageResult('unknown-baseline-first', 'claude-provider-session', 130, 0.13),
+                usageResult('unknown-baseline-next', 'claude-provider-session', 150, 0.15),
+            ],
+        });
+
+        expect(result.reports).toHaveLength(2);
+        expect(result.reports[0]).toMatchObject({
+            tokens: { total: 0 },
+            cost: { total: 0 },
+            tokensAvailable: false,
+            costAvailable: false,
+            limitations: expect.arrayContaining(['resumed-session-baseline-unavailable']),
+        });
+        expect(result.reports[1]).toMatchObject({ tokens: { total: 20 } });
+        expect((result.reports[1] as any).cost.total).toBeCloseTo(0.02);
+        expect(result.agentState.usageCursors?.claudeTokens).toMatchObject({
+            'claude-provider-session': {
+                'claude-test': {
+                    tokens: { total: 150 },
+                    costUsd: 0.15,
+                },
+            },
+        });
+    });
+
+    it('keeps failed baseline state scoped after a zero failure when a fresh provider session starts', async () => {
+        const failedPlaceholder = {
+            ...usageResult('resumed-zero-failure', 'resumed-provider-session', 0, 0),
+            subtype: 'error_during_execution',
+            is_error: true,
+        };
+        const result = await launchUsageResults({
+            baseline: { sessionId: 'resumed-provider-session', available: false },
+            results: [
+                failedPlaceholder,
+                usageResult('fresh-session-first-result', 'fresh-provider-session', 200, 0.20),
+            ],
+        });
+
+        expect(result.reports).toHaveLength(2);
+        expect(result.reports[0]).toMatchObject({
+            tokensAvailable: false,
+            limitations: expect.arrayContaining(['resumed-session-baseline-unavailable']),
+        });
+        expect(result.reports[1]).toMatchObject({
+            tokens: { total: 200 },
+            cost: { total: 0.20 },
+            tokensAvailable: true,
+            costAvailable: true,
+        });
+    });
+
+    it('starts a new provider session at zero even when its counters exceed the prior session', async () => {
+        const result = await launchUsageResults({
+            results: [
+                usageResult('first-session', 'claude-provider-session-one', 100, 0.10),
+                usageResult('new-session', 'claude-provider-session-two', 200, 0.20),
+            ],
+        });
+
+        expect(result.reports.map((report: any) => report.tokens.total)).toEqual([100, 200]);
+        expect(result.reports.map((report: any) => report.cost.total)).toEqual([0.10, 0.20]);
+    });
+
+    it('counts a real counter reset from zero and ignores a duplicate result id', async () => {
+        const duplicate = usageResult('same-result', 'claude-provider-session', 100, 0.10);
+        const result = await launchUsageResults({
+            results: [
+                duplicate,
+                duplicate,
+                usageResult('after-clear', 'claude-provider-session', 8, 0.01),
+                usageResult('after-reset', 'claude-provider-session', 12, 0.02),
+            ],
+        });
+
+        expect(result.reports.map((report: any) => report.tokens.total)).toEqual([100, 8, 4]);
+        expect(result.reports.map((report: any) => report.cost.total)).toEqual([0.10, 0.01, 0.01]);
+    });
+
+    it('keeps cumulative baselines separate for each model', async () => {
+        const first = usageResult('models-first', 'claude-provider-session', 100, 0.10);
+        first.modelUsage['claude-other'] = {
+            inputTokens: 50,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            costUSD: 0.05,
+        };
+        const second = usageResult('models-second', 'claude-provider-session', 130, 0.13);
+        second.modelUsage['claude-other'] = {
+            inputTokens: 70,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            costUSD: 0.07,
+        };
+        const result = await launchUsageResults({ results: [first, second] });
+
+        expect(result.reports.map((report: any) => [report.model, report.tokens.total])).toEqual([
+            ['claude-test', 100],
+            ['claude-other', 50],
+            ['claude-test', 30],
+            ['claude-other', 20],
+        ]);
+    });
+
+    it('persists both model cursors together and restores both deltas when baseline lookup fails', async () => {
+        const initial = usageResult('two-models-first', 'claude-provider-session', 100, 0.10);
+        initial.modelUsage['claude/other:model'] = {
+            inputTokens: 50,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            costUSD: 0.05,
+        };
+        const first = await launchUsageResults({ results: [initial] });
+        expect(first.agentState.usageCursors?.claudeTokens?.['claude-provider-session']).toEqual({
+            'claude-test': expect.objectContaining({ tokens: expect.objectContaining({ total: 100 }), costUsd: 0.10 }),
+            'claude/other:model': expect.objectContaining({ tokens: expect.objectContaining({ total: 50 }), costUsd: 0.05 }),
+        });
+
+        const resumed = usageResult('two-models-next', 'claude-provider-session', 130, 0.13);
+        resumed.modelUsage['claude/other:model'] = {
+            inputTokens: 70,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            costUSD: 0.07,
+        };
+        const second = await launchUsageResults({
+            agentState: first.agentState,
+            baseline: { sessionId: 'claude-provider-session', available: false },
+            results: [resumed],
+        });
+
+        expect(second.reports.map((report: any) => [report.model, report.tokens.total])).toEqual([
+            ['claude-test', 30],
+            ['claude/other:model', 20],
+        ]);
+    });
+
+    it('durably replaces a resumed session cursor map after an authoritative empty baseline', async () => {
+        const first = usageResult('before-provider-reset', 'claude-provider-session', 100, 0.10);
+        first.modelUsage['removed-model'] = {
+            inputTokens: 40,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+            costUSD: 0.04,
+        };
+        const saved = await launchUsageResults({ results: [first] });
+        const afterReset = await launchUsageResults({
+            agentState: saved.agentState,
+            baseline: { sessionId: 'claude-provider-session', available: true, modelUsage: {} },
+            results: [usageResult('after-provider-reset', 'claude-provider-session', 200, 0.20)],
+        });
+
+        expect(afterReset.agentState.usageCursors?.claudeTokens?.['claude-provider-session']).toEqual({
+            'claude-test': expect.objectContaining({ tokens: expect.objectContaining({ total: 200 }), costUsd: 0.20 }),
+        });
+        expect(afterReset.agentState.usageCursors?.claudeTokens?.['claude-provider-session']).not.toHaveProperty('removed-model');
+    });
+
+    it('does not advance the cursor for a failed zero placeholder', async () => {
+        const results = [
+            usageResult('before-error', 'claude-provider-session', 100, 0.10),
+            {
+                ...usageResult('failed-zero', 'claude-provider-session', 0, 0),
+                subtype: 'error_during_execution',
+                is_error: true,
+            },
+            usageResult('after-error', 'claude-provider-session', 130, 0.13),
+        ];
+        const result = await launchUsageResults({ results });
+
+        expect(result.reports).toHaveLength(3);
+        expect(result.reports.map((report: any) => report.tokens.total)).toEqual([100, 0, 30]);
+        expect(result.reports[1]).toMatchObject({ tokensAvailable: false, costAvailable: false });
+        expect(result.agentState.usageCursors?.claudeTokens).toEqual(expect.objectContaining({
+            'claude-provider-session': expect.objectContaining({
+                'claude-test': expect.objectContaining({
+                    tokens: expect.objectContaining({ total: 130 }),
+                    costUsd: 0.13,
+                }),
+            }),
+        }));
+    });
+
+    it('serializes result accounting until the report and cursor are durable', async () => {
+        let releaseFirst: (() => void) | undefined;
+        let sendCount = 0;
+        const reports: unknown[] = [];
+        const run = launchUsageResults({
+            results: [
+                usageResult('serial-first', 'claude-provider-session', 100, 0.10),
+                usageResult('serial-second', 'claude-provider-session', 130, 0.13),
+            ],
+            beforeDurable: async (report, deliveryOptions) => {
+                sendCount += 1;
+                reports.push(report);
+                if (sendCount === 1) {
+                    await new Promise<void>((resolve) => { releaseFirst = resolve; });
+                    deliveryOptions?.onDurable?.();
+                } else {
+                    deliveryOptions?.onDurable?.();
+                }
+            },
+        });
+
+        await vi.waitFor(() => expect(sendCount).toBe(1));
+        releaseFirst?.();
+        const result = await run;
+
+        expect(reports.map((report: any) => report.tokens.total)).toEqual([100, 30]);
+        expect(sendCount).toBe(2);
+        expect(result.agentState.usageCursors?.claudeTokens).toMatchObject({
+            'claude-provider-session': {
+                'claude-test': {
+                    tokens: { total: 130 },
+                    costUsd: 0.13,
+                },
+            },
+        });
+    });
+
+    it('continues result accounting and finishes when report delivery stays pending after durability', async () => {
+        const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+        const results = [
+            usageResult('offline-first', 'claude-provider-session', 100, 0.10),
+            usageResult('offline-second', 'claude-provider-session', 130, 0.13),
+        ];
+        const completion = launchUsageResults({
+            results,
+            pendingAfterDurable: true,
+            afterResult: () => now.mockReturnValue(Date.now() + 1_000),
+        });
+
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const result = await Promise.race([
+                completion,
+                new Promise<never>((_, reject) => {
+                    timeout = setTimeout(() => reject(new Error('launcher waited for provider flush')), 1_000);
+                }),
+            ]);
+
+            expect(result.reports.map((report: any) => report.tokens.total)).toEqual([100, 30]);
+            expect(result.agentState.usageCursors?.claudeTokens).toMatchObject({
+                'claude-provider-session': {
+                    'claude-test': {
+                        tokens: { total: 130 },
+                        costUsd: 0.13,
+                    },
+                },
+            });
+            expect(result.reports.map((report: any) => report.occurredAt)).toEqual([1_000, 2_000]);
+        } finally {
+            if (timeout) clearTimeout(timeout);
+            now.mockRestore();
+        }
     });
 
     it('turns an unexpected unattended permission callback into a terminal provider failure', async () => {

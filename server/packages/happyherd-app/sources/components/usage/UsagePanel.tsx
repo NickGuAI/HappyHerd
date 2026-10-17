@@ -237,7 +237,12 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
                             ]}
                         />
                     </View>
-                    <UsageChart data={usageData} metric={chartMetric} height={180} />
+                    <UsageChart
+                        data={usageData}
+                        metric={chartMetric}
+                        groupBy={period === 'today' ? 'hour' : 'day'}
+                        height={180}
+                    />
                 </View>
             )}
 

@@ -5,17 +5,19 @@ import { usePathname, useRouter } from 'expo-router';
 import { useFixtureOptions } from 'expo-router';
 import { View } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
+import { UsagePanel } from '@/components/usage/UsagePanel';
 import UsageSettingsScreen from '@/app/(app)/settings/usage';
 import { SettingsSectionList } from '@/components/herd/pages/SettingsFrame';
 import { createHeader } from '@/components/navigation/Header';
 import { HerdWindowInsetsContext } from '@/components/herd/shell/windowInsets';
 
+const chartRegression = new URLSearchParams(location.search).has('chart-regression');
 const usageResponse = {
     usage: [{
-        timestamp: Math.floor(Date.now() / 1000),
-        tokens: { total: 350, claude: 100, codex: 200, grok: 50 },
-        cost: { total: 0.12, claude: 0.1, grok: 0.02 },
-        reportCount: 4,
+        timestamp: Math.floor(new Date(chartRegression ? '2026-10-17T04:00:00.000Z' : Date.now()).getTime() / 1000),
+        tokens: chartRegression ? { total: 130, claude: 130 } : { total: 350, claude: 100, codex: 200, grok: 50 },
+        cost: chartRegression ? { total: 0.13, claude: 0.13 } : { total: 0.12, claude: 0.1, grok: 0.02 },
+        reportCount: chartRegression ? 1 : 4,
     }],
     coverage: [
         { provider: 'claude', tokens: 'reported', cost: 'reported', limitations: [], costBasis: ['provider-estimate'] },
@@ -49,7 +51,7 @@ function Fixture() {
     return (
         <HerdWindowInsetsContext.Provider value={{ top: 0, bottom: 0, left: 0, right: 0 }}>
             <View style={{ flex: 1 }}>
-                {path === '/settings/usage' ? <>
+                {chartRegression ? <UsagePanel /> : path === '/settings/usage' ? <>
                     {createHeader({ options: { headerTintColor: theme.colors.header.tint, headerShadowVisible: false, ...options }, route: { name: 'settings/usage' }, back: { title: 'Settings' }, navigation: { goBack: router.back } } as any)}
                     <UsageSettingsScreen />
                 </> : <SettingsSectionList />}

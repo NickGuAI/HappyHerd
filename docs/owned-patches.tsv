@@ -821,3 +821,5 @@ PR419_AGENTBASE_ORDER_EVIDENCE	code-ready	docs: reference parallel tool test ver
 ISSUE_369_MAIN_INTEGRATED_CHANGELOG_CAPTURES	code-ready	test(app): refresh integrated native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_369_COMPOSED_SOURCE_CAPTURES	code-ready	test(app): refresh composed voice and native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UPSTREAM_FDA37D2_SYNC	code-ready	docs(sync): record fda37d2 integration and deferred mobile clients	docs/upstream-sync-fda37d2.md
+ISSUE_437_USAGE_ACCOUNTING	code-ready	fix(usage): preserve Claude session totals and local chart dates	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts
+ISSUE_437_CHANGELOG_GOLDENS	code-ready	test(ui): refresh usage fix changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

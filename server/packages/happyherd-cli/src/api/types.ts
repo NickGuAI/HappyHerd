@@ -11,7 +11,7 @@ import {
 } from '@happyherd/wire';
 import { UsageSchema } from '@/claude/types'
 import type { SandboxConfig } from '@/persistence'
-import type { ProviderUsageReport, UsageCounterSnapshot } from '@/usage/providerUsage'
+import type { ClaudeUsageCursor, ProviderUsageReport, UsageCounterSnapshot } from '@/usage/providerUsage'
 
 export {
   SessionMessageContentSchema,
@@ -547,6 +547,7 @@ export type AgentState = {
   usageCursors?: {
     acpCostUsd?: Record<string, number>
     codexTokens?: Record<string, UsageCounterSnapshot>
+    claudeTokens?: Record<string, Record<string, ClaudeUsageCursor>>
   }
   /** Pending usage outbox; replayed by the same HappyHerd session after reconnect/resume. */
   pendingUsageReports?: Record<string, ProviderUsageReport>

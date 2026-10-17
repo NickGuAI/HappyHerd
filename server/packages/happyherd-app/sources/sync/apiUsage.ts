@@ -15,6 +15,7 @@ export interface UsageQueryParams {
     startTime?: number; // Unix timestamp in seconds
     endTime?: number;   // Unix timestamp in seconds
     groupBy?: 'hour' | 'day';
+    timeZone?: string;
 }
 
 export type UsageCoverageStatus = 'reported' | 'partial' | 'unavailable';
@@ -40,6 +41,10 @@ export async function queryUsage(
     params: UsageQueryParams = {}
 ): Promise<UsageResponse> {
     const API_ENDPOINT = getServerUrl();
+    const requestParams = {
+        ...params,
+        timeZone: params.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
     
     return await backoff(async () => {
         const response = await fetch(`${API_ENDPOINT}/v1/usage/query`, {
@@ -49,11 +54,11 @@ export async function queryUsage(
                 'Content-Type': 'application/json',
                 'X-Happy-Client': getHappyHerdClientId(),
             },
-            body: JSON.stringify(params)
+            body: JSON.stringify(requestParams)
         });
 
         if (!response.ok) {
-            if (response.status === 404 && params.sessionId) {
+            if (response.status === 404 && requestParams.sessionId) {
                 throw new Error('Session not found');
             }
             throw new Error(`Failed to query usage: ${response.status}`);
@@ -100,7 +105,7 @@ export async function getUsageForPeriod(
         sessionId,
         startTime,
         endTime: now,
-        groupBy
+        groupBy,
     });
 }
 

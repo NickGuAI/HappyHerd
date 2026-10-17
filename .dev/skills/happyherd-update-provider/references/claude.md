@@ -101,3 +101,20 @@ Native `killed` is also cancelled. Parent JSONL `agent_progress` rows carry
 association when scanning. Parent turn closure must not stop a known background
 or provider-managed child. These contracts have source/fixture coverage; they
 do not establish authenticated live provider or native-device acceptance.
+
+### Cumulative usage on resume (#437)
+
+Claude Code 2.1.277 and later restore transcript-saved `modelUsage` and
+`total_cost_usd` when resuming or forking. These fields include the main loop,
+subagents and other query-pipeline calls; result `usage` covers only the main
+loop and is not a replacement. Dollars are estimates, not subscription usage
+or billing statements. See the [official cost-tracking contract](https://code.claude.com/docs/en/agent-sdk/cost-tracking).
+
+Verified against native Claude Code 2.1.296 and Agent SDK 0.3.296 on
+2026-10-17: the SDK can initialize with an empty streaming input and request
+`usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true })`
+before submitting the first prompt. Native headless startup restores the
+resumed cost state before handling control requests; the response's
+`session.model_usage` is that session's current per-model ledger. Keep a
+provider-shaped baseline fixture and distinguish successful control requests
+from a successful authenticated model turn.

@@ -130,6 +130,87 @@ describe('claudeRemote', () => {
         expect(query).toHaveBeenCalledWith(expect.objectContaining({ options: expect.objectContaining({ resume: 'fixture-session' }) }));
     });
 
+    it('reads the resumed model usage baseline before the initial prompt can be consumed', async () => {
+        const order: string[] = [];
+        const modelUsage = {
+            'claude-test': {
+                inputTokens: 100,
+                outputTokens: 0,
+                cacheCreationInputTokens: 0,
+                cacheReadInputTokens: 0,
+                costUSD: 0.1,
+            },
+        };
+        vi.mocked(query).mockImplementation(({ prompt }) => ({
+            initializationResult: vi.fn(async () => {
+                order.push('initialized');
+                return {};
+            }),
+            usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: vi.fn(async (options) => {
+                order.push('usage-read');
+                expect(options).toEqual({ skipBehaviors: true });
+                return { session: { model_usage: modelUsage } };
+            }),
+            async *[Symbol.asyncIterator]() {
+                const input = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+                const first = await input.next();
+                order.push('prompt-consumed');
+                expect(first.value).toMatchObject({ message: { content: 'Original prompt' } });
+                yield { type: 'result', subtype: 'success' };
+            },
+        } as any));
+        const onUsageBaseline = vi.fn(async () => { order.push('baseline-delivered'); });
+        let messageCount = 0;
+
+        await claudeRemote({
+            sessionId: 'requested-resume-id',
+            path: '/fixture/project',
+            allowedTools: [],
+            hookSettingsPath: '/fixture/settings.json',
+            nextMessage: async () => messageCount++ === 0 ? { message: 'Original prompt', mode } : null,
+            onReady: vi.fn(),
+            canCallTool: async () => ({ behavior: 'allow' }) as any,
+            isAborted: () => false,
+            onSessionFound: vi.fn(),
+            onMessage: vi.fn(),
+            onUsageBaseline,
+        });
+
+        expect(order).toEqual(['initialized', 'usage-read', 'baseline-delivered', 'prompt-consumed']);
+        expect(onUsageBaseline).toHaveBeenCalledWith({
+            sessionId: 'requested-resume-id',
+            available: true,
+            modelUsage,
+        });
+    });
+
+    it('does not request a model usage baseline for a fresh query', async () => {
+        const onUsageBaseline = vi.fn();
+        const usageRead = vi.fn();
+        vi.mocked(query).mockReturnValue({
+            usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: usageRead,
+            async *[Symbol.asyncIterator]() { yield { type: 'result', subtype: 'success' }; },
+        } as any);
+        let messageCount = 0;
+
+        await claudeRemote({
+            sessionId: null,
+            path: '/fixture/project',
+            allowedTools: [],
+            hookSettingsPath: '/fixture/settings.json',
+            nextMessage: async () => messageCount++ === 0 ? { message: 'Fresh prompt', mode } : null,
+            onReady: vi.fn(),
+            canCallTool: async () => ({ behavior: 'allow' }) as any,
+            isAborted: () => false,
+            onSessionFound: vi.fn(),
+            onMessage: vi.fn(),
+            onUsageBaseline,
+        });
+
+        expect(onUsageBaseline).not.toHaveBeenCalled();
+        expect(usageRead).not.toHaveBeenCalled();
+    });
+
     it('does not interpret ordinary assistant text or a successful result as an auth failure', async () => {
         const callbacks = await runMessages([
             { ...authAssistant, error: undefined },

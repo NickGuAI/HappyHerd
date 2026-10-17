@@ -7,7 +7,7 @@ import { randomKeyNaked } from "@/utils/randomKeyNaked";
 import { allocateUserSeq } from "@/storage/seq";
 import { log } from "@/utils/log";
 import { AccountProfile } from "@/types";
-import { aggregateUsageReports, filterUsageReportsByPeriod } from "./usageAggregation";
+import { aggregateUsageReports, filterUsageReportsByPeriod, isValidUsageTimeZone } from "./usageAggregation";
 
 export function accountRoutes(app: Fastify) {
     app.get('/v1/account/profile', {
@@ -183,13 +183,14 @@ export function accountRoutes(app: Fastify) {
                 sessionId: z.string().nullish(),
                 startTime: z.number().int().positive().nullish(),
                 endTime: z.number().int().positive().nullish(),
-                groupBy: z.enum(['hour', 'day']).nullish()
+                groupBy: z.enum(['hour', 'day']).nullish(),
+                timeZone: z.string().refine(isValidUsageTimeZone).nullish(),
             })
         },
         preHandler: app.authenticate
     }, async (request, reply) => {
         const userId = request.userId;
-        const { sessionId, startTime, endTime, groupBy } = request.body;
+        const { sessionId, startTime, endTime, groupBy, timeZone } = request.body;
         const actualGroupBy = groupBy || 'day';
 
         try {
@@ -239,7 +240,7 @@ export function accountRoutes(app: Fastify) {
                 createdAt: report.createdAt,
                 data: report.data as PrismaJson.UsageReportData,
             })), startTime, endTime);
-            const result = aggregateUsageReports(scopedReports, actualGroupBy);
+            const result = aggregateUsageReports(scopedReports, actualGroupBy, timeZone ?? undefined);
 
             return reply.send({
                 usage: result.usage,

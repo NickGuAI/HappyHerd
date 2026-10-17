@@ -835,16 +835,105 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await client.sendProviderUsageReport(report, {
             mutateAgentState: (state) => ({
                 ...state,
-                usageCursors: { acpCostUsd: { 'provider-session-1': 0.30 } },
+                usageCursors: {
+                    acpCostUsd: { 'provider-session-1': 0.30 },
+                    codexTokens: { 'codex-session-1': { total: 3, input: 2, output: 1, cacheCreation: 0, cacheRead: 0, reasoning: 0 } },
+                    claudeTokens: {
+                        'claude-session-1': {
+                            'claude-test': {
+                                tokens: { total: 20, input: 15, output: 5, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                                costUsd: 0.30,
+                            },
+                        },
+                        'claude-session-2': {
+                            'claude-other': {
+                                tokens: { total: 7, input: 7, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                            },
+                        },
+                    },
+                },
             }),
         });
 
         const eventOrder = mockSocket.emitWithAck.mock.calls.map(([event]: [string]) => event);
         expect(eventOrder.indexOf('update-state')).toBeLessThan(eventOrder.indexOf('usage-report'));
         expect(client.getAgentState()).toEqual(expect.objectContaining({
-            usageCursors: { acpCostUsd: { 'provider-session-1': 0.30 } },
+            usageCursors: expect.objectContaining({
+                acpCostUsd: { 'provider-session-1': 0.30 },
+                codexTokens: { 'codex-session-1': { total: 3, input: 2, output: 1, cacheCreation: 0, cacheRead: 0, reasoning: 0 } },
+                claudeTokens: {
+                    'claude-session-1': {
+                        'claude-test': {
+                            tokens: { total: 20, input: 15, output: 5, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                            costUsd: 0.30,
+                        },
+                    },
+                        'claude-session-2': {
+                            'claude-other': {
+                                tokens: { total: 7, input: 7, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                            },
+                        },
+                },
+            }),
         }));
         expect(client.getAgentState()?.pendingUsageReports).toBeUndefined();
+    });
+
+    it('replaces one Claude session cursor map while preserving other provider and session cursors', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const report = {
+            key: 'usage-v2:claude:reset-map',
+            provider: 'claude' as const,
+            model: 'claude-new',
+            source: 'claude-sdk-result-model-usage',
+            occurredAt: 1_788_436_800_000,
+            tokens: { total: 1, input: 1, output: 0, cache_creation: 0, cache_read: 0 },
+            cost: { total: 0 },
+            costBasis: 'provider-estimate' as const,
+            tokensAvailable: true,
+            costAvailable: true,
+            limitations: [],
+        };
+        const existing = {
+            acpCostUsd: { 'acp-session': 0.4 },
+            codexTokens: { 'codex-session': { total: 8, input: 6, output: 2, cacheCreation: 0, cacheRead: 0, reasoning: 0 } },
+            claudeTokens: {
+                'claude-session': {
+                    'removed-model': {
+                        tokens: { total: 100, input: 100, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                        costUsd: 0.1,
+                    },
+                },
+                'other-claude-session': {
+                    'retained-model': {
+                        tokens: { total: 20, input: 20, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                        costUsd: 0.02,
+                    },
+                },
+            },
+        };
+
+        await client.sendProviderUsageReport(report, {
+            mutateAgentState: (state) => ({ ...state, usageCursors: existing }),
+        });
+        await client.sendProviderUsageReport({ ...report, key: 'usage-v2:claude:after-reset' }, {
+            mutateAgentState: (state) => ({
+                ...state,
+                usageCursors: {
+                    claudeTokens: { 'claude-session': {} },
+                },
+            }),
+        });
+
+        expect(client.getAgentState()?.usageCursors).toEqual({
+            acpCostUsd: { 'acp-session': 0.4 },
+            codexTokens: { 'codex-session': { total: 8, input: 6, output: 2, cacheCreation: 0, cacheRead: 0, reasoning: 0 } },
+            claudeTokens: {
+                'claude-session': {},
+                'other-claude-session': existing.claudeTokens['other-claude-session'],
+            },
+        });
+        await client.close();
     });
 
     it('restores a crash-pending local usage event and cursor before replaying it', async () => {
@@ -864,11 +953,23 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const outbox = new DurableUsageOutbox(testHappyHerdHomeDir, session.id);
         await outbox.write({
             report,
-            usageCursors: { acpCostUsd: { 'provider-session-1': 0.33 } },
+            usageCursors: {
+                acpCostUsd: { 'provider-session-1': 0.33 },
+                claudeTokens: {
+                    'claude-session-1': {
+                        'claude-test': {
+                            tokens: { total: 30, input: 20, output: 10, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+                            costUsd: 0.33,
+                        },
+                    },
+                },
+            },
         });
 
         const client = new ApiSessionClient('fake-token', session);
         expect(client.getAgentState()?.usageCursors?.acpCostUsd?.['provider-session-1']).toBe(0.33);
+        expect(client.getAgentState()?.usageCursors?.claudeTokens?.['claude-session-1']?.['claude-test'])
+            .toMatchObject({ tokens: { total: 30 }, costUsd: 0.33 });
         emitSocketEvent('connect');
 
         await waitForCheck(() => {

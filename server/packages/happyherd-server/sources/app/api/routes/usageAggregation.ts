@@ -1,3 +1,5 @@
+import { TZDate } from '@date-fns/tz';
+
 export type UsageCoverageStatus = 'reported' | 'partial' | 'unavailable';
 
 export type UsageCoverage = {
@@ -14,6 +16,15 @@ export type UsageReportForAggregation = {
     createdAt: Date;
     data: PrismaJson.UsageReportData;
 };
+
+export function isValidUsageTimeZone(timeZone: string): boolean {
+    try {
+        new Intl.DateTimeFormat('en-US', { timeZone });
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 type CoverageAccumulator = {
     tokenReports: number;
@@ -83,6 +94,7 @@ export function filterUsageReportsByPeriod(
 export function aggregateUsageReports(
     reports: UsageReportForAggregation[],
     groupBy: 'hour' | 'day',
+    timeZone?: string,
 ): { usage: Array<{ timestamp: number; tokens: Record<string, number>; cost: Record<string, number>; reportCount: number }>; coverage: UsageCoverage[] } {
     const aggregated = new Map<string, {
         tokens: Record<string, number>;
@@ -112,9 +124,16 @@ export function aggregateUsageReports(
         const tokenTotal = tokensAvailable ? validTotal(report.data.tokens?.total) : 0;
         const costTotal = costAvailable ? validTotal(report.data.cost?.total) : 0;
         const date = usageReportOccurredAt(report);
-        const bucketDate = groupBy === 'hour'
-            ? new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0)
-            : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+        let bucketDate: Date;
+        if (groupBy === 'hour') {
+            bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+        } else if (timeZone) {
+            const zonedDate = new TZDate(date, timeZone);
+            zonedDate.setHours(0, 0, 0, 0);
+            bucketDate = zonedDate;
+        } else {
+            bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+        }
         const timestamp = Math.floor(bucketDate.getTime() / 1000);
         const bucketKey = timestamp.toString();
         const bucket = aggregated.get(bucketKey) ?? {
