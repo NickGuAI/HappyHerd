@@ -22,6 +22,7 @@ FOCUS_MODE_KILV_CONTROLS	accepted	fix(app): align Focus Mode controls with KILV	
 FOCUS_MODE_KILV_WORKSPACE_FIXTURE	accepted	test(focus): support shared controls in the workspace fixture	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 # gate	state	subject	evidence
 ISSUE_2157_CLI_SESSION_CONTROLS	accepted	fix(cli): support session projects and saved provider settings	server/packages/happyherd-cli/src/commands/machine.test.ts
+ISSUE_2157_INSPECTION_FIXTURE	accepted	test(cli): align session inspection fixture with product naming	server/packages/happyherd-cli/src/api/api.test.ts
 PRODUCT_RENAME_CLI_CONTRACT	accepted	docs(product): document shared cli identities retained by renaming	docs/non-cli-renaming.md
 PRODUCT_RENAME_CLI_BOUNDARY	accepted	fix(product): preserve cli ownership and persisted identities through repeated renames	scripts/rename-product.test.mjs
 NON_CLI_RENAME_BASELINE	accepted	test(product): derive rename fixtures from reachable source history	scripts/rename-product.test.mjs

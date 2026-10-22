@@ -392,7 +392,7 @@ describe('Api server error handling', () => {
                 encryptionVariant: 'legacy',
                 metadata: {
                     path: '/stale', host: 'stale', homeDir: '/tmp',
-                    happyHomeDir: '/tmp/happy', happyLibDir: '/tmp/lib', happyToolsDir: '/tmp/tools',
+                    happyHomeDir: '/tmp/happyherd', happyLibDir: '/tmp/lib', happyToolsDir: '/tmp/tools',
                 },
                 metadataVersion: 1,
                 agentState: null,
