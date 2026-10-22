@@ -366,6 +366,56 @@ describe('Api server error handling', () => {
         });
     });
 
+    describe('inspectSessionAuthoritative', () => {
+        it('returns the server-owned Project ID with canonical session metadata', async () => {
+            const metadata = { path: '/srv/project', commanderId: 'athena', commanderName: 'Athena' };
+            mockGet.mockResolvedValueOnce({
+                data: {
+                    sessions: [{
+                        id: 'session-project',
+                        projectId: 'project-one',
+                        active: true,
+                        seq: 9,
+                        metadata: metadata as unknown as string,
+                        metadataVersion: 4,
+                        agentState: null,
+                        agentStateVersion: 2,
+                        dataEncryptionKey: null,
+                    }],
+                },
+            });
+
+            const inspected = await api.inspectSessionAuthoritative({
+                id: 'session-project',
+                seq: 2,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy',
+                metadata: {
+                    path: '/stale', host: 'stale', homeDir: '/tmp',
+                    happyHomeDir: '/tmp/happy', happyLibDir: '/tmp/lib', happyToolsDir: '/tmp/tools',
+                },
+                metadataVersion: 1,
+                agentState: null,
+                agentStateVersion: 0,
+            });
+
+            expect(inspected).toMatchObject({
+                active: true,
+                session: {
+                    id: 'session-project',
+                    projectId: 'project-one',
+                    seq: 9,
+                    metadata,
+                    metadataVersion: 4,
+                },
+            });
+            expect(mockGet).toHaveBeenCalledWith(
+                'https://api.example.com/v2/sessions',
+                expect.objectContaining({ params: expect.objectContaining({ limit: 200 }) }),
+            );
+        });
+    });
+
     describe('postHeartbeatMessage', () => {
         it('posts one encrypted v3 queue record with the stable occurrence id and marker', async () => {
             mockPost.mockResolvedValue({ data: {} });
@@ -526,6 +576,37 @@ describe('Api server error handling', () => {
                 messages: [{ localId: 'task-one', content: {
                     role: 'user', content: { type: 'text', text: 'Perform the bounded task.' },
                     meta: { sentFrom: 'happyherd-cli', deliveryMode: 'queue', queueMessageId: 'task-one' },
+                } }],
+            }, expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }) }));
+        });
+
+        it('includes saved session choices in the encrypted queue payload with the stable localId', async () => {
+            const selected = {
+                ...session,
+                metadata: {
+                    ...testMetadata,
+                    flavor: 'codex',
+                    modelMode: 'gpt-5.6',
+                    effortLevel: 'high',
+                    permissionMode: 'yolo',
+                },
+            };
+            mockPost.mockResolvedValue({ data: { messages: [{ localId: 'settings-task', seq: 4 }] } });
+
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                await expect(api.postSessionTask(selected, { localId: 'settings-task', text: 'Use the saved choices.' }))
+                    .resolves.toEqual({ seq: 4 });
+            }
+
+            expect(mockPost).toHaveBeenCalledTimes(2);
+            expect(mockPost.mock.calls[0]).toEqual(mockPost.mock.calls[1]);
+            expect(mockPost).toHaveBeenCalledWith('https://api.example.com/v3/sessions/session%2Fone/messages', {
+                messages: [{ localId: 'settings-task', content: {
+                    role: 'user', content: { type: 'text', text: 'Use the saved choices.' },
+                    meta: {
+                        sentFrom: 'happyherd-cli', deliveryMode: 'queue', queueMessageId: 'settings-task',
+                        model: 'gpt-5.6', effort: 'high', permissionMode: 'yolo',
+                    },
                 } }],
             }, expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }) }));
         });

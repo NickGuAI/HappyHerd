@@ -3,6 +3,7 @@ import { posix, win32 } from 'node:path';
 import {
   HappyHerdControlClient as HappyHerdControlClient,
   type DecryptedMachine,
+  type DecryptedProject,
 } from 'happyherd-control-agent/control';
 import {
   HappyHerdCommanderListResponseSchema,
@@ -39,6 +40,7 @@ import {
 } from './sideChat';
 import { createDaemonDevicePairing, cancelDaemonDevicePairing, ensureDaemonAssistant, manageDaemonSideChat, spawnLocalDaemonSession } from '@/daemon/controlClient';
 import { handleLocalSessionInspectCommand, handleLocalSessionSendCommand, type LocalSessionCommandDependencies } from './localSession';
+import { handleSessionSettingsCommand } from './sessionSettings';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
 type Provider = HappyHerdMachineSessionProvider;
@@ -48,8 +50,11 @@ type Output = (value: string) => void;
 export type MachineControlClient = Pick<
   HappyHerdControlClient,
   | 'listMachines'
+  | 'listProjects'
+  | 'resolveProject'
   | 'resolveMachine'
   | 'resolveSession'
+  | 'setSessionProject'
   | 'callMachineRpc'
   | 'spawnSessionOnMachineConfirmed'
   | 'updateSessionMetadata'
@@ -91,6 +96,7 @@ type SessionCreateOptions = {
   effort?: string;
   permission?: string;
   commanderId?: string;
+  projectId?: string;
   isSuperSession: boolean;
   createDirectory: boolean;
   json: boolean;
@@ -102,6 +108,7 @@ function machineHelp(): string {
   return `happyherd machine - Discover account machines and manage machine control access
 
 Usage:
+  happyherd project list [--json]
   happyherd machine list [--json]
   happyherd machine pair [--json]
   happyherd machine pair cancel [--json]
@@ -133,12 +140,14 @@ Usage:
   happyherd session ensure-assistant [--json]
   happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID [--json]
   happyherd session inspect SESSION_ID [--limit 1..100] [--json]
+  happyherd session set-settings <session-id> [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]
   happyherd session create --local --path ABSOLUTE_PATH --provider PROVIDER \\
-    [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] [--json]
+    [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] [--project PROJECT_ID] [--json]
   happyherd session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
-    [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] \\
+    [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] [--project PROJECT_ID] \\
     [--super-session] [--create-dir] [--json]
   happyherd session set-commander <session-id> <commander-id|none> [--json]
+  happyherd session set-project <session-id> <project-id|none> [--json]
   happyherd session side-chat create <parent-session-id> <brief-options> \
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]
 
@@ -156,7 +165,19 @@ by the target daemon during session creation. Mark the created session as the
 persistent Super Session. This option (--super-session) requires --commander.
 For reassignment, set-commander resolves the ID on the owning machine's canonical
 registry, or none detaches the Commander. Reassignment or detachment takes effect
-when the session is next resumed, without altering any live conversation context.`;
+when the session is next resumed, without altering any live conversation context.
+
+Projects are existing account Projects. List them with "happyherd project list";
+use an exact Project ID with --project or set-project, or "none" to clear.
+Project list, --project, and set-project require account-level machine control
+authentication: run "happyherd machine auth login". Local creation without
+--project continues to use only the local daemon login.
+
+set-settings requires account-level machine control authentication; run
+"happyherd machine auth login". Use exact setting codes advertised by the
+session's owning machine. A running turn keeps
+its current settings; supported selections apply to the next message, otherwise
+on resume. Grok permission changes are confirmed through the owning daemon.`;
 }
 
 function parseFlags(args: string[], allowedValueFlags: Set<string>, allowedBooleanFlags: Set<string>): ParsedFlags {
@@ -210,7 +231,7 @@ function optionalFlag(flags: ParsedFlags, name: string): string | undefined {
 export function parseSessionCreateOptions(args: string[]): SessionCreateOptions {
   const flags = parseFlags(
     args,
-    new Set(['machine', 'path', 'provider', 'model', 'effort', 'permission', 'commander']),
+    new Set(['machine', 'path', 'provider', 'model', 'effort', 'permission', 'commander', 'project']),
     new Set(['super-session', 'create-dir', 'json', 'local']),
   );
   if (flags.local === true && flags.machine !== undefined) {
@@ -236,6 +257,7 @@ export function parseSessionCreateOptions(args: string[]): SessionCreateOptions 
     effort: optionalFlag(flags, 'effort'),
     permission: optionalFlag(flags, 'permission'),
     commanderId,
+    projectId: optionalFlag(flags, 'project'),
     isSuperSession,
     createDirectory: flags['create-dir'] === true,
     json: flags.json === true,
@@ -534,6 +556,74 @@ function commanderReceiptFromSession(
   };
 }
 
+function currentCommanderReceipt(session: { id: string; metadata: unknown }) {
+  const metadata = record(session.metadata);
+  const id = stringField(metadata, 'commanderId');
+  if (!id) return null;
+  const name = stringField(metadata, 'commanderName');
+  const path = stringField(metadata, 'commanderPath');
+  const workspace = stringField(metadata, 'commanderWorkspace');
+  const agentContextPath = stringField(metadata, 'commanderAgentContextPath');
+  return {
+    id,
+    ...(name ? { name } : {}),
+    ...(path ? { path } : {}),
+    ...(workspace ? { workspace } : {}),
+    ...(agentContextPath ? { agentContextPath } : {}),
+  };
+}
+
+function commanderLabel(commander: { id: string; name?: string }): string {
+  return commander.name ? `${commander.name} (${commander.id})` : commander.id;
+}
+
+function projectIdentity(project: DecryptedProject | null) {
+  return project ? { id: project.id, name: project.name, kind: project.kind } : null;
+}
+
+function actualProjectOutcome(error: unknown): { known: false } | { known: true; projectId: string | null } {
+  const value = record(error);
+  if (value && Object.prototype.hasOwnProperty.call(value, 'actualProjectId')
+    && (value.actualProjectId === null || typeof value.actualProjectId === 'string')) {
+    return { known: true, projectId: value.actualProjectId as string | null };
+  }
+  return { known: false };
+}
+
+function projectAssignmentError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function reportPartialCreate(
+  base: Record<string, unknown>,
+  requestedProject: DecryptedProject,
+  error: unknown,
+  dependencies?: MachineCommandDependencies,
+  json = true,
+): void {
+  const outcome = actualProjectOutcome(error);
+  const receipt = {
+    schemaVersion: 1,
+    type: 'session-created-partial' as const,
+    success: false,
+    ...base,
+    project: {
+      requested: projectIdentity(requestedProject),
+      status: outcome.known ? 'not-confirmed' as const : 'unknown' as const,
+      ...(outcome.known ? { actualProjectId: outcome.projectId } : {}),
+      error: projectAssignmentError(error),
+    },
+  };
+  if (json) outputFor(dependencies)(JSON.stringify(receipt));
+  else {
+    outputFor(dependencies)(`Created HappyHerd session ${String(base.sessionId)}, but Project assignment was not confirmed.`);
+    outputFor(dependencies)(`Requested Project: ${requestedProject.name} (${requestedProject.id})`);
+    outputFor(dependencies)(`Actual Project ID: ${outcome.known ? outcome.projectId ?? 'none' : 'unknown'}`);
+    outputFor(dependencies)(`Error: ${projectAssignmentError(error)}`);
+  }
+  (dependencies?.setExitCode ?? ((code) => { process.exitCode = code; }))(1);
+}
+
 async function handleSessionSetCommanderCommand(
   args: string[],
   dependencies?: MachineCommandDependencies,
@@ -569,11 +659,15 @@ async function handleSessionSetCommanderCommand(
   const commanderReceipt = commander
     ? commanderReceiptFromSession(updated, commander.id)
     : null;
+  const project = updated.projectId
+    ? projectIdentity(await controlCall(() => client.resolveProject(updated.projectId!)))
+    : null;
   const receipt = {
     schemaVersion: 1,
     type: 'session-commander-updated' as const,
     sessionId: updated.id,
     commander: commanderReceipt,
+    project,
     takesEffect: 'next-resume' as const,
   };
   if (flags.json === true) {
@@ -584,6 +678,48 @@ async function handleSessionSetCommanderCommand(
     ? `Session ${updated.id} will use Commander ${commanderReceipt.name} (${commanderReceipt.id}) on its next resume.`
     : `Session ${updated.id} will resume without a Commander.`);
   outputFor(dependencies)('The live conversation keeps its current context until then.');
+}
+
+async function handleSessionSetProjectCommand(
+  args: string[],
+  dependencies?: MachineCommandDependencies,
+): Promise<void> {
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    outputFor(dependencies)(sessionHelp());
+    return;
+  }
+  const [sessionSelector, requestedProjectId, ...flagArgs] = args;
+  if (!sessionSelector) throw new Error('session-id is required');
+  if (!requestedProjectId) throw new Error('project-id or none is required');
+  const flags = parseFlags(flagArgs, new Set(), new Set(['json']));
+  const client = await controlCall(() => clientFor(dependencies));
+  const requestedProject = requestedProjectId === 'none'
+    ? null
+    : await controlCall(() => client.resolveProject(requestedProjectId));
+  const updated = await controlCall(() => client.setSessionProject(
+    sessionSelector,
+    requestedProject?.id ?? null,
+  ));
+  const project = projectIdentity(requestedProject);
+  const commander = currentCommanderReceipt(updated);
+  const receipt = {
+    schemaVersion: 1,
+    type: 'session-project-updated' as const,
+    sessionId: updated.id,
+    project,
+    projectId: updated.projectId ?? null,
+    commander,
+  };
+  if (flags.json === true) {
+    outputFor(dependencies)(JSON.stringify(receipt));
+    return;
+  }
+  outputFor(dependencies)(project
+    ? `Session ${updated.id} is assigned to Project ${project.name} (${project.id}).`
+    : `Session ${updated.id} has no Project assignment.`);
+  outputFor(dependencies)(commander
+    ? `Commander: ${commanderLabel(commander)}`
+    : 'Commander: none');
 }
 
 async function controlCall<T>(operation: () => Promise<T>): Promise<T> {
@@ -680,6 +816,17 @@ export async function handleSessionCommand(
     await handleSessionSetCommanderCommand(rest, dependencies);
     return;
   }
+  if (action === 'set-project') {
+    await handleSessionSetProjectCommand(rest, dependencies);
+    return;
+  }
+  if (action === 'set-settings') {
+    await handleSessionSettingsCommand(rest, {
+      createClient: dependencies?.createClient,
+      output: outputFor(dependencies),
+    });
+    return;
+  }
   if (action === 'send' || action === 'inspect') {
     if (rest.length === 1 && (rest[0] === '--help' || rest[0] === '-h')) {
       outputFor(dependencies)(sessionHelp());
@@ -716,6 +863,14 @@ export async function handleSessionCommand(
     return;
   }
   const options = parseSessionCreateOptions(rest);
+  let client: MachineControlClient | null = null;
+  let selectedProject: DecryptedProject | null = null;
+  if (options.projectId || !options.local) {
+    client = await controlCall(() => clientFor(dependencies));
+  }
+  if (options.projectId) {
+    selectedProject = await controlCall(() => client!.resolveProject(options.projectId!));
+  }
   if (options.local) {
     const created = await (dependencies?.createLocalSession ?? spawnLocalDaemonSession)({
       directory: options.directory,
@@ -727,6 +882,43 @@ export async function handleSessionCommand(
       ...(options.commanderId ? { commanderId: options.commanderId } : {}),
       ...(options.isSuperSession ? { isSuperSession: true } : {}),
     });
+    if (selectedProject) {
+      try {
+        const assigned = await controlCall(() => client!.setSessionProject(created.sessionId, selectedProject!.id));
+        const commander = options.commanderId
+          ? commanderReceiptFromSession(assigned, options.commanderId)
+          : currentCommanderReceipt(assigned);
+        const project = projectIdentity(selectedProject);
+        const receipt = {
+          schemaVersion: 1,
+          type: 'session-created' as const,
+          sessionId: created.sessionId,
+          machine: created.machine,
+          path: created.path,
+          settings: created.settings,
+          commander,
+          project,
+          ...(created.superSession ? { superSession: true } : {}),
+        };
+        if (options.json) outputFor(dependencies)(JSON.stringify(receipt));
+        else {
+          outputFor(dependencies)(`Created HappyHerd session ${created.sessionId} on ${created.machine.host} (${created.machine.id})`);
+          outputFor(dependencies)(`Project: ${project!.name} (${project!.id})`);
+          if (commander) outputFor(dependencies)(`Commander: ${commanderLabel(commander)}`);
+        }
+        return;
+      } catch (error) {
+        reportPartialCreate({
+          sessionId: created.sessionId,
+          machine: created.machine,
+          path: created.path,
+          settings: created.settings,
+          commander: created.commander,
+          ...(created.superSession ? { superSession: true } : {}),
+        }, selectedProject, error, dependencies, options.json);
+        return;
+      }
+    }
     const receipt = {
       schemaVersion: 1,
       type: 'session-created' as const,
@@ -735,23 +927,24 @@ export async function handleSessionCommand(
       path: created.path,
       settings: created.settings,
       commander: created.commander,
+      project: null,
       ...(created.superSession ? { superSession: true } : {}),
     };
     if (options.json) outputFor(dependencies)(JSON.stringify(receipt));
     else outputFor(dependencies)(`Created HappyHerd session ${created.sessionId} on ${created.machine.host} (${created.machine.id})`);
     return;
   }
-  const client = await controlCall(() => clientFor(dependencies));
+  const remoteClient = client!;
   const selected = resolveMachineSelector(
-    await controlCall(() => client.listMachines()),
+    await controlCall(() => remoteClient.listMachines()),
     options.machineSelector,
   );
-  const machine = await controlCall(() => client.resolveMachine(selected.id));
+  const machine = await controlCall(() => remoteClient.resolveMachine(selected.id));
   if (machine.id !== selected.id) {
     throw new Error(`Machine ${selected.id} could not be refreshed exactly`);
   }
   validateSessionSettings(machine, options);
-  const created = await controlCall(() => client.spawnSessionOnMachineConfirmed(machine, {
+  const created = await controlCall(() => remoteClient.spawnSessionOnMachineConfirmed(machine, {
     directory: options.directory,
     approvedNewDirectoryCreation: options.createDirectory,
     agent: options.provider,
@@ -761,14 +954,38 @@ export async function handleSessionCommand(
     ...(options.commanderId ? { commanderId: options.commanderId } : {}),
     ...(options.isSuperSession ? { isSuperSession: true } : {}),
   }));
+  let receiptSession = created.session;
+  if (selectedProject) {
+    try {
+      receiptSession = await controlCall(() => remoteClient.setSessionProject(created.session.id, selectedProject!.id));
+    } catch (error) {
+      const commander = options.commanderId
+        ? commanderReceiptFromSession(created.session, options.commanderId)
+        : currentCommanderReceipt(created.session);
+      reportPartialCreate({
+        sessionId: created.session.id,
+        machine: {
+          id: machine.id,
+          host: summaryMetadata(machine)?.host ?? null,
+          platform: summaryMetadata(machine)?.platform ?? null,
+        },
+        path: options.directory,
+        settings: created.settings,
+        commander,
+        ...(options.isSuperSession ? { superSession: true } : {}),
+      }, selectedProject, error, dependencies, options.json);
+      return;
+    }
+  }
   const commanderReceipt = options.commanderId
-    ? commanderReceiptFromSession(created.session, options.commanderId)
-    : null;
+    ? commanderReceiptFromSession(receiptSession, options.commanderId)
+    : currentCommanderReceipt(receiptSession);
+  const project = projectIdentity(selectedProject);
   const metadata = summaryMetadata(machine);
   const receipt = {
     schemaVersion: 1,
     type: 'session-created' as const,
-    sessionId: created.session.id,
+    sessionId: receiptSession.id,
     machine: {
       id: machine.id,
       host: metadata?.host ?? null,
@@ -777,15 +994,17 @@ export async function handleSessionCommand(
     path: options.directory,
     settings: created.settings,
     commander: commanderReceipt,
+    project,
     ...(options.isSuperSession ? { superSession: true } : {}),
   };
   if (options.json) {
     outputFor(dependencies)(JSON.stringify(receipt));
     return;
   }
-  outputFor(dependencies)(`Created HappyHerd session ${created.session.id} on ${metadata?.host ?? machine.id} (${machine.id})`);
+  outputFor(dependencies)(`Created HappyHerd session ${receiptSession.id} on ${metadata?.host ?? machine.id} (${machine.id})`);
   outputFor(dependencies)(`Path: ${options.directory}`);
   outputFor(dependencies)(`Settings: ${JSON.stringify(created.settings)}`);
-  if (commanderReceipt) outputFor(dependencies)(`Commander: ${commanderReceipt.name} (${commanderReceipt.id})`);
+  if (commanderReceipt) outputFor(dependencies)(`Commander: ${commanderLabel(commanderReceipt)}`);
+  if (project) outputFor(dependencies)(`Project: ${project.name} (${project.id})`);
   if (options.isSuperSession) outputFor(dependencies)('Super Session (Pinned)');
 }

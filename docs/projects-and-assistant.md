@@ -57,6 +57,8 @@ happyherd session create --local --path ABSOLUTE_PATH --provider codex --command
 ```
 * To target another machine, replace `--local` with `--machine ID_OR_HOST`; an account-control link is required.
 * The `--path` directory must exist unless `--create-dir` is passed. Select optional `--model`, `--effort`, and `--permission` values from the target machine’s advertised catalog.
+* The account Project is separate from `--path`. With an account-control link, list existing IDs using `happyherd project list --json`, then add `--project PROJECT_ID` at creation. Use `happyherd session set-project SESSION_ID PROJECT_ID|none --json` to reassign or clear it without replacing the session or Commander.
+* Change saved provider choices using `happyherd session set-settings SESSION_ID --model MODEL --effort EFFORT --permission MODE --json`; any nonempty combination is accepted. The next message or resume uses the persisted choices. Grok permission changes use its daemon-confirmed restart/resume transition.
 * **Delivery:** Creation alone sends no prompt. Send the instructions file with `happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID --json`; reuse the same message ID after an uncertain result. Verify recent responses with `happyherd session inspect SESSION_ID --limit 20 --json`. These commands target sessions stored by the local daemon.
 
 For a linked Worker Agent with a durable child lifecycle, use `happyherd session side-chat create <parent-session-id>` with its six required brief fields as documented in the [side-chat lifecycle playbook](../.dev/playbooks/side-chat-lifecycle.md). That path inherits the parent context; the independent creation command above supports the selected Commander and workspace.

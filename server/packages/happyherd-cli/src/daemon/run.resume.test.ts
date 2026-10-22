@@ -535,7 +535,13 @@ describe('daemon session continuity', () => {
 
   it('sends a local task through the original session key and reads only bounded safe metadata and messages', async () => {
     const { sessionId, metadata, encryption, control } = await localMessagingFixture();
-    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321 }, encryption);
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4321,
+      modelMode: 'gpt-5.6',
+      effortLevel: 'high',
+      permissionMode: 'yolo',
+    }, encryption);
     mocks.authoritativeActive = true;
     mocks.readRecentSessionMessages.mockResolvedValue([
       { seq: 9, localId: 'reply-one', createdAt: 3, content: { role: 'agent', content: { type: 'text', text: 'Done.' } } },
@@ -548,7 +554,10 @@ describe('daemon session continuity', () => {
     expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
     const result = await control.inspectLocalSession({ sessionId, limit: 5 });
     expect(result).toMatchObject({ recent: true, limit: 5, session: { id: sessionId, active: true, providerRunning: true,
-      metadata: { path: metadata.path, commanderId: 'selected', commanderName: 'Selected Commander', title: 'Delegated task' } }, messages: [{ seq: 8 }, { seq: 9 }] });
+      metadata: {
+        path: metadata.path, commanderId: 'selected', commanderName: 'Selected Commander',
+        modelMode: 'gpt-5.6', effortLevel: 'high', permissionMode: 'yolo', title: 'Delegated task',
+      } }, messages: [{ seq: 8 }, { seq: 9 }] });
     expect(mocks.readRecentSessionMessages).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ encryptionKey: encryption.encryptionKey }), 5);
     expect(result.session).not.toHaveProperty('encryptionKey');
     expect(result.session.metadata).not.toHaveProperty('hostPid');

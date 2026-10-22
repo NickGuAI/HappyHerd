@@ -512,6 +512,14 @@ build `happyherd-control-agent` explicitly before building `@happyherd/cli` and 
 Native `happyherd session create` accepts only HappyHerd CLI daemon machines. Rig has a
 separate idempotent, provider-qualified RPC contract and must fail closed here
 unless that distinct contract is implemented end to end.
+Account Project selection uses the same account-control client to decrypt the
+existing Project catalog and call the server's session Project assignment route.
+Project identity is top-level session data, separate from encrypted Commander
+metadata and the filesystem path. Create validates the Project before launch;
+post-launch assignment failures retain the session ID. Saved model/effort/permission
+picks use versioned session metadata, and local queued messages forward those
+picks through the existing provider message fields. Grok permission retains its
+daemon-confirmed launch-policy transition.
 Machine kind alone is not authorization to use the strict creation RPC. New
 daemons advertise `machineSessionProtocolVersion`; the command refreshes the
 target and requires the exact supported version before any side-effecting

@@ -51,6 +51,8 @@ const targetAthena: HappyHerdCommanderSummary = {
   agentContextPath: '/remote/.happyherd/commanders/athena/agentcontext',
 };
 
+const testProject = { id: 'project-one', name: 'Example Project A', kind: 'work' };
+
 function option(code: string, extra: Record<string, unknown> = {}) {
   return { code, value: code, description: null, ...extra };
 }
@@ -166,9 +168,11 @@ function session(
     path: '/srv/project',
     claudeSessionId: '11111111-1111-4111-8111-111111111111',
   },
+  projectId?: string | null,
 ): DecryptedSession {
   return {
     id,
+    ...(projectId === undefined ? {} : { projectId }),
     seq: 1,
     createdAt: 1,
     updatedAt: 2,
@@ -195,8 +199,19 @@ function fakeClient(options: {
   const listed = options.listed ?? [machine()];
   const refreshed = options.refreshed ?? listed[0];
   const listMachines = vi.fn(async () => listed);
+  const listProjects = vi.fn(async () => [testProject]);
+  const resolveProject = vi.fn(async (projectId: string) => {
+    if (projectId !== testProject.id) throw new Error(`Project "${projectId}" was not found in this account`);
+    return testProject;
+  });
   const resolveMachine = vi.fn(async (_machineId: string) => refreshed);
-  const resolveSession = vi.fn(async (_sessionId: string) => options.parent ?? session());
+  let spawnedSession: DecryptedSession | null = null;
+  const resolveSession = vi.fn(async (sessionId: string) => options.parent ?? spawnedSession ?? session(sessionId));
+  const setSessionProject = vi.fn(async (sessionId: string, projectId: string | null) => ({
+    ...(options.parent ?? spawnedSession ?? session(sessionId)),
+    id: sessionId,
+    projectId,
+  }));
   const callMachineRpc = vi.fn(async (
     _machine: DecryptedMachine,
     method: string,
@@ -221,8 +236,7 @@ function fakeClient(options: {
     };
     const createdCommander = options.createdCommander
       ?? (launch.commanderId === targetAthena.id ? targetAthena : null);
-    return {
-      session: session(options.sessionId ?? 'session-real', {
+    spawnedSession = session(options.sessionId ?? 'session-real', {
         machineId: targetMachine.id,
         path: launch.directory,
         spawnSettings: settings,
@@ -234,7 +248,9 @@ function fakeClient(options: {
           commanderAgentContextPath: createdCommander.agentContextPath,
         } : {}),
         ...(launch.isSuperSession ? { isSuperSession: true } : {}),
-      }),
+      });
+    return {
+      session: spawnedSession,
       settings,
     };
   });
@@ -245,15 +261,21 @@ function fakeClient(options: {
   return {
     client: {
       listMachines,
+      listProjects,
+      resolveProject,
       resolveMachine,
       resolveSession,
+      setSessionProject,
       callMachineRpc,
       spawnSessionOnMachineConfirmed,
       updateSessionMetadata,
     } as unknown as MachineControlClient,
     listMachines,
+    listProjects,
+    resolveProject,
     resolveMachine,
     resolveSession,
+    setSessionProject,
     callMachineRpc,
     spawnSessionOnMachineConfirmed,
     updateSessionMetadata,
@@ -326,6 +348,8 @@ describe('machine and session command parsing', () => {
     expect(() => parseSessionCreateOptions([
       '--machine', 'm', '--path', '/x', '--provider', 'unknown',
     ])).toThrow('Unsupported HappyHerd CLI daemon provider "unknown"');
+    expect(parseSessionCreateOptions(sessionArgs('--commander', 'athena', '--project', 'project-one')))
+      .toMatchObject({ commanderId: 'athena', projectId: 'project-one' });
   });
 });
 
@@ -534,6 +558,7 @@ describe('remote tracked session creation', () => {
       path: '/srv/project',
       settings: { provider: 'codex', model: 'gpt-5.6', effort: 'high', permission: 'plan' },
       commander: null,
+      project: null,
     });
   });
 
@@ -641,6 +666,91 @@ describe('remote tracked session creation', () => {
     expect(fake.spawnSessionOnMachineConfirmed.mock.calls[0][1]).not.toHaveProperty('permissionMode');
   });
 
+  it('preflights an exact Project ID and creates one Commander-bound remote session with it', async () => {
+    const fake = fakeClient({ createdCommander: targetAthena });
+    const output = vi.fn();
+    await handleSessionCommand(['create', ...sessionArgs(
+      '--commander', 'athena', '--project', 'project-one',
+      '--model', 'gpt-5.6', '--effort', 'high', '--permission', 'plan', '--json',
+    )], { createClient: async () => fake.client, output });
+
+    expect(fake.resolveProject).toHaveBeenCalledExactlyOnceWith('project-one');
+    expect(fake.resolveProject.mock.invocationCallOrder[0])
+      .toBeLessThan(fake.spawnSessionOnMachineConfirmed.mock.invocationCallOrder[0]);
+    expect(fake.setSessionProject).toHaveBeenCalledExactlyOnceWith('session-real', 'project-one');
+    expect(fake.spawnSessionOnMachineConfirmed).toHaveBeenCalledTimes(1);
+    expect(fake.spawnSessionOnMachineConfirmed.mock.calls[0][1]).toMatchObject({
+      directory: '/srv/project',
+      agent: 'codex',
+      commanderId: 'athena',
+      modelMode: 'gpt-5.6',
+      effortLevel: 'high',
+      permissionMode: 'plan',
+    });
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      type: 'session-created', sessionId: 'session-real',
+      project: testProject,
+      settings: { provider: 'codex', model: 'gpt-5.6', effort: 'high', permission: 'plan' },
+      commander: { id: 'athena', name: targetAthena.name },
+    });
+  });
+
+  it('rejects an unknown remote Project before spawning a session', async () => {
+    const fake = fakeClient();
+    await expect(handleSessionCommand(['create', ...sessionArgs('--project', 'missing-project')], {
+      createClient: async () => fake.client,
+      output: vi.fn(),
+    })).rejects.toThrow('Project "missing-project" was not found');
+    expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+  });
+
+  it('requires account auth and preflights local Project creation before spawning', async () => {
+    const fake = fakeClient();
+    const createLocalSession = vi.fn(async () => ({
+      success: true as const, sessionId: 'local-session', machine: { id: 'machine-local', host: 'workstation', platform: 'linux' },
+      path: '/srv/project', settings: { provider: 'claude' as const, model: 'opus', effort: null, permission: 'default' },
+      commander: null,
+    }));
+    await expect(handleSessionCommand([
+      'create', '--local', '--path', '/srv/project', '--provider', 'claude', '--project', 'missing-project',
+    ], {
+      createClient: async () => fake.client,
+      createLocalSession,
+      output: vi.fn(),
+    })).rejects.toThrow('Project "missing-project" was not found');
+    expect(createLocalSession).not.toHaveBeenCalled();
+  });
+
+  it('retains the created local session ID and actual Project on partial assignment failure', async () => {
+    const fake = fakeClient();
+    const assignmentError = Object.assign(new Error('Project assignment response was unavailable'), {
+      actualProjectId: null,
+    });
+    fake.setSessionProject.mockRejectedValueOnce(assignmentError);
+    const createLocalSession = vi.fn(async () => ({
+      success: true as const, sessionId: 'local-session', machine: { id: 'machine-local', host: 'workstation', platform: 'linux' },
+      path: '/srv/project', settings: { provider: 'claude' as const, model: 'opus', effort: null, permission: 'default' },
+      commander: null,
+    }));
+    const output = vi.fn();
+    const setExitCode = vi.fn();
+    await handleSessionCommand([
+      'create', '--local', '--path', '/srv/project', '--provider', 'claude', '--project', 'project-one', '--json',
+    ], {
+      createClient: async () => fake.client,
+      createLocalSession,
+      output,
+      setExitCode,
+    });
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      type: 'session-created-partial', success: false, sessionId: 'local-session',
+      project: { requested: testProject, status: 'not-confirmed', actualProjectId: null },
+    });
+    expect(createLocalSession).toHaveBeenCalledOnce();
+    expect(fake.setSessionProject).toHaveBeenCalledOnce();
+    expect(setExitCode).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   it('keeps retained auth commands private and explains explicit directory approval', async () => {
     const authFailure = fakeClient();
     authFailure.listMachines.mockRejectedValueOnce(
@@ -720,7 +830,7 @@ describe('session Commander reassignment', () => {
       commanderAgentContextPath: '/old/agentcontext',
       commanderContextFiles: [{ kind: 'commander', path: '/old/COMMANDER.md' }],
       contextHash: 'live-context-hash',
-    });
+    }, 'project-one');
     const owningMachine = machine('machine-B');
     const fake = fakeClient({
       parent: target,
@@ -760,6 +870,7 @@ describe('session Commander reassignment', () => {
       type: 'session-commander-updated',
       sessionId: 'session-real',
       commander: { id: 'athena', name: 'Athena on target' },
+      project: testProject,
       takesEffect: 'next-resume',
     });
   });
@@ -815,6 +926,102 @@ describe('session Commander reassignment', () => {
       {},
     );
     expect(fake.updateSessionMetadata).not.toHaveBeenCalled();
+  });
+});
+
+describe('session Project reassignment', () => {
+  const commanderMetadata = {
+    path: '/srv/project',
+    machineId: 'machine-1',
+    commanderId: 'athena',
+    commanderName: 'Athena',
+    commanderPath: '/commanders/athena/COMMANDER.md',
+    commanderWorkspace: '/srv/project',
+    commanderAgentContextPath: '/commanders/athena/agentcontext',
+    spawnSettings: { provider: 'codex', model: 'gpt-5.6', effort: 'high', permission: 'yolo' },
+  };
+
+  it('assigns an existing session without spawning and returns authoritative Project and Commander', async () => {
+    const fake = fakeClient({ parent: session('session-real', commanderMetadata, 'project-old') });
+    const output = vi.fn();
+    await handleSessionCommand(['set-project', 'session-real', 'project-one', '--json'], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.resolveProject).toHaveBeenCalledExactlyOnceWith('project-one');
+    expect(fake.setSessionProject).toHaveBeenCalledExactlyOnceWith('session-real', 'project-one');
+    expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      type: 'session-project-updated', sessionId: 'session-real', projectId: 'project-one',
+      project: testProject, commander: { id: 'athena', name: 'Athena' },
+    });
+    expect(await fake.setSessionProject.mock.results[0].value).toMatchObject({
+      metadata: commanderMetadata,
+      projectId: 'project-one',
+    });
+  });
+
+  it('clears an existing Project explicitly without changing the Commander or launch tuple', async () => {
+    const fake = fakeClient({ parent: session('session-real', commanderMetadata, 'project-one') });
+    const output = vi.fn();
+    await handleSessionCommand(['set-project', 'session-real', 'none', '--json'], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.resolveProject).not.toHaveBeenCalled();
+    expect(fake.setSessionProject).toHaveBeenCalledExactlyOnceWith('session-real', null);
+    expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      type: 'session-project-updated', project: null, projectId: null,
+      commander: { id: 'athena' },
+    });
+  });
+
+  it('returns a retained partial Commander binding without requiring canonical paths', async () => {
+    const metadata = { commanderId: 'athena', commanderName: 'Athena' };
+    const fake = fakeClient({ parent: session('session-real', metadata, 'project-old') });
+    const output = vi.fn();
+
+    await handleSessionCommand(['set-project', 'session-real', 'project-one', '--json'], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      type: 'session-project-updated',
+      commander: { id: 'athena', name: 'Athena' },
+      projectId: 'project-one',
+    });
+  });
+
+  it('rejects an unknown or non-owned Project before changing the session', async () => {
+    const fake = fakeClient();
+    await expect(handleSessionCommand(['set-project', 'session-real', 'foreign-project'], {
+      createClient: async () => fake.client,
+      output: vi.fn(),
+    })).rejects.toThrow('Project "foreign-project" was not found');
+    expect(fake.setSessionProject).not.toHaveBeenCalled();
+    expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+  });
+});
+
+describe('session settings command routing', () => {
+  it('shows set-settings syntax and auth/timing details in session help', async () => {
+    const output = vi.fn();
+    await handleSessionCommand(['--help'], { output });
+    expect(output.mock.calls[0][0]).toContain('session set-settings <session-id>');
+    expect(output.mock.calls[0][0]).toContain('account-level machine control authentication');
+    expect(output.mock.calls[0][0]).toContain('next message');
+  });
+
+  it('routes set-settings help without loading an account client', async () => {
+    const createClient = vi.fn();
+    const output = vi.fn();
+    await handleSessionCommand(['set-settings', '--help'], { createClient, output });
+    expect(createClient).not.toHaveBeenCalled();
+    expect(output.mock.calls[0][0]).toContain('happyherd session set-settings');
   });
 });
 
