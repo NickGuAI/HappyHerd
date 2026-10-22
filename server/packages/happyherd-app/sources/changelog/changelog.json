@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 22 — Manage session Projects and settings from the CLI",
+      "summary": "",
+      "markdown": "- List existing account Projects, select one when creating a session, and reassign or clear it while preserving the conversation and Commander.\n- Change a session's model, effort, and permission from the CLI. Messages sent to another session on the same machine use that session's saved choices."
+    },
+    {
       "title": "October 17 — More accurate usage totals",
       "summary": "",
       "markdown": "- Resuming a Claude Code conversation counts only new tokens and estimated cost, including after reconnecting the session.\n- Daily usage charts group activity by your local calendar day, including daylight-saving changes."
@@ -1001,5 +1006,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 17 — More accurate usage totals"
+  "latestTitle": "October 22 — Manage session Projects and settings from the CLI"
 }

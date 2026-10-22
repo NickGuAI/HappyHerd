@@ -2392,10 +2392,12 @@ export async function startDaemon(): Promise<void> {
         schemaVersion: 1, type: 'session-inspection', recent: true, limit: request.limit,
         session: {
           id: session.id, active, seq: session.seq, providerRunning: isLocalProviderRunning(session.id),
+          ...(session.projectId === undefined ? {} : { projectId: session.projectId ?? null }),
           ...(metadata.isSuperSession ? { transport: sessionTransport.status(session.id) } : {}),
           metadata: {
             path: metadata.path, flavor: metadata.flavor,
             commanderId: metadata.commanderId, commanderName: metadata.commanderName,
+            modelMode: metadata.modelMode, effortLevel: metadata.effortLevel, permissionMode: metadata.permissionMode,
             title: metadata.summary?.text, isSuperSession: metadata.isSuperSession, lifecycleState: metadata.lifecycleState,
           },
         },

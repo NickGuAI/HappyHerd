@@ -64,7 +64,7 @@ describe('local session task commands', () => {
     expect(parseLocalSessionInspectOptions(['session-one'])).toEqual({ sessionId: 'session-one', limit: 20, json: false });
     expect(() => parseLocalSessionInspectOptions(['session-one', '--after', '20'])).toThrow('Unknown option');
     const receipt = { schemaVersion: 1 as const, type: 'session-inspection' as const, recent: true as const, limit: 5,
-      session: { id: 'session-one', active: true, providerRunning: true, seq: 3, metadata: { path: '/project', commanderId: 'selected' } }, messages: [] };
+      session: { id: 'session-one', projectId: 'project-one', active: true, providerRunning: true, seq: 3, metadata: { path: '/project', commanderId: 'selected' } }, messages: [] };
     const inspect = vi.fn(async () => receipt); const output = vi.fn();
     await handleLocalSessionInspectCommand(['session-one', '--limit', '5', '--json'], { inspect, output });
     expect(inspect).toHaveBeenCalledExactlyOnceWith({ sessionId: 'session-one', limit: 5 });

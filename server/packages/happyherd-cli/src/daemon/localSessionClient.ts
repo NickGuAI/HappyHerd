@@ -29,6 +29,7 @@ export const LocalSessionInspectReceiptSchema = z.object({
     id: SessionIdSchema,
     active: z.boolean(),
     providerRunning: z.boolean(),
+    projectId: z.string().nullable().optional(),
     transport: SessionTransportStatusSchema.optional(),
     seq: z.number(),
     metadata: z.object({
@@ -36,6 +37,9 @@ export const LocalSessionInspectReceiptSchema = z.object({
       flavor: z.string().optional(),
       commanderId: z.string().optional(),
       commanderName: z.string().optional(),
+      modelMode: z.string().nullable().optional(),
+      effortLevel: z.string().nullable().optional(),
+      permissionMode: z.string().nullable().optional(),
       title: z.string().optional(),
       isSuperSession: z.boolean().optional(),
       lifecycleState: z.string().optional(),

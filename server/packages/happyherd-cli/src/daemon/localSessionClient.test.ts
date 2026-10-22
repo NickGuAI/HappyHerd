@@ -36,7 +36,9 @@ describe('local daemon session transport', () => {
 
   it('strips encryption and unapproved metadata fields from inspection readback', async () => {
     const safe = { schemaVersion: 1, type: 'session-inspection', recent: true, limit: 20,
-      session: { id: 'session-one', seq: 3, active: false, providerRunning: false, metadata: { path: '/project', commanderId: 'selected' } },
+      session: { id: 'session-one', projectId: 'project-one', seq: 3, active: false, providerRunning: false, metadata: {
+        path: '/project', commanderId: 'selected', modelMode: null, effortLevel: 'high', permissionMode: 'yolo',
+      } },
       messages: [{ seq: 3, localId: null, createdAt: 100, content: { role: 'agent', content: { type: 'text', text: 'Done.' } } }] };
     respond({ ...safe, token: 'not-for-cli', session: { ...safe.session, encryptionKey: 'not-for-cli', metadata: { ...safe.session.metadata, secretEnvironment: 'not-for-cli' } } });
     await expect(inspectLocalSession({ sessionId: 'session-one', limit: 20 })).resolves.toEqual(safe);

@@ -4,6 +4,7 @@ import { configuration } from '@/configuration';
 
 export type SessionListRecord = {
     id: string;
+    projectId?: string | null;
     active: boolean;
     metadata: string;
     metadataVersion: number;
