@@ -1,3 +1,8 @@
+# October 22 — Manage session Projects and settings from the CLI
+
+- List existing account Projects, select one when creating a session, and reassign or clear it while preserving the conversation and Commander.
+- Change a session's model, effort, and permission from the CLI. Messages sent to another session on the same machine use that session's saved choices.
+
 # October 17 — More accurate usage totals
 
 - Resuming a Claude Code conversation counts only new tokens and estimated cost, including after reconnecting the session.

@@ -41,6 +41,7 @@ import { sanitizeSessionEnvironment } from './daemon/sessionEnvironment'
 import { handleAutomationCommand } from './commands/automation'
 import { handleCommanderCommand } from './commands/commander'
 import { handleMachineCommand, handleSessionCommand } from './commands/machine'
+import { handleProjectCommand } from './commands/project'
 import { configuration } from './configuration'
 import { activateCredentialAccount } from './credentialPool/activate'
 
@@ -171,10 +172,12 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       process.exit(1)
     }
     return;
-  } else if (subcommand === 'machine' || subcommand === 'session') {
+  } else if (subcommand === 'machine' || subcommand === 'session' || subcommand === 'project') {
     try {
       if (subcommand === 'machine') {
         await handleMachineCommand(args.slice(1));
+      } else if (subcommand === 'project') {
+        await handleProjectCommand(args.slice(1));
       } else {
         await handleSessionCommand(args.slice(1));
       }
@@ -753,6 +756,7 @@ ${chalk.bold('Usage:')}
   happyherd [options]         Start Claude with mobile control
   happyherd auth              Manage authentication
   happyherd machine           Discover account machines
+  happyherd project           List existing account Projects
   happyherd session           Create, inspect, send to, and manage sessions/side chats
   happyherd resume            Resume a previous HappyHerd session by HappyHerd session ID
   happyherd codex             Start Codex mode

@@ -16,6 +16,7 @@ import { Credentials } from '@/persistence';
 import { connectionState, isNetworkError } from '@/utils/serverConnectionErrors';
 import { loadSessionRecords } from './sessionLookup';
 import type { DecryptedSideChatMessage } from '@/commands/sideChatContext';
+import { sessionTaskSettings } from './sessionTaskSettings';
 
 export class ApiClient {
 
@@ -86,6 +87,7 @@ export class ApiClient {
       let raw = response.data.session;
       let session: Session = {
         id: raw.id,
+        ...(raw.projectId === undefined ? {} : { projectId: raw.projectId }),
         seq: raw.seq,
         metadata: decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.metadata)),
         metadataVersion: raw.metadataVersion,
@@ -202,6 +204,7 @@ export class ApiClient {
       active: raw.active,
       session: {
         ...session,
+        ...(raw.projectId === undefined ? {} : { projectId: raw.projectId }),
         seq: raw.seq,
         metadata: persistedMetadata,
         metadataVersion: raw.metadataVersion,
@@ -310,7 +313,12 @@ export class ApiClient {
   async postSessionTask(session: Session, input: { localId: string; text: string }): Promise<{ seq: number }> {
     const response = await this.postQueuedUserMessage(session, {
       ...input,
-      meta: { sentFrom: 'happyherd-cli', deliveryMode: 'queue', queueMessageId: input.localId },
+      meta: {
+        sentFrom: 'happyherd-cli',
+        deliveryMode: 'queue',
+        queueMessageId: input.localId,
+        ...sessionTaskSettings(session.metadata),
+      },
     }) as { messages?: Array<{ localId?: string; seq?: number }> } | null;
     const acknowledged = Array.isArray(response?.messages)
       ? response.messages.find(message => message.localId === input.localId) : undefined;

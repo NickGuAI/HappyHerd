@@ -123,6 +123,7 @@ export interface ClientToServerEvents {
  */
 export type Session = {
   id: string,
+  projectId?: string | null,
   seq: number,
   encryptionKey: Uint8Array;
   encryptionVariant: 'legacy' | 'dataKey';
@@ -274,6 +275,7 @@ export type MessageMeta = z.infer<typeof MessageMetaSchema>
 export const CreateSessionResponseSchema = z.object({
   session: z.object({
     id: z.string(),
+    projectId: z.string().nullable().optional(),
     tag: z.string(),
     seq: z.number(),
     createdAt: z.number(),

@@ -265,6 +265,32 @@ the owning machine's canonical registry) or use `none` to detach the Commander.
 Changes take effect on the next session resume without altering the live
 conversation context.
 
+Choose an existing account Project independently of the working directory:
+
+```text
+happyherd project list --json
+happyherd session create --local --path ABSOLUTE_PATH --provider PROVIDER --commander ID --project PROJECT_ID --json
+happyherd session set-project SESSION_ID PROJECT_ID --json
+happyherd session set-project SESSION_ID none --json
+happyherd session set-settings SESSION_ID --model MODEL --effort EFFORT --permission MODE --json
+```
+
+Project commands and `set-settings` require the account-control link established
+by `happyherd machine auth login`. Project IDs come from `project list`; these
+commands use existing account Projects and do not create them. Changing a
+Project preserves the session, Commander, working directory, and conversation.
+Creation validates the requested Project before launching. If assignment fails
+after launch, the failure receipt retains the created session ID so it can be
+assigned with `set-project` without creating another session.
+
+`set-settings` accepts any nonempty combination of model, effort, and permission.
+Use values from the owning machine's advertised provider catalog. Unspecified
+settings stay unchanged; supply a compatible effort when changing to a model
+that does not support the saved effort. The receipt confirms persisted choices
+for the next message or resume. Grok permission changes use its existing daemon
+restart/resume transition. Commander changes still take effect on the next resume.
+DSH permission remains a creation-time choice, matching its read-only active-session control.
+
 ### After reboot
 
 Run `happyherd daemon status` to inspect the service and `happyherd daemon start`
@@ -360,6 +386,11 @@ provider state when supported. Preserve original machine/provider state and
 session identity; record age alone never invalidates a reconnect record. Omit
 `--super-session` for ordinary tasks.
 
+`send` can target another session stored by this machine, including an independent
+session or a side chat. It forwards the target's saved model, effort, and permission
+choices. The queued receipt confirms persistence, not completion; inspect the
+target to check its reply. Run the command on the owning machine for remote sessions.
+
 Use category help for safe discovery, including `session --help`,
 `session side-chat --help`, `resume --help`, `commander --help`,
 `automation --help`, and `server --help`. Do not use provider launch routes such
@@ -405,6 +436,9 @@ pause/stop-run/abandon-run actions. `server --help` describes local self-hosting
 | `happyherd machine list [--json]` | Discover machines on the current account |
 | `happyherd session create ... [--commander ID] [--json]` | Create a tracked session on a selected HappyHerd CLI daemon machine |
 | `happyherd session set-commander <session-id> <commander-id\|none> [--json]` | Change the Commander used on the session's next resume |
+| `happyherd project list [--json]` | List existing account Project IDs and names |
+| `happyherd session set-project SESSION_ID PROJECT_ID\|none [--json]` | Assign, reassign, or clear the account Project |
+| `happyherd session set-settings SESSION_ID [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]` | Save provider choices for the next message or resume |
 
 ---
 

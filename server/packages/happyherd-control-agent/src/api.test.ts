@@ -10,13 +10,14 @@ import {
 } from './encryption';
 import type { Config } from './config';
 import type { Credentials } from './credentials';
-import type { RawSession, RawMessage } from './api';
+import type { RawProject, RawSession, RawMessage } from './api';
 
 // Mock axios
 vi.mock('axios', () => {
     const fn = {
         get: vi.fn(),
         post: vi.fn(),
+        patch: vi.fn(),
         delete: vi.fn(),
     };
     return {
@@ -41,6 +42,9 @@ import {
     deleteSession,
     getSessionMessages,
     resolveSessionEncryption,
+    listProjects,
+    getProjectById,
+    assignSessionProject,
 } from './api';
 
 const authHeader = {
@@ -52,6 +56,7 @@ const authHeader = {
 const mockedAxios = axios as any as {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
+    patch: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
 };
 
@@ -91,6 +96,7 @@ function makeRawSessionWithDataKey(
 
     const raw: RawSession = {
         id: overrides.id ?? 'session-abc123',
+        ...(overrides.projectId === undefined ? {} : { projectId: overrides.projectId }),
         seq: overrides.seq ?? 1,
         createdAt: overrides.createdAt ?? Date.now(),
         updatedAt: overrides.updatedAt ?? Date.now(),
@@ -118,6 +124,7 @@ function makeRawSessionLegacy(
 
     return {
         id: overrides.id ?? 'session-legacy-456',
+        ...(overrides.projectId === undefined ? {} : { projectId: overrides.projectId }),
         seq: overrides.seq ?? 1,
         createdAt: overrides.createdAt ?? Date.now(),
         updatedAt: overrides.updatedAt ?? Date.now(),
@@ -127,6 +134,27 @@ function makeRawSessionLegacy(
         metadataVersion: overrides.metadataVersion ?? 1,
         agentState: encryptedAgentState ? encodeBase64(encryptedAgentState) : null,
         agentStateVersion: overrides.agentStateVersion ?? 0,
+        dataEncryptionKey: null,
+    };
+}
+
+function makeRawProjectWithDataKey(creds: Credentials, id = 'project-data-key'): RawProject {
+    const projectKey = getRandomBytes(32);
+    const wrappedKey = libsodiumEncryptForPublicKey(projectKey, creds.contentKeyPair.publicKey);
+    const withVersion = new Uint8Array(1 + wrappedKey.length);
+    withVersion[0] = 0;
+    withVersion.set(wrappedKey, 1);
+    return {
+        id,
+        metadata: encodeBase64(encryptWithDataKey({ name: 'Example Project A', kind: 'work' }, projectKey)),
+        dataEncryptionKey: encodeBase64(withVersion),
+    };
+}
+
+function makeRawProjectLegacy(creds: Credentials, id = 'project-legacy'): RawProject {
+    return {
+        id,
+        metadata: encodeBase64(encryptLegacy({ name: 'Personal Notes', kind: null }, creds.secret)),
         dataEncryptionKey: null,
     };
 }
@@ -198,6 +226,7 @@ describe('api', () => {
             const { raw } = makeRawSessionWithDataKey(creds, metadata, agentState, {
                 id: 'sess-1',
                 active: true,
+                projectId: 'project-one',
             });
 
             mockedAxios.get.mockResolvedValueOnce({
@@ -208,6 +237,7 @@ describe('api', () => {
 
             expect(sessions).toHaveLength(1);
             expect(sessions[0].id).toBe('sess-1');
+            expect(sessions[0].projectId).toBe('project-one');
             expect(sessions[0].metadata).toEqual(metadata);
             expect(sessions[0].metadataVersion).toBe(raw.metadataVersion);
             expect(sessions[0].agentState).toEqual(agentState);
@@ -303,6 +333,70 @@ describe('api', () => {
 
             const sessions = await listSessions(config, creds);
             expect(sessions).toEqual([]);
+        });
+    });
+
+    describe('account Projects', () => {
+        it('lists decrypted names for data-key and legacy Projects without exposing wire data', async () => {
+            mockedAxios.get.mockResolvedValueOnce({
+                data: { projects: [makeRawProjectWithDataKey(creds), makeRawProjectLegacy(creds)] },
+            });
+
+            await expect(listProjects(config, creds)).resolves.toEqual([
+                { id: 'project-data-key', name: 'Example Project A', kind: 'work' },
+                { id: 'project-legacy', name: 'Personal Notes', kind: null },
+            ]);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                'https://test-server.example.com/v1/projects',
+                { headers: authHeader },
+            );
+        });
+
+        it('fails the catalog read when encrypted project data cannot be opened', async () => {
+            const foreignCreds = {
+                ...creds,
+                contentKeyPair: deriveContentKeyPair(getRandomBytes(32)),
+            };
+            mockedAxios.get.mockResolvedValueOnce({
+                data: { projects: [makeRawProjectWithDataKey(foreignCreds, 'project-foreign')] },
+            });
+
+            await expect(listProjects(config, creds)).rejects.toThrow(
+                'Failed to decrypt project key for project project-foreign',
+            );
+        });
+
+        it('resolves one exact Project ID and treats non-owned IDs as 404', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: makeRawProjectLegacy(creds, 'exact-project') });
+            await expect(getProjectById(config, creds, 'exact-project')).resolves.toEqual({
+                id: 'exact-project', name: 'Personal Notes', kind: null,
+            });
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                'https://test-server.example.com/v1/projects/exact-project',
+                { headers: authHeader },
+            );
+
+            const { AxiosError } = await import('axios');
+            mockedAxios.get.mockRejectedValueOnce(new (AxiosError as any)('Not Found', { response: { status: 404 } }));
+            await expect(getProjectById(config, creds, 'foreign-project')).resolves.toBeNull();
+        });
+
+        it('validates assignment and returns the exact session and Project receipt', async () => {
+            mockedAxios.patch.mockResolvedValueOnce({
+                data: { session: { id: 'session-one', projectId: 'project-one' } },
+            });
+            await expect(assignSessionProject(config, creds, 'session-one', 'project-one')).resolves.toEqual({
+                id: 'session-one', projectId: 'project-one',
+            });
+            expect(mockedAxios.patch).toHaveBeenCalledWith(
+                'https://test-server.example.com/v1/sessions/session-one/project',
+                { projectId: 'project-one' },
+                { headers: authHeader },
+            );
+
+            const { AxiosError } = await import('axios');
+            mockedAxios.patch.mockRejectedValueOnce(new (AxiosError as any)('Not Found', { response: { status: 404 } }));
+            await expect(assignSessionProject(config, creds, 'foreign-session', 'project-one')).rejects.toThrow('Not found');
         });
     });
 
