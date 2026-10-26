@@ -6,13 +6,22 @@ HappyHerd preserves Happy's complete Git history as a subtree at `server/`.
 - Remote name: `upstream`
 - Import mode: `git subtree` without `--squash`
 - Upstream base: `971d608923f175d3d63af7c204e8c036206b3e99`
-- Latest integrated upstream: `fda37d23fa044bb03093a62bdb48a1d5689790c9`
+- Latest integrated upstream: `a1f694ba3e4e652838b602eacd3b107619024dc2`
 - Upstream base tag: `happy-upstream-base-2026-08-02`
 - Upstream base tree: `6d164e9b8cbd254becf3e3a4d26179830d74d547`
 - Distribution shell: `b7ebaba52aa2072b474fd59e515ef5102dd60945`
 - Lineage merge: `7a52067b800d6a1f5349ddad44707074373b8342`
 - Pristine materialization: `e6e81cf389ec4b59af00994ab3b605d40ee89054`
 - Product rename in G0/A1-A6: none
+
+The 2026-10-26 approved sync retains upstream history through
+`a1f694ba3e4e652838b602eacd3b107619024dc2` as the second parent of the
+non-squashed merge `6352fabf25312cace3cd913a257d862d13fe15ae`. Its structural tree
+preserves the distribution baseline; a separate owned patch adapts hosted voice
+accounting, current voice-tool guidance and the Node 24 server baseline. The
+UIKit/Kotlin clients and native-only release paths remain excluded. See
+[the sync report](upstream-sync-a1f694ba.md) and
+[issue #441](https://github.com/NickGuAI/HappyHerd/issues/441).
 
 The 2026-10-14 approved sync retains upstream history through
 `fda37d23fa044bb03093a62bdb48a1d5689790c9` as the second parent of the

@@ -71,7 +71,7 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.11
@@ -96,7 +96,7 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Install frozen dependencies
         working-directory: server
         run: pnpm install --frozen-lockfile
@@ -124,7 +124,7 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.11
@@ -156,7 +156,7 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.11
@@ -224,7 +224,7 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.11
@@ -272,3 +272,10 @@ jobs:
           pnpm --filter happyherd-control-agent --fail-if-no-match build
           pnpm --filter @happyherd/cli --fail-if-no-match build
           pnpm --filter ./packages/happyherd-server --fail-if-no-match build
+      - name: Install minimum supported CLI Node major
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Execute built CLI on Node 20
+        working-directory: server
+        run: node packages/happyherd-cli/bin/happyherd.mjs --version

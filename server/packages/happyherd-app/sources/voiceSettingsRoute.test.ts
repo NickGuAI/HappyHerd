@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
         fetchVoiceUsage: vi.fn(async () => ({
             usedSeconds: 90,
             limitSeconds: 1_200,
-            conversationCount: 2,
+            conversationCount: 103,
             conversationLimit: 100,
             elevenUserId: 'eleven-user-1',
         })),
@@ -170,8 +170,11 @@ describe('Voice settings', () => {
 
         expect(renderer.root.findAllByType('UsageBar' as any).map((bar: any) => bar.props.label)).toEqual([
             'settingsVoice.usageLabel',
-            'settingsVoice.conversationsLabel',
         ]);
+
+        const conversations = items.find((item: any) => item.props.title === 'settingsVoice.conversationsLabel');
+        expect(conversations?.props.detail).toBe('103');
+        expect(conversations?.props.destructive).not.toBe(true);
 
         items.find((item: any) => item.props.title === 'settingsVoice.preferredLanguage')?.props.onPress();
         expect(mocks.push).toHaveBeenCalledWith('/settings/voice/language');

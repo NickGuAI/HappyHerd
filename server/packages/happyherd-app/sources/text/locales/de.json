@@ -1048,7 +1048,7 @@
       "autoDetect": "Automatische Erkennung"
     },
     "byoTitle": "Bringen Sie Ihren eigenen Agenten mit",
-    "byoDescription": "Verwenden Sie Ihren eigenen ElevenLabs-Agenten anstelle des HappyHerd-Standards. Kein Abonnement erforderlich – verbinden Sie sich direkt mit Ihrem eigenen ElevenLabs-Konto. Ihr Agent muss zwei Client-Tools definieren: messageClaudeCode (sendet Text an den Codierungsagenten) und processPermissionRequest (ermöglicht oder verweigert die Verwendung des Tools). Es empfängt Sitzungskontext über die dynamische Variable {{initialConversationContext}}.",
+    "byoDescription": "Verwenden Sie Ihren eigenen ElevenLabs-Agenten anstelle des HappyHerd-Standards. Kein Abonnement erforderlich – verbinden Sie sich direkt mit Ihrem eigenen ElevenLabs-Konto. Ihr Agent muss zwei Client-Tools definieren: sendMessageToSession (sendet Text an den Codierungsagenten) und processPermissionRequest (ermöglicht oder verweigert die Verwendung des Tools). Es empfängt Sitzungskontext über die dynamische Variable {{initialConversationContext}}.",
     "customAgentId": "ElevenLabs-Agenten-ID",
     "customAgentIdNotSet": "Nicht konfiguriert",
     "customAgentIdDescription": "Geben Sie Ihre ElevenLabs-Agenten-ID ein. Lassen Sie das Feld leer, um die HappyHerd-Standardeinstellung zu verwenden.",
@@ -1056,9 +1056,9 @@
     "bypassToken": "Direkte Verbindung",
     "bypassTokenSubtitle": "Überspringen Sie den HappyHerd-Server und stellen Sie eine direkte Verbindung zu ElevenLabs her",
     "promptGuideTitle": "Leitfaden zur Agentenaufforderung",
-    "promptGuideDescription": "Ihr ElevenLabs-Agent benötigt:\n\n• Tool: messageClaudeCode – Parameter: message (string). Sendet eine Nachricht an die aktive Codierungssitzung.\n• Tool: processPermissionRequest – Parameter: decision (\"allow\" oder \"deny\"). Genehmigt oder verweigert eine ausstehende Werkzeugberechtigung.\n• Dynamische Variable: {{initialConversationContext}} – empfängt beim Start den Sitzungsverlauf und den Kontext.\n\nDer Agent fungiert als Sprachbrücke zwischen dem Benutzer und den Programmieragenten. Er sollte prägnant sein, nur antworten, wenn er angesprochen wird, und melden, wenn ein Programmieragent seine Arbeit beendet hat.",
+    "promptGuideDescription": "Ihr ElevenLabs-Agent benötigt:\n\n• Tool: sendMessageToSession – Parameter: sessionId (string), message (string). Sendet eine Nachricht an die angegebene Codierungssitzung.\n• Tool: processPermissionRequest – Parameter: requestId (string), decision (\"allow\" oder \"deny\"). Genehmigt oder verweigert eine ausstehende Werkzeugberechtigung.\n• Dynamische Variable: {{initialConversationContext}} – empfängt beim Start den Sitzungsverlauf und den Kontext.\n\nDer Agent fungiert als Sprachbrücke zwischen dem Benutzer und den Programmieragenten. Er sollte prägnant sein, nur antworten, wenn er angesprochen wird, und melden, wenn ein Programmieragent seine Arbeit beendet hat.",
     "usageTitle": "Nutzung (letzte 30 Tage)",
-    "usageFooter": "In den letzten 30 Tagen genutzte Sprachzeit. Kostenloses Kontingent: 20 Min. Abonniert: 5 Stunden. Maximal 100 Gespräche pro Monat.",
+    "usageFooter": "In den letzten 30 Tagen genutzte Sprachzeit. Kostenloses Kontingent: 20 Min. Abonniert: 5 Stunden.",
     "usageLabel": "Sprachzeit",
     "conversationsLabel": "Gespräche",
     "usageUsed": "{used} verwendet von {limit}"

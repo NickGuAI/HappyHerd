@@ -187,7 +187,7 @@ host_happyherd daemon stop
 processes as part of an update.
 
 For a Linux source installation, install from the recorded `CLI_SOURCE_SHA`
-checkout using the pinned Node 20 and pnpm 10.11.0 toolchain:
+checkout using the Node 24 and pinned pnpm 10.11.0 toolchain:
 
 ```bash
 cd server

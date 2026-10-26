@@ -8,7 +8,7 @@ Choose checks from the changed contract, not from file extension alone.
 Root CI defines the supported verification toolchain:
 
 ```bash
-node --version       # Node 20
+node --version       # Node 24; built CLI also runs on Node 20
 pnpm --version       # pnpm 10.11.0
 bun --version        # Bun 1.3.11
 command -v shellcheck
