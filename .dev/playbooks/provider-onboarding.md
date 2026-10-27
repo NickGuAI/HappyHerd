@@ -298,6 +298,13 @@ fixtures do not establish a live runtime journey. Run the applicable
 [verification gates](../VERIFY.md), including i18n, changelog regeneration,
 UI inventory/tree regeneration, owned-patches, and web export.
 
+For Antigravity #364, the [source investigation](../skills/happyherd-update-provider/references/antigravity.md#context-window-investigation-364--2026-10-15)
+identifies a documented native transcript location but no retained HappyHerd
+native identity/state-home mapping or verified current-window replay contract.
+The existing RPC returns `agy_context_unavailable`, rendered with localized
+Retry. Do not infer identity from the latest-conversation workspace cache or
+claim that a synthetic unavailable response proves native trace recovery.
+
 The [#354](https://github.com/NickGuAI/HappyHerd/issues/354) delivery links one
 follow-up sub-issue for each remaining active provider:
 [GrokBuild #362](https://github.com/NickGuAI/HappyHerd/issues/362),

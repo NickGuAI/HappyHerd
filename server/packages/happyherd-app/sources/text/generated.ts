@@ -194,6 +194,7 @@ export type TranslationKey =
     | "contextWindow.disabled"
     | "contextWindow.empty"
     | "contextWindow.entryCount"
+    | "contextWindow.errors.agy_context_unavailable"
     | "contextWindow.errors.missing"
     | "contextWindow.errors.offline"
     | "contextWindow.errors.unreadable"

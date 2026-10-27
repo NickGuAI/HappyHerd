@@ -837,3 +837,11 @@ ISSUE_414_INTEGRATED_CHANGELOG_GOLDENS	code-ready	test(app): refresh integrated 
 ISSUE_394_FAILED_CLAUDE_RESULTS	code-ready	fix(claude): preserve failed SDK result status	server/packages/happyherd-cli/src/claude/claudeRemote.ts
 ISSUE_394_RESULT_VERIFICATION	code-ready	fix(claude): align native result predicate and verify failure reporting	.dev/issue-394-source-evidence.md
 ISSUE_394_CHANGELOG_CAPTURES	code-ready	test(app): refresh failed Claude result changelog captures	.dev/issue-394-source-evidence.md
+ISSUE_364_AGY_CONTEXT_UNAVAILABLE	code-ready	fix(context): explain unavailable Antigravity native context	.dev/skills/happyherd-update-provider/references/antigravity.md
+ISSUE_364_AGY_VALIDATION	code-ready	test(context): record Antigravity unavailable validation	.dev/issue-364-acceptance.md
+ISSUE_364_SETTLED_CAPTURE	code-ready	test(context): capture settled Antigravity feature switch	.dev/issue-364-acceptance.md
+ISSUE_364_PUBLIC_CAPTURE_EVIDENCE	code-ready	docs(context): publish Antigravity unavailable fixture captures	docs/acceptance/issue-364/README.md
+ISSUE_364_WEB_EXPORT_EVIDENCE	code-ready	docs(context): record Antigravity web export evidence	.dev/issue-364-acceptance.md
+ISSUE_364_BROWSER_BOUNDARY_DIAGNOSTICS	code-ready	test(app): observe browser warmup and workspace wait boundaries	.dev/issue-364-acceptance.md
+ISSUE_364_AGY_CHANGELOG_GOLDENS	code-ready	test(app): refresh Antigravity unavailable changelog captures	.dev/issue-364-acceptance.md
+ISSUE_364_CURRENT_UI_INVENTORY	code-ready	chore(context): refresh Antigravity UI inventory after rebase	.dev/issue-364-acceptance.md

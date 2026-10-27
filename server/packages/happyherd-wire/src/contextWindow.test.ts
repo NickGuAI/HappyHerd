@@ -20,6 +20,14 @@ describe('context window wire contract', () => {
         expect(ContextWindowResponseSchema.parse(response)).toEqual(response);
     });
 
+    it('carries an explicit Antigravity unavailable receipt without claiming a successful trace', () => {
+        const response = { type: 'error', reason: 'agy_context_unavailable' };
+        expect(ContextWindowResponseSchema.parse(response)).toEqual(response);
+        expect(ContextWindowResponseSchema.safeParse({
+            type: 'success', provider: 'agy', entries: [], limitations: [],
+        }).success).toBe(false);
+    });
+
     it('retains full arbitrary native content and explicit unrecorded limitations', () => {
         const response = {
             type: 'success', provider: 'claude',

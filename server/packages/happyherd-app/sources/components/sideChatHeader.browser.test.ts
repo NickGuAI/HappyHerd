@@ -10,7 +10,7 @@ import { darkTheme, lightTheme } from '@/theme';
 import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
 import { contextWindowReply } from './__testdata__/contextWindow.browser.fixture';
 
-import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
+import { traceBrowserStartup, observeWarmupChannels } from './__testdata__/browserStartupTrace';
 import { browserFixtureSetup } from './__testdata__/browserFixtureSetup';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -1511,6 +1511,7 @@ describe('Side chats browser interaction', () => {
     let server: Server;
     let origin: string;
     let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
+    let warmupTrace: ReturnType<typeof observeWarmupChannels> | undefined;
     let fixtureSetup: ReturnType<typeof browserFixtureSetup<Server, Browser, Server>> | undefined;
 
     beforeAll(async () => {
@@ -1652,7 +1653,15 @@ describe('Side chats browser interaction', () => {
                 // Blank renderer warmup remains inside the unchanged hook budget.
                 assertActive();
                 const warmupStartedAt = performance.now();
-                const warmup = await setupStage('warmup-new-page', () => acquiredBrowser.newPage());
+                warmupTrace = observeWarmupChannels(acquiredBrowser);
+                let warmup!: Page;
+                let pageCreated = false;
+                try {
+                    warmup = await setupStage('warmup-new-page', () => acquiredBrowser.newPage());
+                    pageCreated = true;
+                } finally {
+                    warmupTrace.stop(pageCreated ? 'success' : 'failure');
+                }
                 let failed = false;
                 try {
                     assertActive();
@@ -1673,7 +1682,10 @@ describe('Side chats browser interaction', () => {
             closeServer: (acquiredServer) => new Promise<void>((resolveClosed, reject) => {
                 acquiredServer.close(error => error ? reject(error) : resolveClosed());
             }),
-            onStop: () => startupTrace?.stop('hook-teardown'),
+            onStop: () => {
+                warmupTrace?.stop('teardown');
+                startupTrace?.stop('hook-teardown');
+            },
             onCleanupFailure: (resource) => console.info('[browser fixture cleanup]', {
                 fixture: 'sideChatHeader', resource, status: 'failed',
             }),
@@ -1917,6 +1929,55 @@ describe('Side chats browser interaction', () => {
             expect(errors).toEqual([]);
         } finally { await page.close(); }
     }, 30_000);
+
+    it.each([1440, 390])('Antigravity Context window switch → entry → unavailable → Retry at %s px (rendered fixture)', async (width) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
+        page.setDefaultTimeout(5_000);
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { contextWindow: { provider: 'agy' } };
+        });
+        let attempts = 0;
+        await page.route('**/fixture-context-window', (route) => {
+            attempts++;
+            return route.fulfill({ json: { type: 'error', reason: 'agy_context_unavailable' } });
+        });
+        const screenshotDirectory = process.env.HAPPYHERD_CONTEXT_WINDOW_SCREENSHOT_DIR?.trim();
+        const capture = async (phase: string) => {
+            if (!screenshotDirectory) return;
+            mkdirSync(screenshotDirectory, { recursive: true });
+            await page.screenshot({ path: resolve(screenshotDirectory, `agy-${width}-${phase}.png`), animations: 'disabled' });
+        };
+        try {
+            await page.goto(`${origin}/session/parent`);
+            await page.getByTestId('session-header-menu').click();
+            const menu = page.getByTestId('session-actions-menu');
+            expect(await menu.getByRole('button', { name: /Context window/ }).count()).toBe(0);
+            expect(attempts).toBe(0);
+            await page.goto(`${origin}/settings/features`);
+            const toggle = page.getByRole('switch', { name: 'Context window', exact: true });
+            expect(await toggle.isChecked()).toBe(false);
+            await toggle.click();
+            await expect.poll(() => toggle.isChecked()).toBe(true);
+            await capture('switch');
+            await page.goto(`${origin}/session/parent`);
+            await page.getByTestId('session-header-menu').click();
+            await menu.getByRole('button', { name: /Context window/ }).waitFor();
+            await capture('entry');
+            await menu.getByRole('button', { name: /Context window/ }).click();
+            const notice = page.getByRole('alert').getByText('Antigravity’s current context cannot be recovered for this session. HappyHerd has no verified native conversation identity or current-window trace. Retry checks availability again; it does not start Antigravity.', { exact: true });
+            await notice.waitFor();
+            expect(attempts).toBe(1);
+            expect(await page.getByRole('heading', { name: /^[0-9]+\. / }).count()).toBe(0);
+            await capture('unavailable');
+            await page.getByRole('button', { name: 'Retry', exact: true }).click();
+            await expect.poll(() => attempts).toBe(2);
+            await notice.waitFor();
+            await page.reload();
+            await notice.waitFor();
+            expect(attempts).toBe(3);
+            await capture('retry-reload');
+        } finally { await page.close(); }
+    }, 20_000);
 
     it.each([1440, 390])('Context window direct route stays unread while disabled at %s px', async (width) => {
         const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
