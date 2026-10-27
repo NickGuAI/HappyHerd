@@ -4,10 +4,13 @@ import type { DecryptedMachine, DecryptedSession } from './api';
 
 const mocks = vi.hoisted(() => ({
     getSessionById: vi.fn(),
+    getProjectById: vi.fn(),
+    listProjects: vi.fn(),
     listMachines: vi.fn(),
     listSessions: vi.fn(),
     listActiveSessions: vi.fn(),
     getSessionMessages: vi.fn(),
+    assignSessionProject: vi.fn(),
     invokeRpc: vi.fn(),
     invokeSpawn: vi.fn(),
     resume: vi.fn(),
@@ -16,10 +19,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./api', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./api')>()),
     getSessionById: mocks.getSessionById,
+    getProjectById: mocks.getProjectById,
+    listProjects: mocks.listProjects,
     listMachines: mocks.listMachines,
     listSessions: mocks.listSessions,
     listActiveSessions: mocks.listActiveSessions,
     getSessionMessages: mocks.getSessionMessages,
+    assignSessionProject: mocks.assignSessionProject,
 }));
 
 vi.mock('./machineRpc', async (importOriginal) => ({
@@ -74,6 +80,8 @@ describe('HappyHerdControlClient machine session creation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.getSessionById.mockResolvedValue(null);
+        mocks.getProjectById.mockResolvedValue(null);
+        mocks.assignSessionProject.mockResolvedValue({ id: 'session-real', projectId: 'project-one' });
         mocks.invokeSpawn.mockResolvedValue({
             type: 'success',
             sessionId: 'session-real',
@@ -175,6 +183,90 @@ describe('HappyHerdControlClient machine session creation', () => {
             'claude-fork-session',
             { directory: '/srv/project', claudeSessionId: 'claude-parent' },
         );
+    });
+
+    it('lists and resolves account Projects by exact ID', async () => {
+        const project = { id: 'project-one', name: 'Example Project A', kind: 'work' };
+        mocks.listProjects.mockResolvedValue([project]);
+        mocks.getProjectById.mockImplementation((_config: unknown, _credentials: unknown, id: string) =>
+            Promise.resolve(id === project.id ? project : null));
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token', secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await expect(client.listProjects()).resolves.toEqual([project]);
+        await expect(client.resolveProject('project-one')).resolves.toEqual(project);
+        await expect(client.resolveProject('project')).rejects.toThrow('Project "project" was not found');
+        expect(mocks.getProjectById).toHaveBeenCalledWith(client.config, client.credentials, 'project');
+        await expect(client.resolveProject(' project-one ')).rejects.toThrow('exact, non-empty ID');
+    });
+
+    it('verifies the persisted Project after the server assignment response', async () => {
+        const selected = { ...session(), projectId: null };
+        const updated = { ...session(), projectId: 'project-one' };
+        mocks.listSessions
+            .mockResolvedValueOnce([selected])
+            .mockResolvedValueOnce([updated]);
+        mocks.assignSessionProject.mockResolvedValueOnce({ id: 'session-real', projectId: 'project-one' });
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token', secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await expect(client.setSessionProject('session-real', 'project-one')).resolves.toMatchObject({
+            id: 'session-real', projectId: 'project-one',
+        });
+        expect(mocks.assignSessionProject).toHaveBeenCalledWith(
+            client.config, client.credentials, 'session-real', 'project-one',
+        );
+    });
+
+    it('reports actual persisted Project when an assignment does not take effect', async () => {
+        const selected = { ...session(), projectId: 'project-old' };
+        const unchanged = { ...session(), projectId: 'project-old' };
+        mocks.listSessions
+            .mockResolvedValueOnce([selected])
+            .mockResolvedValueOnce([unchanged]);
+        mocks.assignSessionProject.mockResolvedValueOnce({ id: 'session-real', projectId: 'project-one' });
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token', secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await expect(client.setSessionProject('session-real', 'project-one')).rejects.toMatchObject({
+            name: 'SessionProjectAssignmentError', actualProjectId: 'project-old',
+        });
+    });
+
+    it('does not accept a Project receipt read back for a different session ID', async () => {
+        const selected = { ...session(), projectId: null };
+        const wrongSession = { ...session(), id: 'session-other', projectId: 'project-one' };
+        mocks.listSessions
+            .mockResolvedValueOnce([selected])
+            .mockResolvedValueOnce([]);
+        mocks.getSessionById.mockResolvedValueOnce(wrongSession);
+        mocks.assignSessionProject.mockResolvedValueOnce({ id: 'session-real', projectId: 'project-one' });
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token', secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await expect(client.setSessionProject('session-real', 'project-one')).rejects.toMatchObject({
+            name: 'SessionProjectAssignmentError', actualProjectId: 'project-one',
+        });
     });
 
     it('forwards child lineage and provider resume IDs in the spawn payload', async () => {

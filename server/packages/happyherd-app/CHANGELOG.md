@@ -4,6 +4,11 @@
 - Free voice works without subscription-service configuration. If usage cannot be verified, starting a hosted voice conversation returns an error instead of assuming unused allowance.
 - Voice settings show conversation totals without an artificial count limit, and the custom-agent guide lists the current message and permission tool parameters.
 
+# October 22 — Manage session Projects and settings from the CLI
+
+- List existing account Projects, select one when creating a session, and reassign or clear it while preserving the conversation and Commander.
+- Change a session's model, effort, and permission from the CLI. Messages sent to another session on the same machine use that session's saved choices.
+
 # October 17 — More accurate usage totals
 
 - Resuming a Claude Code conversation counts only new tokens and estimated cost, including after reconnecting the session.

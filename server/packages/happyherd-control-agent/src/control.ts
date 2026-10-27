@@ -7,13 +7,17 @@ import { loadConfig } from './config';
 import type { Credentials } from './credentials';
 import { requireCredentials } from './credentials';
 import {
+    assignSessionProject as assignProjectInApi,
+    getProjectById,
     getSessionById,
     getSessionMessages,
     listActiveSessions,
     listMachines,
+    listProjects,
     listSessions,
     type DecryptedMachine,
     type DecryptedMessage,
+    type DecryptedProject,
     type DecryptedSession,
 } from './api';
 import {
@@ -72,6 +76,16 @@ export type SendTurnOptions = {
 
 export type SessionMetadataUpdater = (metadata: unknown | null) => unknown;
 
+export class SessionProjectAssignmentError extends Error {
+    constructor(
+        message: string,
+        readonly actualProjectId?: string | null,
+    ) {
+        super(message);
+        this.name = 'SessionProjectAssignmentError';
+    }
+}
+
 function resolveById<T extends { id: string }>(items: T[], value: string, label: string): T {
     const exact = items.find((item) => item.id === value);
     if (exact) {
@@ -118,6 +132,57 @@ export class HappyHerdControlClient {
 
     listMachines(): Promise<DecryptedMachine[]> {
         return listMachines(this.config, this.credentials);
+    }
+
+    listProjects(): Promise<DecryptedProject[]> {
+        return listProjects(this.config, this.credentials);
+    }
+
+    async resolveProject(projectId: string): Promise<DecryptedProject> {
+        if (projectId.trim().length === 0 || projectId !== projectId.trim()) {
+            throw new Error('Project ID must be an exact, non-empty ID');
+        }
+        const project = await getProjectById(this.config, this.credentials, projectId);
+        if (!project) throw new Error(`Project "${projectId}" was not found in this account`);
+        return project;
+    }
+
+    async setSessionProject(sessionId: string, projectId: string | null): Promise<DecryptedSession> {
+        const selected = await this.resolveSession(sessionId);
+        let acknowledgedProjectId: string | null | undefined;
+        let assignmentError: unknown;
+        try {
+            const receipt = await assignProjectInApi(
+                this.config,
+                this.credentials,
+                selected.id,
+                projectId,
+            );
+            acknowledgedProjectId = receipt.projectId;
+        } catch (error) {
+            assignmentError = error;
+        }
+
+        let readback: DecryptedSession | null = null;
+        let readbackError: unknown;
+        try {
+            readback = await this.resolveSession(selected.id);
+        } catch (error) {
+            readbackError = error;
+        }
+        if (readback?.id === selected.id && readback.projectId === projectId) return readback;
+
+        const actualProjectId = readback?.id === selected.id && readback.projectId !== undefined
+            ? readback.projectId
+            : acknowledgedProjectId;
+        const details = [assignmentError, readbackError]
+            .filter((error) => error !== undefined)
+            .map((error) => error instanceof Error ? error.message : String(error));
+        const detail = details.length > 0 ? `: ${details.join('; ')}` : '';
+        throw new SessionProjectAssignmentError(
+            `Project assignment for session ${selected.id} was not confirmed${detail}`,
+            actualProjectId,
+        );
     }
 
     async resolveSession(sessionId: string): Promise<DecryptedSession> {
@@ -338,6 +403,7 @@ export type {
     Credentials,
     DecryptedMachine,
     DecryptedMessage,
+    DecryptedProject,
     DecryptedSession,
     SpawnSessionRuntimeContext,
     TurnResult,

@@ -70,6 +70,9 @@ happyherd session --help
 happyherd session create --help
 happyherd session inspect --help
 happyherd session send --help
+happyherd session set-project --help
+happyherd session set-settings --help
+happyherd project --help
 happyherd session side-chat --help
 happyherd resume --help
 happyherd machine --help
@@ -106,6 +109,9 @@ happyherd session inspect SESSION_ID --limit 20 --json
 happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID --json
 happyherd resume SESSION_ID
 happyherd session set-commander SESSION_ID COMMANDER_ID --json
+happyherd project list --json
+happyherd session set-project SESSION_ID PROJECT_ID --json
+happyherd session set-settings SESSION_ID --model MODEL --permission MODE --json
 ~~~
 
 Creation returns the tracked HappyHerd session ID but sends no task prompt.
@@ -114,6 +120,8 @@ same message ID after an uncertain send result; inspect the recent response.
 Send and inspect use the owning local daemon. Inspect defaults to 20 messages
 and accepts limits 1..100; its output is private session context, not a public
 artifact. An accepted send receipt does not prove task completion.
+Send can target any session stored by the owning local daemon, including another
+independent session or side chat, and forwards that target's saved provider choices.
 
 --local uses the local daemon's existing machine login. --machine uses an exact
 account machine ID or unambiguous hostname from happyherd machine list --json
@@ -123,6 +131,20 @@ missing target directory. --model, --effort, and --permission are optional;
 use only the target's advertised values. Omit --super-session for ordinary
 tasks; that flag requires --commander. session ensure-assistant --json reuses
 the account's persistent Assistant through the local daemon.
+
+The account Project is separate from the workspace path. Use project list to
+find an existing Project ID, add --project PROJECT_ID at creation, or use
+set-project with that ID or none to assign or clear an existing session. These
+Project operations require the separate account-control link, even for local
+creation. A failed assignment after creation retains the new session ID in its
+receipt; use set-project on that ID rather than creating a replacement.
+
+set-settings also requires account-control authentication and accepts any
+nonempty combination of --model, --effort, and --permission. It validates the
+resulting tuple against the owning machine's catalog and preserves other fields.
+Choices apply on the next message or resume. Grok permission changes use the
+existing daemon-confirmed restart/resume transition.
+DSH permission remains launch-only; select it when creating the session.
 
 Resume takes a HappyHerd session ID (or supported unique prefix), not a provider
 thread ID, and restores the saved workspace and provider resume state when

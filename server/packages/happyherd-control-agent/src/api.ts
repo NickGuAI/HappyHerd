@@ -26,6 +26,7 @@ export type SessionEncryption = RecordEncryption;
 
 export type RawSession = {
     id: string;
+    projectId?: string | null;
     seq: number;
     createdAt: number;
     updatedAt: number;
@@ -40,6 +41,7 @@ export type RawSession = {
 
 export type DecryptedSession = {
     id: string;
+    projectId?: string | null;
     seq: number;
     createdAt: number;
     updatedAt: number;
@@ -50,6 +52,19 @@ export type DecryptedSession = {
     agentState: unknown | null;
     dataEncryptionKey: string | null;
     encryption: RecordEncryption;
+};
+
+export type RawProject = {
+    id: string;
+    metadata: string;
+    dataEncryptionKey: string | null;
+};
+
+/** Project names are private metadata and are decrypted with account credentials. */
+export type DecryptedProject = {
+    id: string;
+    name: string;
+    kind: string | null;
 };
 
 export type RawMachine = {
@@ -145,6 +160,7 @@ function decryptSession(raw: RawSession, creds: Credentials): DecryptedSession {
     const encryption = resolveSessionEncryption(raw, creds);
     return {
         id: raw.id,
+        ...(raw.projectId === undefined ? {} : { projectId: raw.projectId }),
         seq: raw.seq,
         createdAt: raw.createdAt,
         updatedAt: raw.updatedAt,
@@ -155,6 +171,42 @@ function decryptSession(raw: RawSession, creds: Credentials): DecryptedSession {
         agentState: decryptField(raw.agentState, encryption),
         dataEncryptionKey: raw.dataEncryptionKey,
         encryption,
+    };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function decryptProject(raw: RawProject, creds: Credentials): DecryptedProject {
+    const encryption = resolveRecordEncryption(raw, creds, 'project');
+    const metadata = decryptField(raw.metadata, encryption);
+    if (!isRecord(metadata) || typeof metadata.name !== 'string' || metadata.name.trim().length === 0) {
+        throw new Error(`Failed to decrypt project metadata for project ${raw.id}`);
+    }
+    if (metadata.kind !== undefined && metadata.kind !== null && typeof metadata.kind !== 'string') {
+        throw new Error(`Failed to decrypt project metadata for project ${raw.id}`);
+    }
+    return {
+        id: raw.id,
+        name: metadata.name.trim(),
+        kind: typeof metadata.kind === 'string' && metadata.kind.trim().length > 0
+            ? metadata.kind.trim()
+            : null,
+    };
+}
+
+function parseRawProject(value: unknown): RawProject {
+    if (!isRecord(value)
+        || typeof value.id !== 'string' || value.id.length === 0
+        || typeof value.metadata !== 'string' || value.metadata.length === 0
+        || (value.dataEncryptionKey !== null && typeof value.dataEncryptionKey !== 'string')) {
+        throw new Error('Server returned an invalid Project record');
+    }
+    return {
+        id: value.id,
+        metadata: value.metadata,
+        dataEncryptionKey: value.dataEncryptionKey as string | null,
     };
 }
 
@@ -226,6 +278,77 @@ export async function listSessions(
     }
 
     return data.sessions.map(raw => decryptSession(raw, creds));
+}
+
+export async function listProjects(
+    config: Config,
+    creds: Credentials,
+): Promise<DecryptedProject[]> {
+    let data: unknown;
+    try {
+        const resp = await axios.get(`${config.serverUrl}/v1/projects`, {
+            headers: authHeaders(creds),
+        });
+        data = resp.data;
+    } catch (err) {
+        handleApiError(err, 'listing Projects');
+    }
+    if (!isRecord(data) || !Array.isArray(data.projects)) {
+        throw new Error('Server returned an invalid Project catalog');
+    }
+    return data.projects.map((project) => decryptProject(parseRawProject(project), creds));
+}
+
+/** Resolve and decrypt one exact account Project ID; names are never selectors. */
+export async function getProjectById(
+    config: Config,
+    creds: Credentials,
+    projectId: string,
+): Promise<DecryptedProject | null> {
+    let data: unknown;
+    try {
+        const resp = await axios.get(`${config.serverUrl}/v1/projects/${encodeURIComponent(projectId)}`, {
+            headers: authHeaders(creds),
+        });
+        data = resp.data;
+    } catch (err) {
+        if (err instanceof AxiosError && err.response?.status === 404) return null;
+        handleApiError(err, `resolving Project ${projectId}`);
+    }
+    const project = decryptProject(parseRawProject(data), creds);
+    if (project.id !== projectId) {
+        throw new Error(`Server returned Project ${project.id} while resolving ${projectId}`);
+    }
+    return project;
+}
+
+export async function assignSessionProject(
+    config: Config,
+    creds: Credentials,
+    sessionId: string,
+    projectId: string | null,
+): Promise<{ id: string; projectId: string | null }> {
+    let data: unknown;
+    try {
+        const resp = await axios.patch(
+            `${config.serverUrl}/v1/sessions/${encodeURIComponent(sessionId)}/project`,
+            { projectId },
+            { headers: authHeaders(creds) },
+        );
+        data = resp.data;
+    } catch (err) {
+        handleApiError(err, `assigning Project for session ${sessionId}`);
+    }
+    const session = isRecord(data) && isRecord(data.session) ? data.session : null;
+    if (!session
+        || session.id !== sessionId
+        || (session.projectId !== null && typeof session.projectId !== 'string')) {
+        throw new Error(`Server returned an invalid Project assignment receipt for session ${sessionId}`);
+    }
+    if (session.projectId !== projectId) {
+        throw new Error(`Server did not confirm Project ${projectId ?? 'none'} for session ${sessionId}`);
+    }
+    return { id: session.id as string, projectId: session.projectId as string | null };
 }
 
 export async function getSessionById(
