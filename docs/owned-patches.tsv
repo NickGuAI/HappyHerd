@@ -824,3 +824,4 @@ UPSTREAM_FDA37D2_SYNC	code-ready	docs(sync): record fda37d2 integration and defe
 ISSUE_437_USAGE_ACCOUNTING	code-ready	fix(usage): preserve Claude session totals and local chart dates	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts
 ISSUE_437_CHANGELOG_GOLDENS	code-ready	test(ui): refresh usage fix changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UPSTREAM_A1F694BA_ADAPTATION	code-ready	fix(sync): adapt pinned upstream voice and Node 24 baseline	docs/upstream-sync-a1f694ba.md
+UPSTREAM_A1F694BA_CHANGELOG_CAPTURES	code-ready	test(sync): refresh approved upstream changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
