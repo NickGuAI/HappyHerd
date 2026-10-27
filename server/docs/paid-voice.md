@@ -10,10 +10,9 @@ User taps mic
 │
 ├─ POST /v1/voice/conversations { agentId }
 │   │
-│   ├─ GET /v1/convai/conversations?agent_id=X&user_id=Y&created_after=<30d>&page_size=100
-│   │   └─ Sum call_duration_secs → usedSeconds (~108ms)
+│   ├─ GET /v1/convai/conversations?user_id=Y&call_start_after_unix=<30d ago, Unix seconds>&page_size=100
+│   │   └─ Follow next_cursor while has_more, sum call_duration_secs → usedSeconds
 │   │
-│   ├─ conversations == 100?          → { allowed: false, reason: "voice_conversation_limit_reached" }
 │   ├─ usedSeconds >= 5h?             → { allowed: false, reason: "voice_hard_limit_reached" }
 │   ├─ usedSeconds >= 20min + no sub? → { allowed: false, reason: "subscription_required" }
 │   │
@@ -23,8 +22,7 @@ User taps mic
 │   └─ Return { conversationToken, conversationId, agentId, elevenUserId, usedSeconds, limitSeconds }
 │
 ├─ allowed: false?
-│   ├─ "voice_conversation_limit_reached" → alert (file issue on GitHub)
-│   └─ other → paywall flow="voice_must_pay"
+│   └─ paywall flow="voice_must_pay"
 │
 └─ allowed: true
     ├─ feature flag voice-upsell == "show-paywall-before-first-voice-chat"?
@@ -43,7 +41,6 @@ User taps mic
 | Free | 20 min | 30 days | ~$0.19 | Paywall |
 | Subscribed | 5 hours | 30 days | — | Hard block → BYO agent |
 | BYO Agent | Unlimited | — | $0 | User's own ElevenLabs |
-| Any | 100 conversations | 30 days | — | Hard block → file issue |
 
 Cost: ~$0.01/min ($1600 / 171K min measured).
 
@@ -52,9 +49,13 @@ Cost: ~$0.01/min ($1600 / 171K min measured).
 ElevenLabs is the source of truth. No local DB.
 
 - `participant_name` on token mint → sets `user_id` on conversation record
-- Usage: `GET /conversations?user_id=Y&created_after=<30d>&page_size=100` → sum durations
+- Usage: `GET /conversations?user_id=Y&call_start_after_unix=<30d ago, Unix seconds>&page_size=100` → sum durations
 - `user_id` = HMAC-SHA256 of HappyHerd user ID (deterministic, one-way)
-- Max page_size is 100 → at 100 conversations we block (can't track more without pagination)
+- Max `page_size` is 100. Follow `next_cursor` while `has_more` to include users with more than 100 calls.
+- Stop once the five-hour quota is reached. Usage and conversation totals above that quota are lower bounds.
+- History lookup has a 15-second total timeout. Provider errors, malformed history and invalid/repeated cursors return an error without granting a token from incomplete usage.
+- Free voice below 20 minutes does not require RevenueCat configuration. Above the free allowance, an active subscription is required; the five-hour hard cap always applies.
+- `/v1/voice/usage` retains numeric `conversationLimit: 100` for shipped-client compatibility. It is a deprecated display field, not an eligibility limit. Current Expo Settings shows the count without a limit bar.
 
 **TODO:** Remove `VoiceConversation` model from Prisma schema (no longer used, DB table can be dropped).
 

@@ -46,29 +46,25 @@ separate subsystem; the pill can still end an already active realtime session.
 
 ## Session Routing
 
-A single module-level variable `currentSessionId` in `RealtimeSession.ts` controls which session the voice agent's tool calls route to. It is the single source of truth for both:
-
-- **Routing**: `messageClaudeCode` and `processPermissionRequest` in `realtimeClientTools.ts` read it via `getCurrentRealtimeSessionId()`.
-- **Focus dedup**: `voiceHooks.onSessionFocus()` compares against it to avoid re-injecting context for the already-focused session.
-
-When the user navigates to a different session while voice is active, `onSessionFocus` updates `currentSessionId` so subsequent voice commands route to the newly viewed session.
+The module-level `currentSessionId` in `RealtimeSession.ts` tracks the session
+whose context is currently presented to the voice agent. `voiceHooks.onSessionFocus()`
+compares it to avoid sending the same focus update twice. Navigating to a
+different session updates the context; tool routing uses explicit identifiers.
 
 ```text
 Realtime caller starts Session A
   │
-  v
-startRealtimeSession("A")
-  └──> currentSessionId = "A"
+  └──→ currentSessionId = "A"
 
 User navigates to Session B
   │
-  v
-sync.onSessionVisible("B")
-  └──> voiceHooks.onSessionFocus("B")
-         └──> setCurrentRealtimeSessionId("B")
+  └──→ voiceHooks.onSessionFocus("B") → context focus = "B"
 
-Voice agent calls messageClaudeCode
-  └──> getCurrentRealtimeSessionId() → "B"
+Voice agent calls sendMessageToSession({ sessionId: "A", message })
+  └──→ sync.sendMessage("A", message, { source: 'voice' })
+
+Voice agent calls processPermissionRequest({ requestId, decision })
+  └──→ find the session owning requestId → allow or deny that request
 ```
 
 ## Voice Start
@@ -167,10 +163,10 @@ ElevenLabs SDK
 
 The voice agent can invoke these client tools (defined in `realtimeClientTools.ts`):
 
-- **messageClaudeCode** — sends a text message to the currently focused session via `sync.sendMessage(sessionId, message)`.
-- **processPermissionRequest** — allows or denies a pending permission request on the current session.
+- **sendMessageToSession(sessionId, message)** — sends a text message to the specified session via `sync.sendMessage(sessionId, message, { source: 'voice' })`.
+- **processPermissionRequest(requestId, decision)** — allows or denies the pending request by finding its owning session.
 
-Both read the target session from `getCurrentRealtimeSessionId()`.
+The message tool uses the explicit `sessionId`; the permission tool finds the session that owns `requestId`. Navigation focus does not choose either tool's target.
 
 ## Lifecycle
 

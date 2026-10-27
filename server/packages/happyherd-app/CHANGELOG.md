@@ -1,3 +1,9 @@
+# October 26 — Accurate hosted voice allowances
+
+- Hosted voice reads paginated history for the last 30 days, so reaching 100 calls no longer blocks otherwise available voice time. The free allowance remains 20 minutes and subscribed use remains capped at five hours.
+- Free voice works without subscription-service configuration. If usage cannot be verified, starting a hosted voice conversation returns an error instead of assuming unused allowance.
+- Voice settings show conversation totals without an artificial count limit, and the custom-agent guide lists the current message and permission tool parameters.
+
 # October 17 — More accurate usage totals
 
 - Resuming a Claude Code conversation counts only new tokens and estimated cost, including after reconnecting the session.

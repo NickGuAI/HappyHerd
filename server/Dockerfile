@@ -3,7 +3,7 @@
 
 # Stage 1: install the dependencies needed by the self-host server and Web app.
 FROM oven/bun:1.3.11 AS bun-runtime
-FROM node:20 AS deps
+FROM node:24 AS deps
 
 COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 
@@ -71,7 +71,7 @@ RUN pnpm --filter happyherd-server-self-host --fail-if-no-match build
 RUN pnpm --filter happyherd-server-self-host --fail-if-no-match bundle:webapp
 
 # Stage 3: runtime
-FROM node:20-slim AS runner
+FROM node:24-slim AS runner
 
 ARG HAPPYHERD_SOURCE_SHA=unknown
 ARG HAPPYHERD_SOURCE_URL=https://example.com/happyherd

@@ -267,15 +267,11 @@ const VoiceSettingsScreen = React.memo(function VoiceSettingsScreen() {
                         <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 4 }}>
                             {formatVoiceTime(usage.usedSeconds)} / {formatVoiceTime(usage.limitSeconds)}
                         </Text>
-                        <UsageBar
-                            label={t('settingsVoice.conversationsLabel')}
-                            value={usage.conversationCount}
-                            maxValue={usage.conversationLimit}
-                            color={usage.conversationCount >= usage.conversationLimit ? theme.colors.textDestructive : theme.colors.textLink}
+                        <Item
+                            title={t('settingsVoice.conversationsLabel')}
+                            detail={String(usage.conversationCount)}
+                            showChevron={false}
                         />
-                        <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 4 }}>
-                            {usage.conversationCount} / {usage.conversationLimit}
-                        </Text>
                     </View>
                 </ItemGroup>
             ) : null}

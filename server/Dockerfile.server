@@ -1,6 +1,6 @@
 # Stage 1: install dependencies with workspace context
 FROM oven/bun:1.3.11 AS bun-runtime
-FROM node:20 AS deps
+FROM node:24 AS deps
 
 COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 
@@ -40,7 +40,7 @@ RUN pnpm --filter @happyherd/wire --fail-if-no-match build
 RUN pnpm --filter happyherd-server --fail-if-no-match build
 
 # Stage 3: runtime
-FROM node:20 AS runner
+FROM node:24 AS runner
 
 WORKDIR /repo
 
