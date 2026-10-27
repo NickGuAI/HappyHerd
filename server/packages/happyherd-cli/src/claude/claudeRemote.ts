@@ -515,17 +515,21 @@ export async function claudeRemote(opts: {
                     continue;
                 }
 
+                // SDK failure results are not successful work, even when their
+                // cause is outside the narrowly classified auth/quota errors.
+                const resultFailed = providerAuthFailed || !(message.subtype === 'success' && message.is_error !== true);
+
                 // Send completion messages
                 if (isCompactCommand) {
                     logger.debug('[claudeRemote] Compaction completed');
-                    if (opts.onCompletionEvent && !providerAuthFailed) {
+                    if (opts.onCompletionEvent && !resultFailed) {
                         opts.onCompletionEvent('Compaction completed');
                     }
                     isCompactCommand = false;
                 }
 
                 // Send ready event
-                if (providerAuthFailed) {
+                if (resultFailed) {
                     await opts.onReady('failed');
                 } else {
                     await opts.onReady();
