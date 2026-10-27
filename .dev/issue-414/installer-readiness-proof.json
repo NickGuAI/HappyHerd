@@ -1,0 +1,50 @@
+{
+  "actualPatchSha256": "5f12aa9fd0b6ea2b51529799f90c0d97e4aa95a050c5783e9f9cb90e4a8681b0",
+  "actualCatalogSha256": "483412f570a373e01aaaa1a6a4ce4b3cac72c74ddfec94e392fadd61fdc8cfbb",
+  "sourceSha256": {
+    "scripts/native-installer-readiness-summary.mjs": "f668698c1ce17a0bd7593a7834e4d5b1fe7973fe38d795b4cd7af041fc312944",
+    "scripts/native-installer-readiness-summary.test.mjs": "f373b5e661a90ba2524aad6fcd03e5394d9e798188d9a6d9cf36e2a327c6fcdb",
+    "scripts/test-native-installer-auth.mjs": "c15b2f756c700e2b575d21b776a432b037e0b597842bcc90ad6c7f906ebe528b",
+    "server/packages/happyherd-cli/src/daemon/controlClient.readiness.test.ts": "4e9272122f3e2b4244d90c7468d2bb3bf65c69e37a03ce4f863629f858dfa8ee",
+    "server/packages/happyherd-cli/src/daemon/controlClient.ts": "496b2104d4d3a0b6a5c333ca3a5438f82aadf6ad708a7fa16e4c082b3ed8e45a",
+    "server/packages/happyherd-cli/src/daemon/startupReadiness.test.ts": "e4b5648a425d92e4a586347a76cdda330ab9830b02bfb89d8115e84d6fb647ce",
+    "server/packages/happyherd-cli/src/daemon/startupReadiness.ts": "4135128bb4d517f080809e65c6df15ebbb0c66c15e1a4e8f94972cc82a957a46",
+    "server/packages/happyherd-cli/src/index.ts": "2f28da4dbb438d3e8912a485c63164d10d3f312631725b2b9ff5ac22a29a3c08"
+  },
+  "firstLogSha256": {
+    "typecheck.log": "afe84b1c4b8394efb0c8fb6fe7664ea3489ecc57108408e49d1548c71b2cb22d",
+    "apply.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "node-tests.log": "ca930c68392aaef148a786d7a437c970739a2f5255875e381e86baf778e27089",
+    "cli-build.log": "2ccc3b0a23c4a9b3b53cc89445bda57727e7caaee9a1d9beee7c211a5a2aef90",
+    "focused.log": "81392a5955fc55091c5e65cf59cc05c6895167464cb4b7d49a139d5a86258c1f"
+  },
+  "stageResults": [
+    {
+      "name": "node-tests",
+      "exit": 0
+    },
+    {
+      "name": "cli-build",
+      "exit": 0
+    },
+    {
+      "name": "focused",
+      "exit": 0
+    },
+    {
+      "name": "typecheck",
+      "exit": 0
+    }
+  ],
+  "nodeTestsPassed": 10,
+  "vitestFilesPassed": 3,
+  "vitestTestsPassed": 30,
+  "lockConfigClassifierParity": true,
+  "sourceBeforeAfterParity": true,
+  "ownedProcessGroupsAbsentAtRelease": true,
+  "parser": {
+    "exit": 0,
+    "entries": 201,
+    "latestTitle": "October 15 \u2014 Daemon startup diagnostics"
+  }
+}

@@ -829,3 +829,8 @@ ISSUE_437_CHANGELOG_GOLDENS	code-ready	test(ui): refresh usage fix changelog scr
 UPSTREAM_A1F694BA_ADAPTATION	code-ready	fix(sync): adapt pinned upstream voice and Node 24 baseline	docs/upstream-sync-a1f694ba.md
 UPSTREAM_A1F694BA_CHANGELOG_CAPTURES	code-ready	test(sync): refresh approved upstream changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_2157_INTEGRATED_CHANGELOG_GOLDENS	code-ready	test(cli): refresh integrated session controls changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+ISSUE_414_CLAUDE_NOTIFICATION_ORIGIN	code-ready	fix(claude): preserve child task notification origin	.dev/issue-414/acceptance.md
+PR435_FOREGROUND_READINESS_DIAGNOSTIC	code-ready	test(installer): report foreground daemon readiness outcomes	.dev/issue-414/installer-readiness-diagnostic.md
+PR435_READINESS_COMMENT_WHITESPACE	code-ready	chore(cli): remove daemon control trailing whitespace	.dev/issue-414/installer-readiness-whitespace-repair.md
+PR435_CHILD_STARTUP_CHANGELOG_CAPTURES	code-ready	test(app): refresh child notification and startup changelog captures	.dev/issue-414/golden-import-391c.md
+ISSUE_414_INTEGRATED_CHANGELOG_GOLDENS	code-ready	test(app): refresh integrated child notification changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
