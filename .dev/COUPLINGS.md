@@ -674,6 +674,19 @@ action forwards only `parentSessionId` through `happyherd-side-chat-create`.
 The Main Agent CLI remains the surface that validates and forwards all six
 brief fields.
 
+Explicit archive actions for a normal session use the shared app helper
+`archiveSessionWithSideChats`: resolve the complete direct-child snapshot via
+the owning machine's `happyherd-side-chat-close-all` RPC, require every child
+close receipt to succeed, then kill the parent and use the server archive
+fallback only when the parent process is unreachable. The Session quick-action
+menu and Session Info route share this helper. A failed child close keeps the
+parent visible and retryable. Bot archive continues through its owning session
+RPC, and Rig metadata continues through its externally owned lifecycle. This is
+an explicit archive flow; the raw server `/archive` route remains deactivation
+only, while the app's `sessionArchive` operation performs deactivation plus the
+parent lifecycle marker. Neither operation cascades, because ordinary stop and
+child-close flows use them without requesting a parent archive cascade.
+
 Provider-native subagents remain inline provider activity in the owning
 session protocol and tool panels. They are not side-chat session records and
 never enter the exact-parent child selector. A HappyHerd side chat is instead a

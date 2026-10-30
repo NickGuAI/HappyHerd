@@ -232,6 +232,38 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         });
     });
 
+    it('routes archive cleanup through the daemon-owned durable close-all lifecycle', async () => {
+        const sideChat = vi.fn().mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat-close-all',
+            action: 'close-all',
+            success: true,
+            parentSessionId: 'happyherd-source',
+            total: 1,
+            closed: 1,
+            failed: 0,
+            children: [],
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+
+        const closeAll = handlersFrom(client).get('machine-1:happyherd-side-chat-close-all');
+        const result = await closeAll?.({ parentSessionId: 'happyherd-source' });
+
+        expect(result).toMatchObject({ success: true, action: 'close-all' });
+        expect(sideChat).toHaveBeenCalledWith({
+            action: 'close-all',
+            parentSessionId: 'happyherd-source',
+        });
+        await expect(closeAll?.({ parentSessionId: '' })).rejects.toThrow('parentSessionId is required');
+    });
+
     it('still forwards a complete Main Agent brief through the dedicated lifecycle RPC', async () => {
         const sideChat = vi.fn().mockResolvedValue({
             schemaVersion: 1,

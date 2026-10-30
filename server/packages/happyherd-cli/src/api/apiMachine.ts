@@ -440,6 +440,10 @@ export class ApiMachineClient {
                     );
                 return sideChat({ action: 'create', parentSessionId, brief });
             });
+            this.rpcHandlerManager.registerHandler('happyherd-side-chat-close-all', async (params: any) => {
+                const parentSessionId = requireNonEmptyString(params?.parentSessionId, 'parentSessionId');
+                return sideChat({ action: 'close-all', parentSessionId });
+            });
         }
         if (automations) {
             this.rpcHandlerManager.registerHandler('happyherd-automations-list', async () => automations.list());

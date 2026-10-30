@@ -825,6 +825,7 @@ ISSUE_369_MAIN_INTEGRATED_CHANGELOG_CAPTURES	code-ready	test(app): refresh integ
 ISSUE_369_COMPOSED_SOURCE_CAPTURES	code-ready	test(app): refresh composed voice and native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UPSTREAM_FDA37D2_SYNC	code-ready	docs(sync): record fda37d2 integration and deferred mobile clients	docs/upstream-sync-fda37d2.md
 ISSUE_437_USAGE_ACCOUNTING	code-ready	fix(usage): preserve Claude session totals and local chart dates	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts
+ISSUE_443_ARCHIVE_SIDE_CHATS	code-ready	fix(archive): close side chats before parent archive	server/packages/happyherd-app/sources/sync/ops.ts
 ISSUE_437_CHANGELOG_GOLDENS	code-ready	test(ui): refresh usage fix changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UPSTREAM_A1F694BA_ADAPTATION	code-ready	fix(sync): adapt pinned upstream voice and Node 24 baseline	docs/upstream-sync-a1f694ba.md
 UPSTREAM_A1F694BA_CHANGELOG_CAPTURES	code-ready	test(sync): refresh approved upstream changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
@@ -845,3 +846,5 @@ ISSUE_364_WEB_EXPORT_EVIDENCE	code-ready	docs(context): record Antigravity web e
 ISSUE_364_BROWSER_BOUNDARY_DIAGNOSTICS	code-ready	test(app): observe browser warmup and workspace wait boundaries	.dev/issue-364-acceptance.md
 ISSUE_364_AGY_CHANGELOG_GOLDENS	code-ready	test(app): refresh Antigravity unavailable changelog captures	.dev/issue-364-acceptance.md
 ISSUE_364_CURRENT_UI_INVENTORY	code-ready	chore(context): refresh Antigravity UI inventory after rebase	.dev/issue-364-acceptance.md
+ISSUE_443_ARCHIVE_CHANGELOG_GOLDENS	code-ready	test(archive): refresh archive changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_443_DARK_CHANGELOG_GOLDEN	code-ready	test(archive): align dark changelog baseline with CI capture	docs/acceptance/issue-287/golden/production-changelog-latest-entries-dark-1440.png

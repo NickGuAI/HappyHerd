@@ -1179,6 +1179,14 @@ const virtualModules: Record<string, string> = {
             window.__SESSION_ARCHIVE_CALLS__ = [...(window.__SESSION_ARCHIVE_CALLS__ ?? []), sessionId];
             return { success: true };
         };
+        export const archiveSessionWithSideChats = async (sessionId, metadata) => {
+            const calls = window.__ARCHIVE_SESSION_CALLS__ = [...(window.__ARCHIVE_SESSION_CALLS__ ?? []), {
+                sessionId, machineId: metadata?.machineId,
+            }];
+            const results = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.archiveSessionResults ?? [];
+            const index = calls.length - 1;
+            return { success: results[index] ?? true };
+        };
         export const sessionDelete = async (sessionId) => {
             window.__SESSION_DELETE_CALLS__ = [...(window.__SESSION_DELETE_CALLS__ ?? []), sessionId];
             return { success: true };
@@ -4471,6 +4479,73 @@ describe('Side chats browser interaction', () => {
             await page.close();
         }
     }, 20_000);
+
+    it.each([
+        { label: 'Web Desktop', width: 1440, height: 900, mobile: false },
+        { label: 'Web Mobile', width: 390, height: 844, mobile: true },
+    ])('archives a normal parent through the shared explicit helper on $label', async ({ width, height, mobile }) => {
+        const context = await browser.newContext({
+            viewport: { width, height },
+            ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+        });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { sessionInfoJourney: true };
+        });
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            await foreground.getByText('parent', { exact: true }).first().click();
+            const info = page.getByTestId('session-info-route');
+            await info.getByText('Archive Session', { exact: true }).click();
+
+            await expect.poll(() => page.evaluate(() => (window as any).__INFO_BACK_COUNT__ ?? 0)).toBe(2);
+            expect(await page.evaluate(() => (window as any).__ARCHIVE_SESSION_CALLS__)).toEqual([
+                { sessionId: 'parent', machineId: 'machine-1' },
+            ]);
+            expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+        } finally {
+            await context.close();
+        }
+    }, 15_000);
+
+    it.each([
+        { label: 'Web Desktop', width: 1440, height: 900, mobile: false },
+        { label: 'Web Mobile', width: 390, height: 844, mobile: true },
+    ])('keeps a normal parent visible when the shared explicit archive helper fails on $label', async ({ width, height, mobile }) => {
+        const context = await browser.newContext({
+            viewport: { width, height },
+            ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+        });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                sessionInfoJourney: true,
+                archiveSessionResults: [false],
+            };
+        });
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            await foreground.getByText('parent', { exact: true }).first().click();
+            const info = page.getByTestId('session-info-route');
+            await info.getByText('Archive Session', { exact: true }).click();
+
+            await expect.poll(() => page.evaluate(() => (window as any).__HAPPYHERD_ALERTS__?.length ?? 0)).toBe(1);
+            expect(await page.evaluate(() => (window as any).__HAPPYHERD_ALERTS__)).toEqual([
+                { title: 'Error', message: 'sessionInfo.failedToArchiveSession' },
+            ]);
+            await page.getByRole('alert').getByText('Error: sessionInfo.failedToArchiveSession', { exact: true }).waitFor();
+            expect(await page.evaluate(() => (window as any).__ARCHIVE_SESSION_CALLS__)).toEqual([
+                { sessionId: 'parent', machineId: 'machine-1' },
+            ]);
+            expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__INFO_BACK_COUNT__ ?? 0)).toBe(0);
+            await expect(info.isVisible()).resolves.toBe(true);
+        } finally {
+            await context.close();
+        }
+    }, 15_000);
 
     it.each([
         { label: 'Web Desktop', width: 1440, height: 900, mobile: false },

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
         replace: vi.fn(),
         kill: vi.fn(),
         archive: vi.fn(),
+        archiveWithSideChats: vi.fn(),
         deleteSession: vi.fn(),
         cleanup: vi.fn(async () => {}),
         controlHeartbeat: vi.fn(),
@@ -197,6 +198,7 @@ vi.mock('@/utils/sessionUtils', () => ({
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
 vi.mock('@/modal', () => ({ Modal: { alert: mocks.modalAlert } }));
 vi.mock('@/sync/ops', () => ({
+    archiveSessionWithSideChats: mocks.archiveWithSideChats,
     machineControlHeartbeat: mocks.controlHeartbeat,
     sessionArchive: mocks.archive,
     sessionDelete: mocks.deleteSession,
@@ -263,14 +265,15 @@ beforeEach(() => {
         ],
     };
     mocks.archive.mockResolvedValue({ success: true });
+    mocks.archiveWithSideChats.mockResolvedValue({ success: true });
     mocks.deleteSession.mockResolvedValue({ success: true });
 });
 
 describe('Session info archive action', () => {
     it('shows loading immediately while the daemon archive request is pending', async () => {
-        let resolveKill!: (value: { success: boolean; message: string }) => void;
-        mocks.kill.mockReturnValueOnce(new Promise((resolve) => {
-            resolveKill = resolve;
+        let resolveArchive!: (value: { success: boolean; message?: string }) => void;
+        mocks.archiveWithSideChats.mockReturnValueOnce(new Promise((resolve) => {
+            resolveArchive = resolve;
         }));
 
         let renderer!: ReturnType<typeof create>;
@@ -288,10 +291,10 @@ describe('Session info archive action', () => {
         });
 
         expect(archiveItem().props.loading).toBe(true);
-        expect(mocks.kill).toHaveBeenCalledWith('session-1');
+        expect(mocks.archiveWithSideChats).toHaveBeenCalledWith('session-1', null);
 
         await act(async () => {
-            resolveKill({ success: true, message: 'archived' });
+            resolveArchive({ success: true });
             await Promise.resolve();
             await Promise.resolve();
         });
@@ -384,7 +387,7 @@ describe('Session info archive action', () => {
 
     it('retains the ordinary cleanup and server archive fallback', async () => {
         mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app' };
-        mocks.kill.mockResolvedValue({ success: false, message: 'not running' });
+        mocks.archiveWithSideChats.mockResolvedValue({ success: true });
 
         let renderer!: ReturnType<typeof create>;
         await act(async () => {
@@ -399,8 +402,55 @@ describe('Session info archive action', () => {
         });
 
         expect(mocks.cleanup).toHaveBeenCalledWith('session-1', '/srv/app', 'machine-one');
-        expect(mocks.archive).toHaveBeenCalledWith('session-1');
+        expect(mocks.archiveWithSideChats).toHaveBeenCalledWith('session-1', mocks.session.metadata);
         expect(mocks.back).toHaveBeenCalledTimes(2);
+        act(() => renderer.unmount());
+    });
+
+    it('does not navigate when the explicit archive helper cannot close all children', async () => {
+        mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app' };
+        mocks.archiveWithSideChats.mockResolvedValue({ success: false });
+
+        let renderer!: ReturnType<typeof create>;
+        await act(async () => { renderer = create(React.createElement(SessionInfoScreen)); });
+        const archiveItem = renderer.root.findAllByType('Item' as any)
+            .find((item: any) => item.props.title === 'sessionInfo.archiveSession')!;
+        await act(async () => {
+            archiveItem.props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(mocks.archiveWithSideChats).toHaveBeenCalledWith('session-1', mocks.session.metadata);
+        expect(mocks.back).not.toHaveBeenCalled();
+        expect(mocks.modalAlert).toHaveBeenCalledWith(
+            'common.error',
+            'sessionInfo.failedToArchiveSession',
+            expect.any(Array),
+        );
+        act(() => renderer.unmount());
+    });
+
+    it('does not navigate when the parent archive fallback fails', async () => {
+        mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app' };
+        mocks.archiveWithSideChats.mockResolvedValue({ success: false, message: 'Server error: 503' });
+
+        let renderer!: ReturnType<typeof create>;
+        await act(async () => { renderer = create(React.createElement(SessionInfoScreen)); });
+        const archiveItem = renderer.root.findAllByType('Item' as any)
+            .find((item: any) => item.props.title === 'sessionInfo.archiveSession')!;
+        await act(async () => {
+            archiveItem.props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(mocks.back).not.toHaveBeenCalled();
+        expect(mocks.modalAlert).toHaveBeenCalledWith(
+            'common.error',
+            'Server error: 503',
+            expect.any(Array),
+        );
         act(() => renderer.unmount());
     });
 

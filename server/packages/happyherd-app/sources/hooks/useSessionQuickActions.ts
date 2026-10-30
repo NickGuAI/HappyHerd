@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { Modal } from '@/modal';
-import { machineResumeSession, sessionArchive, sessionKill, sessionSetAgentModes, forkAndSpawn, type ForkSource } from '@/sync/ops';
+import { archiveSessionWithSideChats, machineResumeSession, sessionKill, sessionSetAgentModes, forkAndSpawn, type ForkSource } from '@/sync/ops';
 import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
 import { storage, useLocalSetting, useMachine, useSetting } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
@@ -271,16 +271,11 @@ export function useSessionQuickActions(
             }
             await maybeCleanupWorktree(session.id, session.metadata?.path, session.metadata?.machineId);
 
-            // Try to kill the CLI process; if it's already dead, force-archive via server
-            const killResult = await sessionKill(session.id);
-            if (!killResult.success) {
-                // Checked, where it used to be fire-and-forget: the row has
-                // already left the list on the strength of this working, and a
-                // fallback that fails quietly would leave a live chat hidden.
-                const archiveResult = await sessionArchive(session.id);
-                if (!archiveResult.success) {
-                    throw new HappyHerdError(archiveResult.message || t('sessionInfo.failedToArchiveSession'), false);
-                }
+            // Close the daemon's complete durable direct-child snapshot before
+            // killing the parent or using the server archive fallback.
+            const archiveResult = await archiveSessionWithSideChats(session.id, session.metadata);
+            if (!archiveResult.success) {
+                throw new HappyHerdError(archiveResult.message || t('sessionInfo.failedToArchiveSession'), false);
             }
             onAfterArchive?.();
         } catch (error) {

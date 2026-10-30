@@ -48,6 +48,7 @@ describe('rpcHandler metrics', () => {
 describe('rpcCallTimeoutMs', () => {
     it('allows the daemon-owned side-chat create lifecycle to finish', () => {
         expect(rpcCallTimeoutMs('machine:happyherd-side-chat-create')).toBe(240_000);
+        expect(rpcCallTimeoutMs('machine:happyherd-side-chat-close-all')).toBe(300_000);
         expect(rpcCallTimeoutMs('machine:happyherd-list-commanders')).toBe(30_000);
     });
 });

@@ -4,6 +4,8 @@ import { SocketAckTimeoutError } from './socketAck';
 const mocks = vi.hoisted(() => ({
     emitWithAck: vi.fn(),
     request: vi.fn(),
+    machineRPC: vi.fn(),
+    sessionRPC: vi.fn(),
     refreshSessions: vi.fn(),
     encryptRaw: vi.fn(),
     decryptRaw: vi.fn(),
@@ -15,6 +17,8 @@ vi.mock('./apiSocket', () => ({
     apiSocket: {
         emitWithAck: mocks.emitWithAck,
         request: mocks.request,
+        machineRPC: mocks.machineRPC,
+        sessionRPC: mocks.sessionRPC,
     },
 }));
 
@@ -56,6 +60,18 @@ describe('sessionArchive', () => {
         mocks.encryptRaw.mockImplementation(async (value) => JSON.stringify(value));
         mocks.emitWithAck.mockResolvedValue({ result: 'success', version: 5 });
         mocks.request.mockResolvedValue({ ok: true, status: 200 });
+        mocks.machineRPC.mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat-close-all',
+            action: 'close-all',
+            success: true,
+            parentSessionId: 'parent',
+            total: 0,
+            closed: 0,
+            failed: 0,
+            children: [],
+        });
+        mocks.sessionRPC.mockResolvedValue({ success: true, message: 'Session terminated' });
         mocks.refreshSessions.mockResolvedValue(undefined);
     });
 
@@ -260,5 +276,69 @@ describe('sessionArchive', () => {
         expect(mocks.encryptRaw).not.toHaveBeenCalled();
         expect(mocks.emitWithAck).not.toHaveBeenCalled();
         expect(mocks.refreshSessions).not.toHaveBeenCalled();
+    });
+
+    it('closes the daemon child snapshot before killing the parent', async () => {
+        const { archiveSessionWithSideChats } = await import('./ops');
+
+        await expect(archiveSessionWithSideChats('parent', { machineId: 'machine-one' } as any)).resolves.toEqual({ success: true });
+
+        expect(mocks.machineRPC).toHaveBeenCalledWith(
+            'machine-one',
+            'happyherd-side-chat-close-all',
+            { parentSessionId: 'parent' },
+        );
+        expect(mocks.machineRPC.mock.invocationCallOrder[0]).toBeLessThan(mocks.sessionRPC.mock.invocationCallOrder[0]);
+        expect(mocks.request).not.toHaveBeenCalled();
+    });
+
+    it('keeps the parent visible when a direct child close fails', async () => {
+        mocks.machineRPC.mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat-close-all',
+            action: 'close-all',
+            success: false,
+            parentSessionId: 'parent',
+            total: 1,
+            closed: 0,
+            failed: 1,
+            children: [{ success: false, sessionId: 'child' }],
+        });
+        const { archiveSessionWithSideChats } = await import('./ops');
+
+        await expect(archiveSessionWithSideChats('parent', { machineId: 'machine-one' } as any)).resolves.toEqual({ success: false });
+
+        expect(mocks.sessionRPC).not.toHaveBeenCalled();
+        expect(mocks.request).not.toHaveBeenCalled();
+    });
+
+    it('uses the server archive fallback after closing children when the parent is stopped', async () => {
+        mocks.sessionRPC.mockResolvedValue({ success: false, message: 'Session not connected' });
+        mocks.getState.mockReturnValue({
+            sessions: {
+                parent: {
+                    id: 'parent',
+                    metadataVersion: 4,
+                    metadata: { path: '/srv/project', machineId: 'machine-one' },
+                },
+            },
+        });
+        const { archiveSessionWithSideChats } = await import('./ops');
+
+        await expect(archiveSessionWithSideChats('parent', { machineId: 'machine-one' } as any)).resolves.toEqual({ success: true });
+
+        expect(mocks.machineRPC).toHaveBeenCalledOnce();
+        expect(mocks.sessionRPC).toHaveBeenCalledOnce();
+        expect(mocks.request).toHaveBeenCalledWith('/v1/sessions/parent/archive', { method: 'POST' });
+    });
+
+    it('keeps Rig archive on its externally owned lifecycle without a native close-all RPC', async () => {
+        const { archiveSessionWithSideChats } = await import('./ops');
+
+        await expect(archiveSessionWithSideChats('rig-parent', { client: { id: 'rig' } } as any))
+            .resolves.toEqual({ success: true });
+
+        expect(mocks.machineRPC).not.toHaveBeenCalled();
+        expect(mocks.sessionRPC).toHaveBeenCalledOnce();
     });
 });

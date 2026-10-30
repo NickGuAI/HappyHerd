@@ -19,6 +19,8 @@ const RPC_CALL_TIMEOUT_MS = 30_000;
 // Side-chat creation may perform a provider fork plus structured brief
 // delivery. Keep the web relay aligned with the daemon's four-minute budget.
 const SIDE_CHAT_CREATE_CALL_TIMEOUT_MS = 240_000;
+// close-all is sequential and the daemon owns a five-minute receipt window.
+const SIDE_CHAT_CLOSE_ALL_CALL_TIMEOUT_MS = 5 * 60_000;
 const RPC_PRESENCE_POLL_MS = 2_000;
 // Timeouts for cross-replica fetchSockets during the reconnect grace window.
 // Exponential backoff: 2s → 4s → 8s. Reduces stream pressure under load
@@ -68,6 +70,7 @@ const SUPPORTED_RPC_METRIC_METHODS = new Set([
     'happyherd-credential-auth-submit',
     'happyherd-credential-auth-cancel',
     'happyherd-side-chat-create',
+    'happyherd-side-chat-close-all',
     'happyherd-list-commanders',
     'hashFile',
     'killSession',
@@ -134,9 +137,10 @@ function baseMethodName(prefixedMethod: string): string {
 }
 
 export function rpcCallTimeoutMs(prefixedMethod: string): number {
-    return baseMethodName(prefixedMethod) === 'happyherd-side-chat-create'
-        ? SIDE_CHAT_CREATE_CALL_TIMEOUT_MS
-        : RPC_CALL_TIMEOUT_MS;
+    const method = baseMethodName(prefixedMethod);
+    if (method === 'happyherd-side-chat-create') return SIDE_CHAT_CREATE_CALL_TIMEOUT_MS;
+    if (method === 'happyherd-side-chat-close-all') return SIDE_CHAT_CLOSE_ALL_CALL_TIMEOUT_MS;
+    return RPC_CALL_TIMEOUT_MS;
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
