@@ -15,7 +15,7 @@ import { storage, useMachine, useProjects, useSession, useIsDataReady } from '@/
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getResumeCommand } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
-import { machineControlHeartbeat, sessionArchive, sessionKill, sessionDelete } from '@/sync/ops';
+import { archiveSessionWithSideChats, machineControlHeartbeat, sessionKill, sessionDelete } from '@/sync/ops';
 import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
@@ -244,13 +244,18 @@ function SessionInfoContent({ session }: { session: Session }) {
             await maybeCleanupWorktree(session.id, session.metadata?.path, session.metadata?.machineId);
         }
 
-        // Ask the owning process to archive; ordinary sessions retain the server fallback.
-        const killResult = await sessionKill(session.id);
-        if (!killResult.success) {
-            if (isBot) {
+        if (isBot) {
+            const killResult = await sessionKill(session.id);
+            if (!killResult.success) {
                 throw new HappyHerdError(t('sessionInfo.botArchiveRequiresMachine'), false);
             }
-            await sessionArchive(session.id);
+        } else {
+            // The owning daemon closes its durable direct-child snapshot before
+            // killing the parent or using the server archive fallback.
+            const archiveResult = await archiveSessionWithSideChats(session.id, session.metadata);
+            if (!archiveResult.success) {
+                throw new HappyHerdError(archiveResult.message || t('sessionInfo.failedToArchiveSession'), false);
+            }
         }
         // Success - navigate back
         router.back();

@@ -1,3 +1,8 @@
+# October 29 — Archive sessions with their side chats
+
+- Archiving a regular session closes its direct side chats first and requires its machine to be online. If any child cannot be closed, the parent stays visible so you can retry.
+- Session Info now reports an unsuccessful archive fallback instead of navigating away as if archiving succeeded.
+
 # October 26 — Accurate hosted voice allowances
 
 - Hosted voice reads paginated history for the last 30 days, so reaching 100 calls no longer blocks otherwise available voice time. The free allowance remains 20 minutes and subscribed use remains capped at five hours.

@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 29 — Archive sessions with their side chats",
+      "summary": "",
+      "markdown": "- Archiving a regular session closes its direct side chats first and requires its machine to be online. If any child cannot be closed, the parent stays visible so you can retry.\n- Session Info now reports an unsuccessful archive fallback instead of navigating away as if archiving succeeded."
+    },
+    {
       "title": "October 26 — Accurate hosted voice allowances",
       "summary": "",
       "markdown": "- Hosted voice reads paginated history for the last 30 days, so reaching 100 calls no longer blocks otherwise available voice time. The free allowance remains 20 minutes and subscribed use remains capped at five hours.\n- Free voice works without subscription-service configuration. If usage cannot be verified, starting a hosted voice conversation returns an error instead of assuming unused allowance.\n- Voice settings show conversation totals without an artificial count limit, and the custom-agent guide lists the current message and permission tool parameters."
@@ -1031,5 +1036,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 26 — Accurate hosted voice allowances"
+  "latestTitle": "October 29 — Archive sessions with their side chats"
 }

@@ -6,7 +6,7 @@
 import { apiSocket } from './apiSocket';
 import { sync } from './sync';
 import { storage } from './storage';
-import type { AgentQuestionAnswer, MachineMetadata, SessionAgentModesPatch } from './storageTypes';
+import type { AgentQuestionAnswer, MachineMetadata, Session, SessionAgentModesPatch } from './storageTypes';
 import { markAgentModePushPending, clearAgentModePushPending, type AgentModeField } from './agentModesPending';
 import {
     isRigMetadata,
@@ -283,6 +283,18 @@ export type SideChatCreateReceipt = {
     };
 };
 
+export type SideChatCloseAllReceipt = {
+    schemaVersion: 1;
+    type: 'side-chat-close-all';
+    action: 'close-all';
+    success: boolean;
+    parentSessionId: string;
+    total: number;
+    closed: number;
+    failed: number;
+    children: Array<{ success: boolean; sessionId: string | null }>;
+};
+
 // Options for spawning a session
 export interface SpawnSessionOptions {
     machineId: string;
@@ -489,6 +501,18 @@ export async function machineCreateSideChat(
         }
     }
     return receipt;
+}
+
+/** Close every durable direct child through its owning daemon snapshot. */
+export async function machineCloseAllSideChats(
+    machineId: string,
+    parentSessionId: string,
+): Promise<SideChatCloseAllReceipt> {
+    return apiSocket.machineRPC<SideChatCloseAllReceipt, { parentSessionId: string }>(
+        machineId,
+        'happyherd-side-chat-close-all',
+        { parentSessionId },
+    );
 }
 
 async function machineAutomationRPC<T>(machineId: string, method: string, params: unknown): Promise<T> {
@@ -1661,6 +1685,48 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
             message: error instanceof Error ? error.message : 'Unknown error'
         };
     }
+}
+
+/**
+ * Archive a normal session after its owning daemon has closed its durable
+ * direct-child snapshot. A missing, failed, or mismatched receipt keeps the
+ * parent visible and retryable instead of hiding children behind it.
+ */
+export async function archiveSessionWithSideChats(
+    sessionId: string,
+    metadata: Session['metadata'] | null | undefined,
+): Promise<{ success: boolean; message?: string }> {
+    // Rigs own their lifecycle outside the HappyHerd daemon and do not expose
+    // the native side-chat lifecycle RPC.
+    if (!isRigMetadata(metadata)) {
+        const machineId = metadata?.machineId;
+        if (!machineId) return { success: false };
+
+        try {
+            const receipt = await machineCloseAllSideChats(machineId, sessionId);
+            if (
+                receipt?.type !== 'side-chat-close-all'
+                || receipt.action !== 'close-all'
+                || receipt.parentSessionId !== sessionId
+                || receipt.success !== true
+                || receipt.failed !== 0
+                || receipt.closed !== receipt.total
+                || receipt.total !== receipt.children.length
+                || receipt.children.some((child) => child.success !== true)
+            ) {
+                return { success: false };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : undefined,
+            };
+        }
+    }
+
+    const killed = await sessionKill(sessionId);
+    if (killed.success) return { success: true };
+    return sessionArchive(sessionId);
 }
 
 async function sessionPersistArchivedLifecycle(

@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     modalShow: vi.fn(),
     sessionArchive: vi.fn(),
     sessionKill: vi.fn(),
+    archiveSessionWithSideChats: vi.fn(),
     cleanup: vi.fn(),
     actionError: vi.fn(),
     pendingActions: [] as Promise<void>[],
@@ -37,6 +38,7 @@ vi.mock('@/hooks/useNavigateToSession', () => ({
 }));
 vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: mocks.modalShow } }));
 vi.mock('@/sync/ops', () => ({
+    archiveSessionWithSideChats: mocks.archiveSessionWithSideChats,
     machineResumeSession: mocks.machineResumeSession,
     sessionSetAgentModes: mocks.sessionSetAgentModes,
     sessionArchive: mocks.sessionArchive,
@@ -196,6 +198,7 @@ describe('useSessionQuickActions resume permission continuity', () => {
         mocks.pendingActions = [];
         mocks.sessionKill.mockResolvedValue({ success: true, message: 'Archive accepted' });
         mocks.sessionArchive.mockResolvedValue({ success: true });
+        mocks.archiveSessionWithSideChats.mockResolvedValue({ success: true });
         mocks.cleanup.mockResolvedValue(undefined);
     });
 
@@ -427,10 +430,9 @@ describe('useSessionQuickActions resume permission continuity', () => {
         act(() => renderer.unmount());
     });
 
-    it.each([true, false])('shares the header archive callback with the menu (session kill succeeds: %s)', async (success) => {
+    it('shares the header archive callback with the menu and uses the shared explicit archive helper', async () => {
         const session = sessionFor('codex');
         mocks.machine = machineFor('codex');
-        mocks.sessionKill.mockResolvedValue({ success });
 
         function Harness() {
             current = useSessionQuickActions(session, {});
@@ -444,13 +446,30 @@ describe('useSessionQuickActions resume permission continuity', () => {
         await performArchive();
 
         expect(mocks.cleanup).toHaveBeenCalledExactlyOnceWith(session.id, session.metadata?.path, session.metadata?.machineId);
-        expect(mocks.sessionKill).toHaveBeenCalledExactlyOnceWith(session.id);
-        if (success) {
-            expect(mocks.sessionArchive).not.toHaveBeenCalled();
-        } else {
-            expect(mocks.sessionArchive).toHaveBeenCalledExactlyOnceWith(session.id);
-        }
+        expect(mocks.archiveSessionWithSideChats).toHaveBeenCalledExactlyOnceWith(session.id, session.metadata);
+        expect(mocks.sessionKill).not.toHaveBeenCalled();
         expect(mocks.actionError).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('restores the parent row and reports the localized archive error after child-close failure', async () => {
+        const session = sessionFor('codex');
+        mocks.machine = machineFor('codex');
+        mocks.archiveSessionWithSideChats.mockResolvedValue({ success: false });
+
+        function Harness() {
+            current = useSessionQuickActions(session);
+            return null;
+        }
+        act(() => { renderer = create(React.createElement(Harness)); });
+        await performArchive();
+
+        expect(mocks.markArchiving).toHaveBeenCalledWith(session.id);
+        expect(mocks.unmarkArchiving).toHaveBeenCalledWith(session.id);
+        expect(mocks.actionError).toHaveBeenCalledWith(expect.objectContaining({
+            message: 'sessionInfo.failedToArchiveSession',
+        }));
+        expect(mocks.sessionKill).not.toHaveBeenCalled();
         act(() => renderer.unmount());
     });
 
@@ -529,7 +548,7 @@ describe('useSessionQuickActions resume permission continuity', () => {
         session.metadata!.commanderId = 'commander-one';
         const onAfterArchive = vi.fn();
         mocks.machine = machineFor('codex');
-        mocks.sessionKill.mockResolvedValue({ success: false, message: 'process unavailable' });
+        mocks.archiveSessionWithSideChats.mockResolvedValue({ success: true });
 
         function Harness() {
             current = useSessionQuickActions(session, { onAfterArchive });
@@ -542,8 +561,7 @@ describe('useSessionQuickActions resume permission continuity', () => {
         await performArchive();
 
         expect(mocks.cleanup).toHaveBeenCalledWith(session.id, '/workspace', 'machine-1');
-        expect(mocks.sessionKill).toHaveBeenCalledWith(session.id);
-        expect(mocks.sessionArchive).toHaveBeenCalledWith(session.id);
+        expect(mocks.archiveSessionWithSideChats).toHaveBeenCalledWith(session.id, session.metadata);
         expect(onAfterArchive).toHaveBeenCalledOnce();
         expect(mocks.actionError).not.toHaveBeenCalled();
         act(() => renderer.unmount());

@@ -288,12 +288,30 @@ function sessionScreenModules(): Record<string, string> {
             }
             return { success: true, message: 'ok' };
         };`, 'sessionKill');
-    ops = replaceOnce(ops, `window.__SESSION_ARCHIVE_CALLS__ = [...(window.__SESSION_ARCHIVE_CALLS__ ?? []), sessionId];
-            return { success: true };`, `window.__SESSION_ARCHIVE_CALLS__ = [...(window.__SESSION_ARCHIVE_CALLS__ ?? []), sessionId];
+    ops = replaceOnce(ops, `export const archiveSessionWithSideChats = async (sessionId, metadata) => {
+            const calls = window.__ARCHIVE_SESSION_CALLS__ = [...(window.__ARCHIVE_SESSION_CALLS__ ?? []), {
+                sessionId, machineId: metadata?.machineId,
+            }];
+            const results = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.archiveSessionResults ?? [];
+            const index = calls.length - 1;
+            return { success: results[index] ?? true };
+        };`, `export const archiveSessionWithSideChats = async (sessionId, metadata) => {
+            const calls = window.__ARCHIVE_SESSION_CALLS__ = [...(window.__ARCHIVE_SESSION_CALLS__ ?? []), {
+                sessionId, machineId: metadata?.machineId,
+            }];
+            const results = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.archiveSessionResults ?? [];
+            const index = calls.length - 1;
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.archiveJourney) {
-                return { success: window.__ARCHIVE_FALLBACK_SUCCESS__ === true, message: 'fixture fallback unavailable' };
+                return await new Promise((resolve) => {
+                    window.__ARCHIVE_SESSION_PENDING__ = true;
+                    window.__RESOLVE_ARCHIVE_SESSION__ = (success) => {
+                        window.__ARCHIVE_SESSION_PENDING__ = false;
+                        resolve({ success, message: success ? undefined : '' });
+                    };
+                });
             }
-            return { success: true };`, 'deferred archive fallback');
+            return { success: results[index] ?? true };
+        };`, 'deferred shared archive boundary');
     modules['@/sync/ops'] = ops;
 
     // Storage: a Claude session with a finished turn, a live turn, a goal, a
@@ -703,7 +721,10 @@ describe('Session screen overhaul (Web)', () => {
 
         await foreground.getByRole('button', { name: 'Archive', exact: true }).click();
 
-        await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__ ?? [])).toEqual(['parent']);
+        await expect.poll(() => page.evaluate(() => (window as any).__ARCHIVE_SESSION_CALLS__ ?? [])).toEqual([
+            { sessionId: 'parent', machineId: 'machine-1' },
+        ]);
+        expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__ ?? [])).toEqual([]);
         expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
         expect(await page.evaluate(() => (window as any).__HAPPYHERD_ALERTS__ ?? [])).toEqual([]);
         await expect(page.getByRole('dialog').count()).resolves.toBe(0);
@@ -739,33 +760,49 @@ describe('Session screen overhaul (Web)', () => {
             try {
                 await tray.waitFor({ state: 'visible' });
                 await pressArchive();
-                await expect.poll(() => page.evaluate(() => (window as any).__ARCHIVE_KILL_PENDING__)).toBe(true);
-                // The machine promise is deliberately unresolved: disappearance
-                // cannot be explained by successful transport or a synced archive.
+                await expect.poll(() => page.evaluate((isBot) => isBot
+                    ? (window as any).__ARCHIVE_KILL_PENDING__
+                    : (window as any).__ARCHIVE_SESSION_PENDING__, bot)).toBe(true);
+                // The archive boundary promise is deliberately unresolved:
+                // disappearance cannot be explained by success from that boundary.
                 await expect.poll(() => tray.count()).toBe(0);
-                expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__)).toEqual(['parent']);
+                if (bot) {
+                    expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__)).toEqual(['parent']);
+                    expect(await page.evaluate(() => (window as any).__ARCHIVE_SESSION_CALLS__ ?? [])).toEqual([]);
+                } else {
+                    expect(await page.evaluate(() => (window as any).__ARCHIVE_SESSION_CALLS__)).toEqual([
+                        { sessionId: 'parent', machineId: 'machine-1' },
+                    ]);
+                    expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__ ?? [])).toEqual([]);
+                }
                 expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
                 expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__?.length ?? 0)).toBe(bot ? 0 : 1);
                 await evidence(page, `archive-pending-${entry}-${bot ? 'bot' : 'ordinary'}-${theme}-${viewport.width}`);
 
-                // First failure: ordinary sessions try server fallback, bots do not.
-                await page.evaluate(() => (window as any).__RESOLVE_ARCHIVE_KILL__(false));
+                // First failure rolls the optimistic row back for either owner path.
+                await page.evaluate((isBot) => isBot
+                    ? (window as any).__RESOLVE_ARCHIVE_KILL__(false)
+                    : (window as any).__RESOLVE_ARCHIVE_SESSION__(false), bot);
                 await tray.waitFor({ state: 'visible' });
                 const alert = page.getByRole('alert');
                 await alert.waitFor({ state: 'visible' });
-                expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual(bot ? [] : ['parent']);
+                expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
                 await alert.getByRole('button', { name: 'OK', exact: true }).click();
                 await evidence(page, `archive-rollback-${entry}-${bot ? 'bot' : 'ordinary'}-${theme}-${viewport.width}`);
 
-                await page.evaluate(() => { (window as any).__ARCHIVE_FALLBACK_SUCCESS__ = true; });
                 await pressArchive();
-                await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__?.length)).toBe(2);
+                await expect.poll(() => page.evaluate((isBot) => isBot
+                    ? (window as any).__SESSION_KILL_CALLS__?.length
+                    : (window as any).__ARCHIVE_SESSION_CALLS__?.length, bot)).toBe(2);
                 await expect.poll(() => tray.count()).toBe(0);
-                expect(await page.evaluate(() => (window as any).__ARCHIVE_KILL_PENDING__)).toBe(true);
-                // Ordinary retry proves successful server fallback; bot retry
-                // succeeds only through its owning machine.
-                await page.evaluate((success) => (window as any).__RESOLVE_ARCHIVE_KILL__(success), bot);
-                await expect.poll(() => page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__?.length ?? 0)).toBe(bot ? 0 : 2);
+                await expect.poll(() => page.evaluate((isBot) => isBot
+                    ? (window as any).__ARCHIVE_KILL_PENDING__
+                    : (window as any).__ARCHIVE_SESSION_PENDING__, bot)).toBe(true);
+                // Resolve the actual owner boundary successfully on retry.
+                await page.evaluate((isBot) => isBot
+                    ? (window as any).__RESOLVE_ARCHIVE_KILL__(true)
+                    : (window as any).__RESOLVE_ARCHIVE_SESSION__(true), bot);
+                expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
                 await settle(page);
                 expect(await tray.count()).toBe(0);
                 expect(await page.getByRole('alert').count()).toBe(0);
@@ -774,7 +811,10 @@ describe('Session screen overhaul (Web)', () => {
             } finally {
                 // Release any pending fixture promise after an assertion fails;
                 // do not strand transport work or change the existing timeout.
-                await page.evaluate(() => (window as any).__RESOLVE_ARCHIVE_KILL__?.(true)).catch(() => {});
+                await page.evaluate((isBot) => {
+                    if (isBot) (window as any).__RESOLVE_ARCHIVE_KILL__?.(true);
+                    else (window as any).__RESOLVE_ARCHIVE_SESSION__?.(true);
+                }, bot).catch(() => {});
                 await page.close();
             }
         }, 30_000,
