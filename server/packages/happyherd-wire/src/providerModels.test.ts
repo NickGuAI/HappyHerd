@@ -17,6 +17,7 @@ import {
 describe('HappyHerd provider model catalog', () => {
     it('contains only canonical Claude model slugs', () => {
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS).toEqual([
+            'claude-fable-5-2',
             'claude-fable-5-1',
             'claude-fable-5',
             'claude-opus-5-5',
@@ -32,6 +33,7 @@ describe('HappyHerd provider model catalog', () => {
         expect(HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG).toBe('claude-opus-5-5');
         expect(HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
         expect(HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT).toBe('medium');
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-fable-5-2']).toBe(1_000_000);
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-fable-5-1']).toBe(1_000_000);
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-opus-5-5']).toBe(1_000_000);
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-opus-5']).toBe(1_000_000);

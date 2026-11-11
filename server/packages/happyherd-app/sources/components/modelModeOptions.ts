@@ -4,6 +4,9 @@ import {
     HAPPYHERD_AGY_EFFORTS,
     HAPPYHERD_DEFAULT_AGY_MODEL,
     HAPPYHERD_CLAUDE_MODEL_SLUGS,
+    HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG,
+    HAPPYHERD_CLAUDE_FABLE_5_2_EFFORTS,
+    HAPPYHERD_DEFAULT_CLAUDE_FABLE_5_2_EFFORT,
     HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS,
     HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS,
     HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
@@ -163,7 +166,14 @@ function releaseModelDetails(flavor: AgentFlavor, modelKey: string): Partial<Mod
             ...(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS[modelKey]
                 ? { contextWindow: HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS[modelKey] }
                 : {}),
-            ...(modelKey === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
+            ...(modelKey === HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG
+                ? {
+                    effortLevels: HAPPYHERD_CLAUDE_FABLE_5_2_EFFORTS.map((key) => ({
+                        key, name: key,
+                        ...(key === HAPPYHERD_DEFAULT_CLAUDE_FABLE_5_2_EFFORT ? { isDefault: true } : {}),
+                    })),
+                }
+                : modelKey === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
                 ? {
                     effortLevels: HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS.map((key) => ({
                         key,

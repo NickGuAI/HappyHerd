@@ -47,6 +47,19 @@ function metadata(): MachineMetadata {
 }
 
 describe('resolveEffectiveSessionSettings', () => {
+    it('validates Fable 5.2 against the selected Claude runtime and retains the exact model', () => {
+        const target = metadata();
+        target.cliAvailability = { ...target.cliAvailability!, claude: true };
+        target.agentCapabilities = { claude: buildClaudeCapabilityCatalog('', 1, '2.1.321 (Claude Code)') };
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'claude', model: 'claude-fable-5-2',
+        })).toMatchObject({ provider: 'claude', model: 'claude-fable-5-2', effort: 'high' });
+        target.agentCapabilities = { claude: buildClaudeCapabilityCatalog('', 1, '2.1.296 (Claude Code)') };
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'claude', model: 'claude-fable-5-2',
+        })).toThrow('does not advertise model');
+    });
+
     it('validates Antigravity effort against the exact selected logical model', () => {
         const target = metadata();
         const availability = { claude: false, codex: false, gemini: false, grok: false, dsh: false, agy: true, detectedAt: 1 };

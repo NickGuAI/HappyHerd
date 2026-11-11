@@ -1,13 +1,18 @@
 /**
  * Canonical Claude model IDs exposed by HappyHerd.
  *
- * Claude Code accepts full model IDs through `--model`, but it does not expose
- * a machine-readable model-list command. Keep the release catalog explicit so
- * UI labels and launch values cannot drift or be inferred from CLI help prose.
+ * Claude Code accepts full model IDs through `--model`. The SDK provides the
+ * installed runtime catalog; this release list supplies fallback metadata when
+ * runtime discovery is unavailable.
  */
+export const HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG = 'claude-fable-5-2';
+export const HAPPYHERD_CLAUDE_FABLE_5_2_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export const HAPPYHERD_DEFAULT_CLAUDE_FABLE_5_2_EFFORT = 'high';
+
 export const HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG = 'claude-opus-5-5';
 
 export const HAPPYHERD_CLAUDE_MODEL_SLUGS = [
+    HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG,
     'claude-fable-5-1',
     'claude-fable-5',
     HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
@@ -26,6 +31,7 @@ export const HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG = 'claude-opus-5';
 
 /** Release-owned provider metadata; selectable membership still comes from the exact machine. */
 export const HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
+    'claude-fable-5-2': 1_000_000,
     'claude-fable-5-1': 1_000_000,
     'claude-opus-5-5': 1_000_000,
     'claude-opus-5': 1_000_000,
