@@ -118,3 +118,7 @@ resumed cost state before handling control requests; the response's
 `session.model_usage` is that session's current per-model ledger. Keep a
 provider-shaped baseline fixture and distinguish successful control requests
 from a successful authenticated model turn.
+
+### Claude Fable 5.2 (2026-11-11)
+
+Anthropic identifies `claude-fable-5-2` as a 1M-context model with always-on adaptive thinking and default `high` effort; it supports low, medium, high, xhigh, and max. Claude Code requires 2.1.321 or newer. The installed runtime and selected account still determine actual availability: the release fallback is not a successful provider probe. Sources: [model overview](https://platform.claude.com/docs/en/models/fable-5-2/overview), [effort](https://platform.claude.com/docs/en/build-with-claude/effort), and [Claude Code availability](https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan).

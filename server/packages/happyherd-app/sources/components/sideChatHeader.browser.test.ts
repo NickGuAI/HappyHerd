@@ -359,6 +359,10 @@ const virtualModules: Record<string, string> = {
                     },
                     { code: 'claude-sonnet-5', value: 'Sonnet Team Edition' },
                     ...(fixtureOptions.runtimeClaudeModel ? [{
+                        code: 'claude-fable-5-2', value: 'Fable 5.2',
+                        effortLevels: [{ code: 'high', value: 'high' }, { code: 'xhigh', value: 'xhigh' }],
+                    }] : []),
+                    ...(fixtureOptions.runtimeClaudeModel ? [{
                         code: 'claude-sonnet-5-5',
                         value: 'Sonnet Runtime Edition',
                         effortLevels: [
@@ -2536,6 +2540,14 @@ describe('Side chats browser interaction', () => {
             await expect.poll(() => page.evaluate(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? []).at(-1))).toEqual({
                 sessionId: 'parent', patch: { effortLevel: 'xhigh' },
             });
+
+            await modelChip.click();
+            await modelPopover.waitFor({ state: 'visible', timeout: 3_000 });
+            await modelPopover.getByRole('button', { name: 'Fable 5.2', exact: true }).click();
+            await expect.poll(() => page.evaluate(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? []).at(-1))).toEqual({
+                sessionId: 'parent', patch: { modelMode: 'claude-fable-5-2' },
+            });
+            await expect(modelChip.innerText()).resolves.toContain('Fable 5.2');
 
             const directory = process.env.HERD_MODEL_NAMES_EVIDENCE_DIR?.trim();
             if (directory) {

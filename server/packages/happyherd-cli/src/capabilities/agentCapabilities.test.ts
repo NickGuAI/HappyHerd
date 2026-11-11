@@ -220,6 +220,27 @@ describe('agent capability discovery', () => {
             .toEqual(['high', 'xhigh']);
     });
 
+    it('exposes Fable 5.2 only for a compatible release fallback or when the runtime advertises it', async () => {
+        const slug = 'claude-fable-5-2';
+        for (const version of [undefined, '2.1.296 (Claude Code)', '2.1.320']) {
+            expect(buildClaudeCapabilityCatalog('', 1, version).models.some((model) => model.code === slug)).toBe(false);
+        }
+        const fallback = buildClaudeCapabilityCatalog('', 1, '2.1.321 (Claude Code)');
+        expect(fallback.models.find((model) => model.code === slug)).toMatchObject({
+            value: 'Fable 5.2',
+            effortLevels: [
+                { code: 'low', value: 'low' }, { code: 'medium', value: 'medium' },
+                { code: 'high', value: 'high', isDefault: true }, { code: 'xhigh', value: 'xhigh' },
+                { code: 'max', value: 'max' },
+            ],
+        });
+        const { capabilities } = await detectAgentCapabilities({
+            claude: true, codex: false, gemini: false, grok: false, dsh: false, agy: false, detectedAt: 1,
+        }, { loadClaudeModels: async () => [{ value: 'fable', resolvedModel: slug, displayName: 'Fable', description: 'Fable 5.2', supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'] }] });
+        expect(capabilities.claude.models.find((model) => model.code === slug)).toMatchObject({ value: 'Fable 5.2' });
+        expect(capabilities.claude.sources.models).toBe('claude-agent-sdk:supportedModels');
+    });
+
     it('deduplicates the SDK default and alias rows while preferring the named canonical model', async () => {
         const models = [
             {

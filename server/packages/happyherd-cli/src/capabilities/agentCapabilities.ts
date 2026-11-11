@@ -6,6 +6,9 @@ import type { Options as ClaudeSdkOptions } from '@anthropic-ai/claude-agent-sdk
 import type { ModelInfo } from '@anthropic-ai/claude-agent-sdk';
 import {
     HAPPYHERD_CLAUDE_MODEL_SLUGS,
+    HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG,
+    HAPPYHERD_CLAUDE_FABLE_5_2_EFFORTS,
+    HAPPYHERD_DEFAULT_CLAUDE_FABLE_5_2_EFFORT,
     HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
     HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS,
     HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT,
@@ -161,6 +164,7 @@ export function parseClaudeHelp(help: string): {
 
 const CLAUDE_SDK_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly NonNullable<ClaudeSdkOptions['effort']>[];
 const CLAUDE_MODEL_DISPLAY_NAMES: Record<(typeof HAPPYHERD_CLAUDE_MODEL_SLUGS)[number], string> = {
+    'claude-fable-5-2': 'Fable 5.2',
     'claude-fable-5-1': 'Fable 5.1',
     'claude-fable-5': 'Fable 5',
     'claude-opus-5-5': 'Opus 5.5',
@@ -171,6 +175,15 @@ const CLAUDE_MODEL_DISPLAY_NAMES: Record<(typeof HAPPYHERD_CLAUDE_MODEL_SLUGS)[n
     'claude-sonnet-5': 'Sonnet 5',
     'claude-haiku-4-5': 'Haiku 4.5',
 };
+
+// Fable 5.2 requires Claude Code 2.1.321; a failed SDK probe must not
+// advertise it on an older or unidentifiable installed runtime.
+function supportsFable52Fallback(version: string | undefined): boolean {
+    const match = version?.match(/^(\d+)\.(\d+)\.(\d+)(?:\s|$)/);
+    if (!match) return false;
+    const [major, minor, patch] = match.slice(1).map(Number);
+    return major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 321)));
+}
 
 export function buildClaudeCapabilityCatalog(
     help: string,
@@ -195,7 +208,18 @@ export function buildClaudeCapabilityCatalog(
     const models = runtimeModels === undefined
         ? [
             option('default', 'provider default', null),
-            ...HAPPYHERD_CLAUDE_MODEL_SLUGS.map((code) => option(code, CLAUDE_MODEL_DISPLAY_NAMES[code])).map((model) => model.code === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
+            ...HAPPYHERD_CLAUDE_MODEL_SLUGS
+                .filter((code) => code !== HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG || supportsFable52Fallback(providerVersion))
+                .map((code) => option(code, CLAUDE_MODEL_DISPLAY_NAMES[code]))
+                .map((model) => model.code === HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG
+                ? {
+                    ...model,
+                    effortLevels: HAPPYHERD_CLAUDE_FABLE_5_2_EFFORTS.map((effort) => option(
+                        effort, effort, undefined,
+                        effort === HAPPYHERD_DEFAULT_CLAUDE_FABLE_5_2_EFFORT ? true : undefined,
+                    )),
+                }
+                : model.code === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
                 ? {
                     ...model,
                     effortLevels: HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS.map((effort) => option(
@@ -274,7 +298,9 @@ function mapClaudeModels(models: ModelInfo[]): AgentCapabilityCatalog['models'] 
             code: canonical,
             value: nativeRow.value === canonical
                 ? (nativeRow.displayName || canonical)
-                : `${nativeRow.displayName || canonical} (${canonical})`,
+                : canonical === HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG
+                    ? CLAUDE_MODEL_DISPLAY_NAMES[HAPPYHERD_CLAUDE_FABLE_5_2_MODEL_SLUG]
+                    : `${nativeRow.displayName || canonical} (${canonical})`,
             description: nativeRow.description || null,
             effortLevels: efforts,
         });

@@ -54,6 +54,13 @@ describe('modelModeOptions', () => {
         expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
     });
 
+    it('carries Fable 5.2 context and its native default effort without changing the Claude default', () => {
+        const model = getClaudeModelModes().find((entry) => entry.key === 'claude-fable-5-2');
+        expect(model).toMatchObject({ contextWindow: 1_000_000, providerId: 'anthropic' });
+        expect(model?.effortLevels?.find((entry) => entry.isDefault)?.key).toBe('high');
+        expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
+    });
+
     it('does not give Rig or unknown providers Claude static options', () => {
         expect(getHardcodedPermissionModes('rig', translate)).toEqual([]);
         expect(getHardcodedModelModes('rig', translate)).toEqual([]);
@@ -627,6 +634,7 @@ describe('modelModeOptions', () => {
         const models = getClaudeModelModes();
         expect(models.map((model) => model.key)).toEqual([
             'default',
+            'claude-fable-5-2',
             'claude-fable-5-1',
             'claude-fable-5',
             'claude-opus-5-5',

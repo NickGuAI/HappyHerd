@@ -145,6 +145,7 @@ beforeEach(() => {
                 models: [
                     { code: 'default', value: 'Default' },
                     { code: 'claude-opus-test', value: 'Claude Opus Test' },
+                    { code: 'claude-fable-5-2', value: 'Fable 5.2' },
                 ],
                 effortLevels: [
                     { code: 'max', value: 'Max', isDefault: true },
@@ -549,7 +550,7 @@ describe('handleResumeCommand', () => {
             codexThreadId: undefined,
             claudeSessionId: '11111111-1111-4111-8111-111111111111',
             permissionMode: 'bypassPermissions',
-            modelMode: 'claude-opus-test',
+            modelMode: 'claude-fable-5-2',
             effortLevel: 'high',
             spawnSettings: {
                 provider: 'claude',
@@ -567,7 +568,7 @@ describe('handleResumeCommand', () => {
                 'claude',
                 '--resume', session.metadata.claudeSessionId,
                 '--permission-mode', 'bypassPermissions',
-                '--model', 'claude-opus-test',
+                '--model', 'claude-fable-5-2',
                 '--effort', 'high',
             ],
             expect.objectContaining({
@@ -575,7 +576,7 @@ describe('handleResumeCommand', () => {
                 env: expect.objectContaining({
                     HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON: JSON.stringify({
                         provider: 'claude',
-                        model: 'claude-opus-test',
+                        model: 'claude-fable-5-2',
                         effort: 'high',
                         permission: 'bypassPermissions',
                     }),

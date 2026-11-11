@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 11 — Claude Fable 5.2",
+      "summary": "",
+      "markdown": "- Select Claude Fable 5.2 on a machine with a supported Claude Code installation. The model supports a 1M context and requires Claude Code 2.1.321 or newer."
+    },
+    {
       "title": "October 29 — Archive sessions with their side chats",
       "summary": "",
       "markdown": "- Archiving a regular session closes its direct side chats first and requires its machine to be online. If any child cannot be closed, the parent stays visible so you can retry.\n- Session Info now reports an unsuccessful archive fallback instead of navigating away as if archiving succeeded."
@@ -1036,5 +1041,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 29 — Archive sessions with their side chats"
+  "latestTitle": "November 11 — Claude Fable 5.2"
 }
