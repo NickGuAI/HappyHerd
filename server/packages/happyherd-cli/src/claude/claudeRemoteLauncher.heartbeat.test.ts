@@ -834,7 +834,7 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             }
         });
         const client = {
-            sessionId: 'happy-id', rpcHandlerManager: { registerHandler: vi.fn() },
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler: vi.fn() },
             updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
             sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
         };
@@ -853,7 +853,7 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
         const queue = new MessageQueue2<EnhancedMode>(mode => JSON.stringify(mode));
         queue.close();
         const client = {
-            sessionId: 'happy-id', rpcHandlerManager: { registerHandler: vi.fn() },
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler: vi.fn() },
             updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
             sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
         };
@@ -879,7 +879,7 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
         const queue = new MessageQueue2<EnhancedMode>(mode => JSON.stringify(mode));
         const registerHandler = vi.fn();
         const client = {
-            sessionId: 'happy-id', rpcHandlerManager: { registerHandler },
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler },
             updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
             sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
         };
@@ -931,7 +931,7 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
         const markStarted = vi.spyOn(queue, 'markBatchStarted');
         const registerHandler = vi.fn();
         const client = {
-            sessionId: 'happy-id', rpcHandlerManager: { registerHandler },
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler },
             updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
             sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
         };
