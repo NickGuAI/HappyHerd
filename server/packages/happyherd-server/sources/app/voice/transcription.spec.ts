@@ -32,6 +32,7 @@ describe('HappyHerd voice transcription', () => {
         const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
             expect(init?.headers).toEqual({ Authorization: 'Bearer server-secret' });
             const form = init?.body as unknown as FormData;
+            await expect((form.get('file') as Blob).text()).resolves.toBe('fake-webm');
             expect(form.get('model')).toBe('gpt-4o-transcribe');
             expect(form.get('prompt')).toContain('HappyHerd');
             return new Response(JSON.stringify({ text: 'Run the TypeScript tests.' }), { status: 200 });

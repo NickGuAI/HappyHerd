@@ -849,3 +849,4 @@ ISSUE_364_CURRENT_UI_INVENTORY	code-ready	chore(context): refresh Antigravity UI
 ISSUE_443_ARCHIVE_CHANGELOG_GOLDENS	code-ready	test(archive): refresh archive changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_443_DARK_CHANGELOG_GOLDEN	code-ready	test(archive): align dark changelog baseline with CI capture	docs/acceptance/issue-287/golden/production-changelog-latest-entries-dark-1440.png
 ISSUE_445_CLAUDE_FABLE_52	code-ready	feat(claude): support Fable 5.2	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
+UPSTREAM_SYNC_9B13E34	code-ready	chore(sync): adapt approved upstream machine wire and server types	docs/upstream-sync-9b13e34.md

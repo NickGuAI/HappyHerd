@@ -6,13 +6,23 @@ HappyHerd preserves Happy's complete Git history as a subtree at `server/`.
 - Remote name: `upstream`
 - Import mode: `git subtree` without `--squash`
 - Upstream base: `971d608923f175d3d63af7c204e8c036206b3e99`
-- Latest integrated upstream: `a1f694ba3e4e652838b602eacd3b107619024dc2`
+- Latest integrated upstream: `9b13e34ae00571b6c904c807e3c81b57787d53eb`
 - Upstream base tag: `happy-upstream-base-2026-08-02`
 - Upstream base tree: `6d164e9b8cbd254becf3e3a4d26179830d74d547`
 - Distribution shell: `b7ebaba52aa2072b474fd59e515ef5102dd60945`
 - Lineage merge: `7a52067b800d6a1f5349ddad44707074373b8342`
 - Pristine materialization: `e6e81cf389ec4b59af00994ab3b605d40ee89054`
 - Product rename in G0/A1-A6: none
+
+The 2026-11-13 approved sync retains upstream history through
+`9b13e34ae00571b6c904c807e3c81b57787d53eb` as the second parent of the
+non-squashed merge `04f635298d1b2f077d94fb9ceb4fb6c67f36456e`. Its structural
+tree preserves the distribution baseline. A separate owned patch shares the
+existing machine-creation schema between server tests and the retained app,
+and declares the server's Web API type library explicitly. The supported
+Expo/Web/Tauri clients, control agent, TypeScript server and database-backed
+history remain in place. See [the sync report](upstream-sync-9b13e34.md) and
+[issue #447](https://github.com/NickGuAI/HappyHerd/issues/447).
 
 The 2026-10-26 approved sync retains upstream history through
 `a1f694ba3e4e652838b602eacd3b107619024dc2` as the second parent of the
