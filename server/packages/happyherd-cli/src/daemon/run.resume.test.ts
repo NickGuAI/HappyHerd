@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   authoritativeActive: false,
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
+  deactivateSession: vi.fn(),
   exitedPids: new Set<number>(),
   resolveCredentialAccountEnvironment: vi.fn(async (): Promise<any> => ({
     selection: { type: 'unconfigured' },
@@ -52,7 +53,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/api/api', () => ({
   ApiClient: {
     create: vi.fn(async () => ({
-      deactivateSession: vi.fn(),
+      deactivateSession: mocks.deactivateSession,
       inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
       postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
@@ -1916,6 +1917,40 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
     expect(mocks.postSessionTask).not.toHaveBeenCalled();
     expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+  });
+
+  it('does not spawn again if an ordinary replacement fails before rotation joins', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    let exitHandler!: (code: number, signal: string | null) => void;
+    mocks.spawnHappyHerdCLI.mockReturnValueOnce({
+      pid: 4321, kill: vi.fn(), on: vi.fn((event: string, handler: typeof exitHandler) => {
+        if (event === 'exit') exitHandler = handler;
+      }),
+    });
+    let releaseStop!: () => void;
+    const stopFinished = new Promise<void>((resolve) => { releaseStop = resolve; });
+    mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (notice: ProviderLimitNotice, dependencies: ProviderLimitRotationDependencies) => {
+      await stopFinished;
+      const account = await dependencies.resumeProvider(notice.sessionId);
+      await dependencies.onAccountSwitched!({ sessionId: notice.sessionId, provider: 'codex', fromAccount: 'one', toAccount: account });
+      return { type: 'rotated', account };
+    });
+    control.onProviderLimited({ sessionId, provider: 'codex', account: 'one', limitedUntil: 12345 });
+    const ordinary = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata, hostPid: 4321, providerAccount: 'two', spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ordinary).resolves.toMatchObject({ type: 'success', sessionId });
+    mocks.exitedPids.add(4321);
+    exitHandler(1, null);
+    // Wait for exit cleanup before the rotation's stop poll completes.
+    await vi.waitFor(() => expect(mocks.deactivateSession).toHaveBeenCalled());
+    releaseStop();
+    await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+    expect(mocks.postSessionTask).not.toHaveBeenCalled();
   });
 
   it('does not deliver a continuation when the replacement session fails to resume', async () => {

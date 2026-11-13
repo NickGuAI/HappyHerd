@@ -418,6 +418,9 @@ export async function startDaemon(): Promise<void> {
     // A normal resume returns at registration, but rotation may join that same
     // child before or after registration and needs its later native receipt.
     const nativeResumes = new Map<string, ResumeMilestone>();
+    // Keep a replacement attempt attached to its rotation even if that child
+    // exits before the rotation's stop poll reaches resumeProvider.
+    const activeRotationResumes = new Map<string, { milestone?: ResumeMilestone }>();
     const cancelledResumes = new Set<string>();
 
     const onChildExited = async (pid: number): Promise<void> => {
@@ -1031,6 +1034,8 @@ export async function startDaemon(): Promise<void> {
         resumeMilestone.pid = happyherdProcess.pid;
         resumeMilestone.nativeId = nativeResumeId;
         nativeResumes.set(reconnect.happySessionId, resumeMilestone);
+        const rotation = activeRotationResumes.get(reconnect.happySessionId);
+        if (rotation && !rotation.milestone) rotation.milestone = resumeMilestone;
       }
 
       logger.debug(`[DAEMON RUN] Spawned process with PID ${happyherdProcess.pid}`);
@@ -1258,6 +1263,8 @@ export async function startDaemon(): Promise<void> {
       replayQueueMessageId?: string;
       /** Rotation waits for the provider to restore its retained native conversation. */
       waitForNativeResume?: boolean;
+      /** Replacement started while this rotation was stopping its old child. */
+      coalescedResume?: ResumeMilestone;
       /** Side-chat-only fresh provider restart attached to the same encrypted HappyHerd session. */
       freshSideChatProvider?: FreshSideChatResumeProvider;
       /** Daemon-only receipt selected by the Grok permission transition RPC. */
@@ -1276,6 +1283,7 @@ export async function startDaemon(): Promise<void> {
           if (!unavailable() && await milestone.native && !unavailable()) return registered;
           return { type: 'error', errorMessage: `Provider native resume failed for session ${happySessionId}` };
         });
+      if (options?.waitForNativeResume && options.coalescedResume) return waitForNative(options.coalescedResume);
       const pending = resumesInFlight.get(happySessionId);
       if (pending) return options?.waitForNativeResume ? waitForNative(pending) : pending.registration!;
       const existing = nativeResumes.get(happySessionId);
@@ -1807,6 +1815,8 @@ export async function startDaemon(): Promise<void> {
       if (providerLimitRotations.has(key)) return true;
       const rotationIncidentId = randomUUID();
       const quotaIncidentId = randomUUID();
+      const rotationResume: { milestone?: ResumeMilestone } = {};
+      activeRotationResumes.set(notice.sessionId, rotationResume);
       let quotaMessagePosted = false;
       const postQuotaOnce = async (): Promise<void> => {
         if (quotaMessagePosted) return;
@@ -1840,7 +1850,10 @@ export async function startDaemon(): Promise<void> {
               await onChildExited(live.pid);
             },
             resumeProvider: async (sessionId) => {
-              const result = await resumeSession(sessionId, { waitForNativeResume: true });
+              const result = await resumeSession(sessionId, {
+                waitForNativeResume: true,
+                coalescedResume: rotationResume.milestone,
+              });
               if (result.type !== 'success') {
                 throw new Error(result.type === 'error'
                   ? result.errorMessage
@@ -1905,6 +1918,9 @@ export async function startDaemon(): Promise<void> {
         logger.warn(`[CREDENTIAL POOL] Failed to persist ${notice.provider} quota exhaustion for ${notice.sessionId}`, error);
       }).finally(() => {
         providerLimitRotations.delete(key);
+        if (activeRotationResumes.get(notice.sessionId) === rotationResume) {
+          activeRotationResumes.delete(notice.sessionId);
+        }
       });
       providerLimitRotations.set(key, handling);
       return true;
