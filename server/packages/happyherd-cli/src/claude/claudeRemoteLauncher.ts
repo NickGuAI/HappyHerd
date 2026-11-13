@@ -3,7 +3,7 @@ import { Session } from "./session";
 import { MessageBuffer } from "@/ui/ink/messageBuffer";
 import { RemoteModeDisplay } from "@/ui/ink/RemoteModeDisplay";
 import React from "react";
-import { claudeRemote } from "./claudeRemote";
+import { claudeRemote, ClaudeRequiredResumeError } from "./claudeRemote";
 import { claudeProviderAuthErrorMessage } from './utils/providerAuth';
 import { PermissionHandler } from "./utils/permissionHandler";
 import { mergeUsageLimits } from "./utils/usageLimits";
@@ -19,7 +19,8 @@ import { getToolName } from "./utils/getToolName";
 import { getAskUserQuestionToolCallIds } from "./utils/questionNotification";
 import { launchFailureMessage } from "./utils/launchFailureMessage";
 import { cleanupStdinAfterInk } from "@/utils/terminalStdinCleanup";
-import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources';
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources';
+import type { MessageQueueBatch } from '@/utils/MessageQueue2';
 import type { HappyHerdHeartbeatMessageMarker } from '@happyherd/wire';
 import { persistHeartbeatDeliveryReceipt } from '@/automations/providerOutcome';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
@@ -509,12 +510,7 @@ export async function claudeRemoteLauncher(
     }
 
     try {
-        let pending: {
-            message: MessageParam['content'];
-            mode: EnhancedMode;
-            hash: string;
-            queueMessageIds: string[];
-        } | null = null;
+        let pending: MessageQueueBatch<EnhancedMode> | null = null;
         let activeHeartbeat: HappyHerdHeartbeatMessageMarker | null = null;
         const finishHeartbeat = async (status: 'completed' | 'failed', message: string | null) => {
             if (!activeHeartbeat) return;
@@ -554,14 +550,26 @@ export async function claudeRemoteLauncher(
             const controller = new AbortController();
             abortController = controller;
             abortFuture = new Future<void>();
-            let modeHash: string | null = null;
+            const nativeResume = session.nativeResume;
+            // Only the first query owns the daemon's retained-session receipt.
+            session.nativeResume = undefined;
+            let modeHash: string | null = nativeResume ? session.queue.modeHasher(nativeResume.mode) : null;
             let mode: EnhancedMode | null = null;
             try {
+                session.recoveryQueryActive = Boolean(session.requiredSessionId);
                 // A previous query has ended. Its setter must never receive an
                 // initial mode for the next resumptive query.
                 permissionHandler.clearPermissionModeUpdater();
                 const remoteResult = await claudeRemote({
                     sessionId: session.sessionId,
+                    requiredSessionId: session.requiredSessionId,
+                    nativeResume: nativeResume ? {
+                        ...nativeResume,
+                        onRestored: async () => {
+                            await nativeResume.onRestored();
+                            session.recoveryConfirmed = true;
+                        },
+                    } : undefined,
                     path: session.path,
                     allowedTools: session.allowedTools ?? [],
                     mcpServers: session.mcpServers,
@@ -572,31 +580,40 @@ export async function claudeRemoteLauncher(
                         return permissionHandler.isAborted(toolCallId);
                     },
                     nextMessage: async () => {
-                        if (pending) {
-                            let p = pending;
-                            pending = null;
-                            // This pending batch is the initial message for the
-                            // new query. Retain its hash so the next Human turn
-                            // cannot continue under an isolated heartbeat's
-                            // system prompt.
-                            modeHash = p.hash;
-                            mode = p.mode;
-                            await permissionHandler.handleModeChange(p.mode.permissionMode);
-                            return p;
-                        }
-
-                        let msg = await session.queue.waitForMessagesAndGetAsString(controller.signal);
-
-                        // Check if mode has changed
+                        // Deferred batches use the same attachment conversion as
+                        // a newly acquired batch. Only a newly acquired batch is
+                        // compared against the query's current mode.
+                        const fromPending = pending !== null;
+                        const msg = pending ?? await session.queue.waitForMessagesAndGetAsString(controller.signal);
+                        pending = null;
                         if (msg) {
-                            if ((modeHash && msg.hash !== modeHash) || msg.isolate) {
+                            if (nativeResume && controller.signal.aborted) {
+                                pending = msg;
+                                return null;
+                            }
+                            if (!fromPending && ((modeHash && msg.hash !== modeHash) || msg.isolate)) {
                                 logger.debug('[remote]: mode has changed, pending message');
                                 pending = msg;
                                 return null;
                             }
                             modeHash = msg.hash;
                             mode = msg.mode;
-                            await permissionHandler.handleModeChange(mode.permissionMode);
+                            try {
+                                await permissionHandler.handleModeChange(mode.permissionMode);
+                            } catch (error) {
+                                if (nativeResume && controller.signal.aborted) {
+                                    pending = msg;
+                                    return null;
+                                }
+                                throw error;
+                            }
+                            if (nativeResume && controller.signal.aborted) {
+                                pending = msg;
+                                return null;
+                            }
+                            // If cancellation lands as nextMessage resolves, the
+                            // restored query can return this unclaimed batch.
+                            const defer = nativeResume ? () => { pending = msg; } : undefined;
 
                             // Per-message attachments are already claimed by the message
                             // when it was pushed onto the queue, so there is no race window
@@ -632,6 +649,7 @@ export async function claudeRemoteLauncher(
                                     message: contentBlocks,
                                     mode: msg.mode,
                                     queueMessageIds: msg.queueMessageIds,
+                                    ...(defer ? { defer } : {}),
                                 };
                             }
 
@@ -639,6 +657,7 @@ export async function claudeRemoteLauncher(
                                 message: msg.message,
                                 mode: msg.mode,
                                 queueMessageIds: msg.queueMessageIds,
+                                ...(defer ? { defer } : {}),
                             }
                         }
 
@@ -708,6 +727,14 @@ export async function claudeRemoteLauncher(
                         session.clearSessionId();
                     },
                     onReady: async (status) => {
+                        if (status !== 'failed' && session.requiredSessionId) {
+                            if (session.recoveryUnexpectedSessionId || session.sessionId !== session.requiredSessionId) {
+                                throw new ClaudeRequiredResumeError('session ID changed during recovery');
+                            }
+                            // A successful turn ends the recovery boundary; later
+                            // provider-native session changes retain normal behavior.
+                            session.requiredSessionId = undefined;
+                        }
                         const result = heartbeatProviderResult ?? {
                             status: 'failed' as const,
                             message: 'Claude heartbeat turn ended without a classified result.',
@@ -751,6 +778,9 @@ export async function claudeRemoteLauncher(
                 }
             } catch (e) {
                 logger.debug('[remote]: launch error', e);
+                // A failed required native restore must terminate the process so
+                // the daemon observes failure; never loop into a fresh query.
+                if (e instanceof ClaudeRequiredResumeError) throw e;
                 if (!exitReason) {
                     const authMessage = claudeProviderAuthErrorMessage(e, process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID || process.env.HAPPYHERD_PROVIDER_ACCOUNT);
                     if (authMessage) await messageQueue.flush();
@@ -768,7 +798,7 @@ export async function claudeRemoteLauncher(
                     continue;
                 }
             } finally {
-
+                session.recoveryQueryActive = false;
                 logger.debug('[remote]: launch finally');
                 // onReady owns the normal transition; this is the terminal
                 // safety net for launcher exits that never emitted ready.

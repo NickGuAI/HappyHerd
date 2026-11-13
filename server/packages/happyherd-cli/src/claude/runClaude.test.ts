@@ -222,7 +222,7 @@ async function startRemoteRunClaudeHarness(opts: {
     if (!scannerOptions || !loopOptions) {
         throw new Error('runClaude harness did not start');
     }
-    const runtimeSession = { thinking: false, cleanup: vi.fn() };
+    const runtimeSession: { thinking: boolean; cleanup: ReturnType<typeof vi.fn>; sessionId?: string } = { thinking: false, cleanup: vi.fn() };
     loopOptions.onSessionReady(runtimeSession);
     const goalActionHandler = registerHandler.mock.calls.find(([method]) => method === 'goal-action')?.[1];
 
@@ -344,6 +344,42 @@ describe('runClaude remote JSONL scanner', () => {
         await Promise.all(automationTemporaryDirectories.splice(0).map((directory) => (
             rm(directory, { recursive: true, force: true })
         )));
+    });
+
+    it('forwards same-ID native hooks and registers restoration with current process identity', async () => {
+        vi.stubEnv('HAPPYHERD_RECONNECT_SESSION_ID', 'happyherd-session-1');
+        vi.stubEnv('HAPPYHERD_RECONNECT_ENCRYPTION_KEY', Buffer.alloc(32).toString('base64'));
+        vi.stubEnv('HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+        vi.stubEnv('HAPPYHERD_ROTATION_RESUME_ID', 'claude-session-1');
+        const harness = await startRemoteRunClaudeHarness({
+            metadata: { claudeSessionId: 'claude-session-1', hostPid: 12 },
+            runOptions: { permissionMode: 'plan', model: 'claude-opus-test', effort: 'high' },
+        });
+        try {
+            expect(harness.loopOptions.nativeResume.mode).toMatchObject({ permissionMode: 'plan', model: 'claude-opus-test', effort: 'high' });
+            harness.runtimeSession.sessionId = 'claude-session-1';
+            const observed = vi.fn();
+            const unsubscribe = harness.loopOptions.nativeResume.subscribe(observed);
+            const hook = mockStartHookServer.mock.calls.at(-1)?.[0].onSessionHook;
+            hook('claude-session-1', { source: 'resume' });
+            expect(observed).toHaveBeenCalledWith('claude-session-1', 'resume');
+            unsubscribe();
+            hook('claude-session-1', { source: 'resume' });
+            expect(observed).toHaveBeenCalledOnce();
+            await harness.loopOptions.nativeResume.onRestored();
+            expect(mockNotifyDaemonSessionStarted).toHaveBeenCalledTimes(2);
+            expect(mockNotifyDaemonSessionStarted.mock.calls[1]).toEqual([
+                'happyherd-session-1', expect.objectContaining({ hostPid: process.pid }),
+                expect.any(Object), 'claude-session-1',
+            ]);
+            await harness.loopOptions.nativeResume.onAborted();
+            expect(mockNotifyDaemonSessionStarted.mock.calls[2]).toEqual([
+                'happyherd-session-1', expect.objectContaining({ hostPid: process.pid }),
+                undefined, 'claude-session-1', true,
+            ]);
+        } finally {
+            await harness.finish();
+        }
     });
 
     it.each([true, false, undefined])('registers the authoritative Super Session designation on Claude reconnect (%s)', async (isSuperSession) => {

@@ -7,7 +7,7 @@ import type { SessionEnvelope } from '@happyherd/wire';
 
 // Exercise the real outgoing queue, SDK converter and protocol mapper without
 // a terminal, credential store, provider process, relay or push service.
-vi.mock('./claudeRemote', () => ({ claudeRemote: vi.fn() }));
+vi.mock('./claudeRemote', () => ({ claudeRemote: vi.fn(), ClaudeRequiredResumeError: class extends Error {} }));
 vi.mock('ink', () => ({ render: vi.fn() }));
 vi.mock('@/ui/ink/RemoteModeDisplay', () => ({ RemoteModeDisplay: vi.fn() }));
 vi.mock('@/ui/logger', () => ({ logger: { debug: vi.fn() } }));

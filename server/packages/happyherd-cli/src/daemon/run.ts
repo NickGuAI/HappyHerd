@@ -477,7 +477,7 @@ export async function startDaemon(): Promise<void> {
     });
 
     // Handle webhook from happyherd session reporting itself
-    const onHappyHerdSessionWebhook = (sessionId: string, sessionMetadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string) => {
+    const onHappyHerdSessionWebhook = (sessionId: string, sessionMetadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string, nativeResumeFailed?: boolean) => {
       logger.debugLargeJson(`[DAEMON RUN] Session reported`, sessionMetadata);
 
       const pid = sessionMetadata.hostPid;
@@ -497,8 +497,11 @@ export async function startDaemon(): Promise<void> {
 
       const nativeMilestone = nativeResumes.get(sessionId);
       if (nativeMilestone?.pid === pid && nativeResumeId === nativeMilestone.nativeId) {
-        nativeMilestone.resolveNative(true);
+        nativeMilestone.resolveNative(!nativeResumeFailed);
       }
+      // A cancelled native restore is a milestone failure, not a new session
+      // registration; keep the existing tracked metadata and watcher intact.
+      if (nativeResumeFailed) return;
 
       logger.debug(`[DAEMON RUN] Session webhook: ${sessionId}, PID: ${pid}, started by: ${sessionMetadata.startedBy || 'unknown'}, hasEncryption: ${!!encryption}`);
       logger.debug(`[DAEMON RUN] Current tracked sessions before webhook: ${Array.from(pidToTrackedSession.keys()).join(', ')}`);
@@ -1419,6 +1422,7 @@ export async function startDaemon(): Promise<void> {
         const nativeResumeId = !freshProvider
           ? resumeAgent === 'codex' ? metadata.codexThreadId
             : resumeAgent === 'grok' ? metadata.acpSessionId
+              : resumeAgent === 'claude' ? metadata.claudeSessionId
               : undefined
           : undefined;
         const credentialProvider = credentialProviderForAgent(resumeAgent);

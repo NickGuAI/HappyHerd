@@ -856,3 +856,4 @@ ISSUE_448_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh credential switc
 ISSUE_448_RESUME_COALESCING	code-ready	fix(credentials): retain native receipt across coalesced resumes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_448_STOPPING_RESUME	code-ready	fix(credentials): reject stopping native resume	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_448_FAILED_RESUME_JOIN	code-ready	fix(credentials): retain failed replacement for rotation	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+ISSUE_448_CLAUDE_NATIVE_RESUME	code-ready	fix(credentials): restore Claude before auto-continuing	server/packages/happyherd-cli/src/claude/claudeRemote.nativeResume.test.ts

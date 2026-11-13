@@ -23,10 +23,17 @@ import { pluginsFromArgs } from './utils/pluginsFromArgs';
 import { claudeProviderAuthMessage } from './utils/providerAuth';
 import type { ClaudeModelUsageLike } from '@/usage/providerUsage';
 
+export class ClaudeRequiredResumeError extends Error {
+    constructor(cause: unknown) {
+        super(`Claude retained-session restoration failed: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    }
+}
+
 export async function claudeRemote(opts: {
 
     // Fixed parameters
     sessionId: string | null,
+    requiredSessionId?: string,
     path: string,
     mcpServers?: Record<string, any>,
     claudeEnvVars?: Record<string, string>,
@@ -41,8 +48,17 @@ export async function claudeRemote(opts: {
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     jsRuntime?: JsRuntime,
 
+    /** Exact retained native session; the hook subscription is active only for this query. */
+    nativeResume?: {
+        sessionId: string;
+        mode: EnhancedMode;
+        subscribe: (callback: (sessionId: string, source?: string) => void) => () => void;
+        onRestored: () => Promise<void>;
+        onAborted: () => Promise<void>;
+    },
+
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: MessageParam['content'], mode: EnhancedMode; queueMessageIds?: string[] } | null>,
+    nextMessage: () => Promise<{ message: MessageParam['content'], mode: EnhancedMode; queueMessageIds?: string[]; defer?: () => void } | null>,
     /** Persist queue ownership before a user prompt is submitted to the SDK. */
     onMessageHandoff?: (message: {
         mode: EnhancedMode;
@@ -70,9 +86,13 @@ export async function claudeRemote(opts: {
     onProviderHardLimit?: (limit: ProviderHardLimit) => boolean | void | Promise<boolean | void>,
 }): Promise<'quota-exhausted' | void> {
 
-    // Check if session is valid
-    let startFrom = opts.sessionId;
-    if (opts.sessionId && !claudeCheckSession(opts.sessionId, opts.path)) {
+    // A daemon resume must never silently fall back to a fresh conversation.
+    const requiredSessionId = opts.nativeResume?.sessionId ?? opts.requiredSessionId;
+    if (requiredSessionId && opts.sessionId && opts.sessionId !== requiredSessionId) {
+        throw new ClaudeRequiredResumeError('session ID mismatch');
+    }
+    let startFrom = requiredSessionId ?? opts.sessionId;
+    if (!requiredSessionId && opts.sessionId && !claudeCheckSession(opts.sessionId, opts.path)) {
         startFrom = null;
     }
     
@@ -110,67 +130,53 @@ export async function claudeRemote(opts: {
     }
     const providerAccount = process.env.HAPPYHERD_PROVIDER_ACCOUNT?.trim() || undefined;
 
-    // Get initial message
-    const initial = await opts.nextMessage();
-    if (!initial) { // No initial message - exit
-        return;
-    }
-    await opts.onMessageHandoff?.({ mode: initial.mode, queueMessageIds: initial.queueMessageIds ?? [] });
-
-    // Handle special commands (extract text for parsing when content is a block array)
-    const initialText = typeof initial.message === 'string'
-        ? initial.message
-        : (initial.message.find((b) => b.type === 'text') as { type: 'text'; text: string } | undefined)?.text ?? '';
-    const specialCommand = parseSpecialCommand(initialText);
-
-    // Handle /clear command
-    if (specialCommand.type === 'clear') {
-        if (opts.onCompletionEvent) {
-            opts.onCompletionEvent('Context was reset');
+    // Normal launches use the first message's mode. Native restoration must
+    // initialize the resumptive query first, with the saved mode and no input.
+    let initial = opts.nativeResume ? null : await opts.nextMessage();
+    if (!opts.nativeResume && !initial) return;
+    const initialMode = opts.nativeResume?.mode ?? initial!.mode;
+    // Preserve the ordinary launcher's special-command and handoff ordering.
+    if (initial) {
+        const text = typeof initial.message === 'string' ? initial.message
+            : (initial.message.find((b) => b.type === 'text') as { type: 'text'; text: string } | undefined)?.text ?? '';
+        const isClear = parseSpecialCommand(text).type === 'clear';
+        if (!requiredSessionId || isClear) {
+            await opts.onMessageHandoff?.({ mode: initial.mode, queueMessageIds: initial.queueMessageIds ?? [] });
         }
-        if (opts.onSessionReset) {
-            opts.onSessionReset();
-        }
-        await opts.onReady();
-        return;
-    }
-
-    // Handle /compact command
-    let isCompactCommand = false;
-    if (specialCommand.type === 'compact') {
-        logger.debug('[claudeRemote] /compact command detected - will process as normal but with compaction behavior');
-        isCompactCommand = true;
-        if (opts.onCompletionEvent) {
-            opts.onCompletionEvent('Compaction started');
+        if (isClear) {
+            opts.onCompletionEvent?.('Context was reset');
+            opts.onSessionReset?.();
+            await opts.onReady();
+            return;
         }
     }
 
     // Prepare SDK options
-    let mode = initial.mode;
-    const appendedInstructions = [initial.mode.appendSystemPrompt, systemPrompt]
+    let mode = initialMode;
+    const appendedInstructions = [initialMode.appendSystemPrompt, systemPrompt]
         .filter((part): part is string => Boolean(part))
         .join('\n\n');
-    const customInstructions = initial.mode.customSystemPrompt
-        ? [initial.mode.customSystemPrompt, appendedInstructions].filter(Boolean).join('\n\n')
+    const customInstructions = initialMode.customSystemPrompt
+        ? [initialMode.customSystemPrompt, appendedInstructions].filter(Boolean).join('\n\n')
         : undefined;
     const sdkOptions: QueryOptions = {
         cwd: opts.path,
         resume: startFrom ?? undefined,
         mcpServers: opts.mcpServers,
         plugins: pluginsFromArgs(opts.claudeArgs, opts.path),
-        permissionMode: mapToClaudeMode(initial.mode.permissionMode),
+        permissionMode: mapToClaudeMode(initialMode.permissionMode),
         // The same SDK query serves later messages and can change mode through
         // Query.setPermissionMode(). Opt in at spawn so a later switch into
         // bypassPermissions is effective as well as an initial bypass turn.
         // This flag enables the mode; it does not select it.
         allowDangerouslySkipPermissions: true,
-        model: initial.mode.model,
-        fallbackModel: initial.mode.fallbackModel,
+        model: initialMode.model,
+        fallbackModel: initialMode.fallbackModel,
         customSystemPrompt: customInstructions,
         appendSystemPrompt: customInstructions ? undefined : appendedInstructions,
-        allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
-        disallowedTools: initial.mode.disallowedTools,
-        effort: initial.mode.effort,
+        allowedTools: initialMode.allowedTools ? initialMode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
+        disallowedTools: initialMode.disallowedTools,
+        effort: initialMode.effort,
         canCallTool: (toolName: string, input: unknown, options: CanCallToolOptions) => opts.canCallTool(toolName, input, mode, options),
         abort: opts.signal,
         settingsPath: opts.hookSettingsPath,
@@ -198,17 +204,92 @@ export async function claudeRemote(opts: {
     let messages = new PushableAsyncIterable<SDKUserMessage>();
     let nextMessageFailed = false;
     let nextMessageFailure: unknown;
+    // Subscribe before query construction: SessionStart can precede SDK init.
+    let unsubscribe = () => {};
+    let rejectHook: ((error: Error) => void) | undefined;
+    const hook = opts.nativeResume ? new Promise<void>((resolve, reject) => {
+        rejectHook = reject;
+        unsubscribe = opts.nativeResume!.subscribe((id, source) => {
+            if (id === opts.nativeResume!.sessionId && source === 'resume') resolve();
+        });
+    }) : null;
+    const abortHook = () => rejectHook?.(new Error('Claude native resume aborted'));
+    if (opts.nativeResume) opts.signal?.addEventListener('abort', abortHook, { once: true });
     // Start the loop
-    const response = query({
-        prompt: messages,
-        options: sdkOptions,
-    });
+    let response: ReturnType<typeof query>;
+    try {
+        response = query({ prompt: messages, options: sdkOptions });
+    } catch (error) {
+        unsubscribe();
+        opts.signal?.removeEventListener('abort', abortHook);
+        messages.end();
+        if (requiredSessionId) throw new ClaudeRequiredResumeError(error);
+        throw error;
+    }
 
     // Expose query control methods to permission handler
-    if (opts.onQueryReady) {
-        opts.onQueryReady({
+    try {
+        opts.onQueryReady?.({
             setPermissionMode: (mode: string) => response.setPermissionMode(mode as any),
         });
+    } catch (error) {
+        unsubscribe();
+        opts.signal?.removeEventListener('abort', abortHook);
+        messages.end();
+        response.close();
+        if (opts.nativeResume) throw new ClaudeRequiredResumeError(error);
+        throw error;
+    }
+
+    if (opts.nativeResume) {
+        let aborted = false;
+        let receiptAcknowledged = false;
+        try {
+            if (opts.signal?.aborted) throw new Error('Claude native resume aborted');
+            await Promise.all([response.initializationResult(), hook]);
+            if (opts.signal?.aborted) throw new Error('Claude native resume aborted');
+            await opts.nativeResume.onRestored();
+            receiptAcknowledged = true;
+            if (opts.signal?.aborted) {
+                messages.end();
+                response.close();
+                aborted = true;
+            }
+        } catch (error) {
+            messages.end();
+            response.close();
+            if (opts.signal?.aborted) aborted = true;
+            else throw new ClaudeRequiredResumeError(error);
+        } finally {
+            unsubscribe();
+            opts.signal?.removeEventListener('abort', abortHook);
+        }
+        if (aborted) {
+            // The query is gone and can no longer produce a receipt. Tell the
+            // daemon to settle its waiter, then preserve normal user-abort
+            // behavior: the launcher remains idle until another queued prompt.
+            if (!receiptAcknowledged) {
+                try {
+                    await opts.nativeResume.onAborted();
+                } catch (error) {
+                    logger.debug('[claudeRemote] could not report cancelled native resume', error);
+                }
+            }
+            return;
+        }
+    }
+
+    // Re-entry must also fail rather than silently accepting an unsuccessful
+    // restore and sending a pending batch to a fresh conversation.
+    if (requiredSessionId && !opts.nativeResume) {
+        try {
+            await response.initializationResult();
+        } catch (error) {
+            messages.end();
+            response.close();
+            if (opts.signal?.aborted) return;
+            throw new ClaudeRequiredResumeError(error);
+        }
     }
 
     if (startFrom) {
@@ -216,7 +297,7 @@ export async function claudeRemote(opts: {
         let baselineAvailable = false;
         let modelUsage: Record<string, ClaudeModelUsageLike> | undefined;
         try {
-            await response.initializationResult();
+            if (!requiredSessionId) await response.initializationResult();
             const usageFn = (response as any).usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET;
             if (typeof usageFn !== 'function') {
                 throw new Error('Claude SDK does not expose get_usage for resumed usage baseline');
@@ -243,12 +324,66 @@ export async function claudeRemote(opts: {
         }
     }
 
+    if (opts.nativeResume) {
+        // An abort may arrive while optional usage/baseline work is pending.
+        // Do not consume a queued batch once the restored query is cancelled.
+        if (opts.signal?.aborted) {
+            messages.end();
+            response.close();
+            return;
+        }
+        try {
+            initial = await opts.nextMessage();
+        } catch (error) {
+            messages.end();
+            response.close();
+            throw error;
+        }
+        if (opts.signal?.aborted) {
+            initial?.defer?.();
+            messages.end();
+            response.close();
+            return;
+        }
+        if (!initial) {
+            messages.end();
+            response.close();
+            return;
+        }
+    }
+    if (requiredSessionId) {
+        try {
+            await opts.onMessageHandoff?.({ mode: initial!.mode, queueMessageIds: initial!.queueMessageIds ?? [] });
+        } catch (error) {
+            messages.end();
+            response.close();
+            throw error;
+        }
+    }
+    const initialText = typeof initial!.message === 'string'
+        ? initial!.message
+        : (initial!.message.find((b) => b.type === 'text') as { type: 'text'; text: string } | undefined)?.text ?? '';
+    const specialCommand = parseSpecialCommand(initialText);
+    if (specialCommand.type === 'clear') {
+        messages.end();
+        response.close();
+        opts.onCompletionEvent?.('Context was reset');
+        opts.onSessionReset?.();
+        await opts.onReady();
+        return;
+    }
+    let isCompactCommand = false;
+    if (specialCommand.type === 'compact') {
+        isCompactCommand = true;
+        opts.onCompletionEvent?.('Compaction started');
+    }
+
     messages.push({
         type: 'user',
         parent_tool_use_id: null,
         message: {
             role: 'user',
-            content: initial.message,
+            content: initial!.message,
         },
     });
 
