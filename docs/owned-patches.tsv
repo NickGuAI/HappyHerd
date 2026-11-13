@@ -858,3 +858,4 @@ ISSUE_448_STOPPING_RESUME	code-ready	fix(credentials): reject stopping native re
 ISSUE_448_FAILED_RESUME_JOIN	code-ready	fix(credentials): retain failed replacement for rotation	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_448_CLAUDE_NATIVE_RESUME	code-ready	fix(credentials): restore Claude before auto-continuing	server/packages/happyherd-cli/src/claude/claudeRemote.nativeResume.test.ts
 ISSUE_448_TEST_SESSION_ID	code-ready	test(claude): align resume fixture session ID	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.heartbeat.test.ts
+ISSUE_448_CLAUDE_WHITESPACE	code-ready	chore(claude): clean resume whitespace	server/packages/happyherd-cli/src/claude/claudeRemote.ts
