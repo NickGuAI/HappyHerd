@@ -851,3 +851,4 @@ ISSUE_443_DARK_CHANGELOG_GOLDEN	code-ready	test(archive): align dark changelog b
 ISSUE_445_CLAUDE_FABLE_52	code-ready	feat(claude): support Fable 5.2	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
 UPSTREAM_SYNC_9B13E34	code-ready	chore(sync): adapt approved upstream machine wire and server types	docs/upstream-sync-9b13e34.md
 ISSUE_448_CREDENTIAL_SWITCH_CONTINUE	code-ready	feat(credentials): continue after automatic account switch	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+ISSUE_448_NATIVE_RESUME_RECEIPT	code-ready	fix(credentials): await native resume before continuation	server/packages/happyherd-cli/src/daemon/run.resume.test.ts

@@ -1360,6 +1360,10 @@ export async function runAcp(opts: {
   try {
     sessionManager.setPlanReplay(true);
     const started = await backend.startSession().finally(() => sessionManager.setPlanReplay(false));
+    const rotationResumeId = process.env.HAPPYHERD_ROTATION_RESUME_ID;
+    if (rotationResumeId && rotationResumeId !== started.providerSessionId) {
+      throw new Error(`${opts.agentName} restored an unexpected native session`);
+    }
     acpSessionId = started.sessionId;
     const providerUsageSessionId = started.providerSessionId ?? started.sessionId;
     const reportAcpTurnUsage = async (
@@ -1436,7 +1440,7 @@ export async function runAcp(opts: {
             seq: response.seq,
             metadataVersion: response.metadataVersion,
             agentStateVersion: response.agentStateVersion,
-          });
+          }, rotationResumeId);
         } catch (error) {
           logger.debug('[acp] Failed to refresh daemon session metadata:', error);
         }

@@ -438,7 +438,7 @@ export async function startDaemon(): Promise<void> {
     // A reconnecting provider can report its existing HappyHerd session before
     // the resumed backend has accepted a new launch receipt. Returning false
     // keeps the awaiter installed for the provider-ready webhook.
-    const pidToAwaiter = new Map<number, (session: TrackedSession) => boolean>();
+    const pidToAwaiter = new Map<number, (session: TrackedSession, nativeResumeId?: string) => boolean>();
     const pidToPreWebhookExitAwaiter = new Map<number, () => void>();
 
     // Helper functions
@@ -457,7 +457,7 @@ export async function startDaemon(): Promise<void> {
     });
 
     // Handle webhook from happyherd session reporting itself
-    const onHappyHerdSessionWebhook = (sessionId: string, sessionMetadata: Metadata, encryption?: SessionEncryptionData) => {
+    const onHappyHerdSessionWebhook = (sessionId: string, sessionMetadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string) => {
       logger.debugLargeJson(`[DAEMON RUN] Session reported`, sessionMetadata);
 
       const pid = sessionMetadata.hostPid;
@@ -511,7 +511,7 @@ export async function startDaemon(): Promise<void> {
         // Resolve any awaiter for this PID
         const awaiter = existingSession.startedBy === 'daemon' ? pidToAwaiter.get(pid) : undefined;
         if (awaiter) {
-          if (awaiter(existingSession)) {
+          if (awaiter(existingSession, nativeResumeId)) {
             registeringPids.delete(pid);
             pidToAwaiter.delete(pid);
             logger.debug(`[DAEMON RUN] Resolved session awaiter for PID ${pid}`);
@@ -973,6 +973,7 @@ export async function startDaemon(): Promise<void> {
       automation,
       settings,
       deferSettingsReceipt = false,
+      nativeResumeId,
       reconnect,
     }: {
       args: string[];
@@ -983,6 +984,7 @@ export async function startDaemon(): Promise<void> {
       automation?: { id: string; runId: string };
       settings?: HappyHerdMachineSessionSettings;
       deferSettingsReceipt?: boolean;
+      nativeResumeId?: string;
       reconnect?: { happySessionId: string; happyherdSessionMetadataFromLocalWebhook: Metadata; encryption: SessionEncryptionData };
     }): Promise<SpawnSessionResult> => {
       const happyherdProcess = spawnHappyHerdCLI(args, {
@@ -1062,8 +1064,14 @@ export async function startDaemon(): Promise<void> {
           });
         }
 
-        pidToAwaiter.set(happyherdProcess.pid!, (completedSession) => {
+        pidToAwaiter.set(happyherdProcess.pid!, (completedSession, restoredNativeSessionId) => {
           if (settled) return true;
+          if (nativeResumeId && restoredNativeSessionId !== nativeResumeId) {
+            // Registration arrived; the provider owns the remaining native
+            // resume operation and its success or process-exit outcome.
+            clearTimeout(timeout);
+            return false;
+          }
           logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
           if (!persistedMachineSessionSettingsMatch(
             completedSession.happyherdSessionMetadataFromLocalWebhook,
@@ -1224,6 +1232,8 @@ export async function startDaemon(): Promise<void> {
       permissionMode?: string;
       agentRuntimeContext?: unknown;
       replayQueueMessageId?: string;
+      /** Rotation waits for the provider to restore its retained native conversation. */
+      waitForNativeResume?: boolean;
       /** Side-chat-only fresh provider restart attached to the same encrypted HappyHerd session. */
       freshSideChatProvider?: FreshSideChatResumeProvider;
       /** Daemon-only receipt selected by the Grok permission transition RPC. */
@@ -1352,6 +1362,11 @@ export async function startDaemon(): Promise<void> {
         if (!resumeAgent) {
           throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
         }
+        const nativeResumeId = options?.waitForNativeResume
+          ? resumeAgent === 'codex' ? metadata.codexThreadId
+            : resumeAgent === 'grok' ? metadata.acpSessionId
+              : undefined
+          : undefined;
         const credentialProvider = credentialProviderForAgent(resumeAgent);
         const preserveUnmanagedCodex = !freshProvider && isUnmanagedCodexSession(metadata);
         const credentialResolution = credentialProvider && !preserveUnmanagedCodex
@@ -1459,12 +1474,14 @@ export async function startDaemon(): Promise<void> {
             ...(options?.replayQueueMessageId
               ? { HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID: options.replayQueueMessageId }
               : {}),
+            ...(nativeResumeId ? { HAPPYHERD_ROTATION_RESUME_ID: nativeResumeId } : {}),
             ...(freshSideChatProvider
               ? { HAPPYHERD_FRESH_PROVIDER_RECONNECT: '1' }
               : {}),
           }),
           settings: providerResumeSettings ?? grokResumeSettings,
           deferSettingsReceipt: resumeAgent === 'grok',
+          nativeResumeId,
         });
         if (resumed.type === 'success' && !options?.grokPermissionTransitionSettings) {
           return resumed;
@@ -1776,7 +1793,7 @@ export async function startDaemon(): Promise<void> {
               await onChildExited(live.pid);
             },
             resumeProvider: async (sessionId) => {
-              const result = await resumeSession(sessionId);
+              const result = await resumeSession(sessionId, { waitForNativeResume: true });
               if (result.type !== 'success') {
                 throw new Error(result.type === 'error'
                   ? result.errorMessage
