@@ -25,6 +25,12 @@ Shared from `@happyherd/wire`:
 
 These are used for encrypted message/update contracts (`new-message`, `update-session`, `update-machine`).
 
+`NewMachineBodySchema` and `NewMachineUpdateContainerSchema` also define the
+machine-creation event, including the encrypted metadata and optional data key
+needed to initialize a newly registered machine. The retained app aliases
+`ApiUpdateNewMachineSchema` to this shared body schema; server route tests
+validate emitted containers directly through the wire package.
+
 ### 2. Session protocol schema
 
 Shared from `@happyherd/wire`:

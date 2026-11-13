@@ -46,7 +46,7 @@ export function normalizeAudioMimeType(value: string): string {
     return mimeType;
 }
 
-export function decodeTranscriptionAudio(audioBase64: string): Buffer {
+export function decodeTranscriptionAudio(audioBase64: string): Buffer<ArrayBuffer> {
     if (!audioBase64) {
         throw new VoiceTranscriptionError('Audio payload is empty', 400);
     }
