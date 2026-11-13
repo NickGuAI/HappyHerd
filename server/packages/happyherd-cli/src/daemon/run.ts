@@ -1271,7 +1271,9 @@ export async function startDaemon(): Promise<void> {
       const waitForNative = (milestone: ResumeMilestone): Promise<SpawnSessionResult> =>
         milestone.registration!.then(async (registered) => {
           if (registered.type !== 'success') return registered;
-          if (await milestone.native) return registered;
+          const unavailable = () => milestone.pid !== undefined
+            && (stoppingPids.has(milestone.pid) || hasProviderProcessExited(milestone.pid));
+          if (!unavailable() && await milestone.native && !unavailable()) return registered;
           return { type: 'error', errorMessage: `Provider native resume failed for session ${happySessionId}` };
         });
       const pending = resumesInFlight.get(happySessionId);

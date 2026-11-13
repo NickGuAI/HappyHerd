@@ -1892,6 +1892,32 @@ describe('daemon session continuity', () => {
     expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
   });
 
+  it('does not continue a coalesced resume after the ready child starts stopping', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    vi.spyOn(process, 'kill').mockReturnValue(true);
+    let releaseStop!: () => void;
+    const stopFinished = new Promise<void>((resolve) => { releaseStop = resolve; });
+    mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (notice: ProviderLimitNotice, dependencies: ProviderLimitRotationDependencies) => {
+      await stopFinished;
+      const account = await dependencies.resumeProvider(notice.sessionId);
+      await dependencies.onAccountSwitched!({ sessionId: notice.sessionId, provider: 'codex', fromAccount: 'one', toAccount: account });
+      return { type: 'rotated', account };
+    });
+    const ordinary = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onProviderLimited({ sessionId, provider: 'codex', account: 'one', limitedUntil: 12345 });
+    const registration = { ...metadata, hostPid: 4321, providerAccount: 'two', spawnSettings: codexAdvertisedDefaultSettings };
+    control.onHappyHerdSessionWebhook(sessionId, registration, encryption);
+    await expect(ordinary).resolves.toMatchObject({ type: 'success', sessionId });
+    control.onHappyHerdSessionWebhook(sessionId, registration, encryption, 'thread-local');
+    expect(control.stopSession(sessionId)).toBe(true);
+    releaseStop();
+    await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+    expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+  });
+
   it('does not deliver a continuation when the replacement session fails to resume', async () => {
     const { sessionId, control } = await localMessagingFixture();
     mocks.spawnHappyHerdCLI.mockImplementationOnce(() => { throw new Error('spawn failed'); });
