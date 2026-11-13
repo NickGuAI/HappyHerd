@@ -407,7 +407,17 @@ export async function startDaemon(): Promise<void> {
     const bootTimeMs = machineBootTimeMs(os.uptime(), Date.now());
     const stoppingPids = new Set<number>();
     const registeringPids = new Set<number>();
-    const resumesInFlight = new Map<string, Promise<SpawnSessionResult>>();
+    type ResumeMilestone = {
+      registration?: Promise<SpawnSessionResult>;
+      native: Promise<boolean>;
+      resolveNative: (success: boolean) => void;
+      nativeId?: string;
+      pid?: number;
+    };
+    const resumesInFlight = new Map<string, ResumeMilestone>();
+    // A normal resume returns at registration, but rotation may join that same
+    // child before or after registration and needs its later native receipt.
+    const nativeResumes = new Map<string, ResumeMilestone>();
     const cancelledResumes = new Set<string>();
 
     const onChildExited = async (pid: number): Promise<void> => {
@@ -417,6 +427,13 @@ export async function startDaemon(): Promise<void> {
       }
       const session = pidToTrackedSession.get(pid);
       if (!session) return;
+      if (session.happySessionId) {
+        const milestone = nativeResumes.get(session.happySessionId);
+        if (milestone?.pid === pid) {
+          milestone.resolveNative(false);
+          nativeResumes.delete(session.happySessionId);
+        }
+      }
       stoppingPids.delete(pid);
       registeringPids.delete(pid);
       const exitedBeforeWebhook = pidToPreWebhookExitAwaiter.has(pid);
@@ -474,6 +491,11 @@ export async function startDaemon(): Promise<void> {
         candidate.pid !== pid && candidate.happySessionId === sessionId
         && !hasProviderProcessExited(candidate.pid))) return;
       if (stoppingPids.has(pid)) return;
+
+      const nativeMilestone = nativeResumes.get(sessionId);
+      if (nativeMilestone?.pid === pid && nativeResumeId === nativeMilestone.nativeId) {
+        nativeMilestone.resolveNative(true);
+      }
 
       logger.debug(`[DAEMON RUN] Session webhook: ${sessionId}, PID: ${pid}, started by: ${sessionMetadata.startedBy || 'unknown'}, hasEncryption: ${!!encryption}`);
       logger.debug(`[DAEMON RUN] Current tracked sessions before webhook: ${Array.from(pidToTrackedSession.keys()).join(', ')}`);
@@ -974,6 +996,7 @@ export async function startDaemon(): Promise<void> {
       settings,
       deferSettingsReceipt = false,
       nativeResumeId,
+      resumeMilestone,
       reconnect,
     }: {
       args: string[];
@@ -985,6 +1008,7 @@ export async function startDaemon(): Promise<void> {
       settings?: HappyHerdMachineSessionSettings;
       deferSettingsReceipt?: boolean;
       nativeResumeId?: string;
+      resumeMilestone?: ResumeMilestone;
       reconnect?: { happySessionId: string; happyherdSessionMetadataFromLocalWebhook: Metadata; encryption: SessionEncryptionData };
     }): Promise<SpawnSessionResult> => {
       const happyherdProcess = spawnHappyHerdCLI(args, {
@@ -1001,6 +1025,12 @@ export async function startDaemon(): Promise<void> {
           errorMessage: 'Failed to spawn HappyHerd process - no PID returned',
           retrySafe: true,
         });
+      }
+
+      if (resumeMilestone && nativeResumeId && reconnect) {
+        resumeMilestone.pid = happyherdProcess.pid;
+        resumeMilestone.nativeId = nativeResumeId;
+        nativeResumes.set(reconnect.happySessionId, resumeMilestone);
       }
 
       logger.debug(`[DAEMON RUN] Spawned process with PID ${happyherdProcess.pid}`);
@@ -1064,14 +1094,8 @@ export async function startDaemon(): Promise<void> {
           });
         }
 
-        pidToAwaiter.set(happyherdProcess.pid!, (completedSession, restoredNativeSessionId) => {
+        pidToAwaiter.set(happyherdProcess.pid!, (completedSession) => {
           if (settled) return true;
-          if (nativeResumeId && restoredNativeSessionId !== nativeResumeId) {
-            // Registration arrived; the provider owns the remaining native
-            // resume operation and its success or process-exit outcome.
-            clearTimeout(timeout);
-            return false;
-          }
           logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
           if (!persistedMachineSessionSettingsMatch(
             completedSession.happyherdSessionMetadataFromLocalWebhook,
@@ -1244,14 +1268,33 @@ export async function startDaemon(): Promise<void> {
       happySessionId: string,
       options?: DaemonResumeSessionOptions,
     ): Promise<SpawnSessionResult> => {
+      const waitForNative = (milestone: ResumeMilestone): Promise<SpawnSessionResult> =>
+        milestone.registration!.then(async (registered) => {
+          if (registered.type !== 'success') return registered;
+          if (await milestone.native) return registered;
+          return { type: 'error', errorMessage: `Provider native resume failed for session ${happySessionId}` };
+        });
       const pending = resumesInFlight.get(happySessionId);
-      if (pending) return pending;
-      const attempt = resumeSessionAttempt(happySessionId, options).finally(() => {
-        resumesInFlight.delete(happySessionId);
+      if (pending) return options?.waitForNativeResume ? waitForNative(pending) : pending.registration!;
+      const existing = nativeResumes.get(happySessionId);
+      if (options?.waitForNativeResume && existing?.pid && !hasProviderProcessExited(existing.pid)) {
+        return waitForNative(existing);
+      }
+      let resolveNative!: (success: boolean) => void;
+      const milestone: ResumeMilestone = {
+        native: new Promise<boolean>((resolve) => { resolveNative = resolve; }),
+        resolveNative: (success) => resolveNative(success),
+      };
+      resumesInFlight.set(happySessionId, milestone);
+      const attempt = resumeSessionAttempt(happySessionId, options, milestone).then((result) => {
+        if (result.type !== 'success' || !milestone.nativeId) milestone.resolveNative(result.type === 'success');
+        return result;
+      }).finally(() => {
+        if (resumesInFlight.get(happySessionId) === milestone) resumesInFlight.delete(happySessionId);
         cancelledResumes.delete(happySessionId);
       });
-      resumesInFlight.set(happySessionId, attempt);
-      return attempt;
+      milestone.registration = attempt;
+      return options?.waitForNativeResume ? waitForNative(milestone) : attempt;
     };
 
     const resumeConflict = (sessionId: string, saved: PersistedSession | undefined): SpawnSessionResult | undefined => {
@@ -1279,6 +1322,7 @@ export async function startDaemon(): Promise<void> {
     const resumeSessionAttempt = async (
       happySessionId: string,
       options?: DaemonResumeSessionOptions,
+      resumeMilestone?: ResumeMilestone,
     ): Promise<SpawnSessionResult> => {
       try {
         // Capture the local PID provenance before refreshing metadata. A server
@@ -1362,7 +1406,7 @@ export async function startDaemon(): Promise<void> {
         if (!resumeAgent) {
           throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
         }
-        const nativeResumeId = options?.waitForNativeResume
+        const nativeResumeId = !freshProvider
           ? resumeAgent === 'codex' ? metadata.codexThreadId
             : resumeAgent === 'grok' ? metadata.acpSessionId
               : undefined
@@ -1482,6 +1526,7 @@ export async function startDaemon(): Promise<void> {
           settings: providerResumeSettings ?? grokResumeSettings,
           deferSettingsReceipt: resumeAgent === 'grok',
           nativeResumeId,
+          resumeMilestone,
         });
         if (resumed.type === 'success' && !options?.grokPermissionTransitionSettings) {
           return resumed;

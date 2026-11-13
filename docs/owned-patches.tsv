@@ -853,3 +853,4 @@ UPSTREAM_SYNC_9B13E34	code-ready	chore(sync): adapt approved upstream machine wi
 ISSUE_448_CREDENTIAL_SWITCH_CONTINUE	code-ready	feat(credentials): continue after automatic account switch	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_448_NATIVE_RESUME_RECEIPT	code-ready	fix(credentials): await native resume before continuation	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_448_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh credential switch visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_448_RESUME_COALESCING	code-ready	fix(credentials): retain native receipt across coalesced resumes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts

@@ -1832,6 +1832,66 @@ describe('daemon session continuity', () => {
     expect(mocks.postSessionTask).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['before', false], ['before', true], ['after', false], ['after', true], ['ready', false],
+  ] as const)('rotation joins an ordinary resume %s registration (native failure: %s)', async (join, fails) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    let exitHandler!: (code: number, signal: string | null) => void;
+    mocks.spawnHappyHerdCLI.mockReturnValueOnce({
+      pid: 4321, kill: vi.fn(), on: vi.fn((event: string, handler: typeof exitHandler) => {
+        if (event === 'exit') exitHandler = handler;
+      }),
+    });
+    let releaseStop!: () => void;
+    const stopFinished = new Promise<void>((resolve) => { releaseStop = resolve; });
+    let joined = false;
+    mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (notice: ProviderLimitNotice, dependencies: ProviderLimitRotationDependencies) => {
+      await stopFinished;
+      joined = true;
+      const account = await dependencies.resumeProvider(notice.sessionId);
+      await dependencies.onAccountSwitched!({ sessionId: notice.sessionId, provider: 'codex', fromAccount: 'one', toAccount: account });
+      return { type: 'rotated', account };
+    });
+    const ordinary = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onProviderLimited({ sessionId, provider: 'codex', account: 'one', limitedUntil: 12345 });
+    if (join === 'before') {
+      releaseStop();
+      await vi.waitFor(() => expect(joined).toBe(true));
+    }
+    const registration = { ...metadata, hostPid: 4321, providerAccount: 'two', spawnSettings: codexAdvertisedDefaultSettings };
+    control.onHappyHerdSessionWebhook(sessionId, registration, encryption);
+    await expect(ordinary).resolves.toMatchObject({ type: 'success', sessionId });
+    if (join === 'ready') {
+      control.onHappyHerdSessionWebhook(sessionId, registration, encryption, 'thread-local');
+      expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    }
+    if (join !== 'before') {
+      releaseStop();
+      await vi.waitFor(() => expect(joined).toBe(true));
+    }
+    if (join !== 'ready') {
+      control.onHappyHerdSessionWebhook(sessionId, registration, encryption, 'wrong-thread');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    }
+    if (fails) {
+      mocks.exitedPids.add(4321);
+      exitHandler(1, null);
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+      expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    } else {
+      if (join !== 'ready') control.onHappyHerdSessionWebhook(sessionId, registration, encryption, 'thread-local');
+      await vi.waitFor(() => expect(mocks.postSessionTask).toHaveBeenCalledOnce());
+      expect(mocks.postSessionTask).toHaveBeenCalledWith(
+        expect.objectContaining({ id: sessionId }),
+        { localId: expect.stringMatching(/-continue$/), text: 'continue' },
+      );
+    }
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+  });
+
   it('does not deliver a continuation when the replacement session fails to resume', async () => {
     const { sessionId, control } = await localMessagingFixture();
     mocks.spawnHappyHerdCLI.mockImplementationOnce(() => { throw new Error('spawn failed'); });
