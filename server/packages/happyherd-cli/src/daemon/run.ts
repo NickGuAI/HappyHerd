@@ -1732,6 +1732,12 @@ export async function startDaemon(): Promise<void> {
           logger.debug(`[CREDENTIAL POOL] Ignoring stale ${notice.provider} limit notice for ${notice.sessionId}`);
           return false;
         }
+      } else if (notice.account) {
+        const metadata = findTrackedSessionById(notice.sessionId)?.happyherdSessionMetadataFromLocalWebhook;
+        if (metadata?.providerAccount && metadata.providerAccount !== notice.account) {
+          logger.debug(`[CREDENTIAL POOL] Ignoring stale ${notice.provider} limit notice for ${notice.sessionId}`);
+          return false;
+        }
       }
       const key = `${notice.sessionId}:${notice.provider}:${notice.accountId ?? notice.account ?? 'unmanaged'}:${notice.credentialVersion ?? 'legacy'}`;
       if (providerLimitRotations.has(key)) return true;
@@ -1791,22 +1797,34 @@ export async function startDaemon(): Promise<void> {
               if (!resumed?.happyherdSessionMetadataFromLocalWebhook || !resumed.encryption) {
                 throw new Error(`Resumed session ${sessionId} is missing encrypted event persistence state`);
               }
-              await api.postSessionEvent({
-                id: sessionId,
-                seq: resumed.encryption.seq,
-                encryptionKey: resumed.encryption.encryptionKey,
-                encryptionVariant: resumed.encryption.encryptionVariant,
-                metadata: resumed.happyherdSessionMetadataFromLocalWebhook,
-                metadataVersion: resumed.encryption.metadataVersion,
-                agentState: null,
-                agentStateVersion: resumed.encryption.agentStateVersion,
-              }, {
-                type: 'provider-account-switched',
-                provider,
-                fromAccount,
-                toAccount,
-                incidentId: rotationIncidentId,
-              }, rotationIncidentId);
+              try {
+                await api.postSessionEvent({
+                  id: sessionId,
+                  seq: resumed.encryption.seq,
+                  encryptionKey: resumed.encryption.encryptionKey,
+                  encryptionVariant: resumed.encryption.encryptionVariant,
+                  metadata: resumed.happyherdSessionMetadataFromLocalWebhook,
+                  metadataVersion: resumed.encryption.metadataVersion,
+                  agentState: null,
+                  agentStateVersion: resumed.encryption.agentStateVersion,
+                }, {
+                  type: 'provider-account-switched',
+                  provider,
+                  fromAccount,
+                  toAccount,
+                  incidentId: rotationIncidentId,
+                }, rotationIncidentId);
+              } catch (error) {
+                logger.warn(`[CREDENTIAL POOL] Failed to persist account switch for ${sessionId}`, error);
+              }
+              const receipt = await sendLocalMessage({
+                sessionId,
+                messageId: `${rotationIncidentId}-continue`,
+                text: 'continue',
+              });
+              if (!receipt.success) {
+                logger.warn(`[CREDENTIAL POOL] Failed to deliver continuation for ${sessionId}: ${receipt.error}`);
+              }
             },
             onNoUsableAccount: postQuotaOnce,
           });

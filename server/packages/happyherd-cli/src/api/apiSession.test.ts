@@ -1595,7 +1595,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             { role: 'user', content: { type: 'text', text: 'historical instruction' } },
             { role: 'user', content: { type: 'text', text: 'still queued' }, meta: { deliveryMode: 'queue', queueMessageId: 'queue-pending' } },
             { role: 'user', content: { type: 'text', text: 'other queued input' }, meta: { deliveryMode: 'queue', queueMessageId: 'queue-other' } },
-            { role: 'user', content: { type: 'text', text: 'new input after snapshot' } },
+            { role: 'user', content: { type: 'text', text: 'continue' }, meta: { deliveryMode: 'queue', queueMessageId: 'switch-continue' } },
         ];
         let resolveMessagePage!: (page: { data: { messages: unknown[]; hasMore: boolean } }) => void;
         mockAxiosGet.mockImplementationOnce(() => new Promise((resolve) => {
@@ -1631,7 +1631,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         expect(onUserMessage.mock.calls.map(([message]) => message.content.text)).toEqual([
             'still queued',
-            'new input after snapshot',
+            'continue',
         ]);
         expect(onUserMessage).toHaveBeenCalledTimes(2);
         expect((client as any).lastReceivedSeq).toBe(4);

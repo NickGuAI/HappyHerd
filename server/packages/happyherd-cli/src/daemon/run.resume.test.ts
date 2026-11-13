@@ -1764,6 +1764,48 @@ describe('daemon session continuity', () => {
     });
   });
 
+  it.each([false, true])('resumes and queues one continuation for duplicate notices (switch event fails: %s)', async (eventFails) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    if (eventFails) mocks.postSessionEvent.mockRejectedValueOnce(new Error('event unavailable'));
+    mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (notice: ProviderLimitNotice, dependencies: ProviderLimitRotationDependencies) => {
+      await dependencies.stopProvider(notice.sessionId);
+      const account = await dependencies.resumeProvider(notice.sessionId);
+      await dependencies.onAccountSwitched!({ sessionId: notice.sessionId, provider: 'codex', fromAccount: 'one', toAccount: account });
+      return { type: 'rotated', account };
+    });
+    const notice: ProviderLimitNotice = { sessionId, provider: 'codex', account: 'one', limitedUntil: 12345 };
+    expect(control.onProviderLimited(notice)).toBe(true);
+    expect(control.onProviderLimited(notice)).toBe(true);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    const [, launch] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata, hostPid: 4321, providerAccount: 'two', spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await vi.waitFor(() => expect(mocks.postSessionTask).toHaveBeenCalledOnce());
+    expect(control.onProviderLimited(notice)).toBe(false);
+    expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce();
+    expect(mocks.postSessionTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: sessionId, encryptionKey: encryption.encryptionKey }),
+      { localId: expect.stringMatching(/-continue$/), text: 'continue' },
+    );
+  });
+
+  it('does not deliver a continuation when the replacement session fails to resume', async () => {
+    const { sessionId, control } = await localMessagingFixture();
+    mocks.spawnHappyHerdCLI.mockImplementationOnce(() => { throw new Error('spawn failed'); });
+    mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (notice: ProviderLimitNotice, dependencies: ProviderLimitRotationDependencies) => {
+      await dependencies.stopProvider(notice.sessionId);
+      await dependencies.resumeProvider(notice.sessionId);
+      throw new Error('unexpected successful resume');
+    });
+    control.onProviderLimited({ sessionId, provider: 'codex', account: 'one', limitedUntil: 12345 });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+    expect(mocks.postSessionTask).not.toHaveBeenCalled();
+  });
+
   it('persists one structured provider switch event through the resumed tracked session', async () => {
     const sessionId = 'claude-provider-account-switch';
     const encryption: SessionEncryptionData = {
