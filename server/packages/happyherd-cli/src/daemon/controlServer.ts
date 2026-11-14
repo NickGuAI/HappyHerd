@@ -86,7 +86,7 @@ export function startDaemonControlServer({
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
   onProviderLimited: (notice: ProviderLimitNotice) => boolean;
   requestShutdown: () => void;
-  onHappyHerdSessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
+  onHappyHerdSessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string, nativeResumeFailed?: boolean) => void;
   automations: HappyHerdAutomationService;
   ensureDefaultAssistant?: () => Promise<DefaultAssistantReceipt>;
   createLocalSession?: (request: LocalSessionCreationRequest) => Promise<LocalSessionCreationReceipt>;
@@ -173,7 +173,9 @@ export function startDaemonControlServer({
             seq: z.number(),
             metadataVersion: z.number(),
             agentStateVersion: z.number(),
-          }).optional()
+          }).optional(),
+          nativeResumeId: z.string().min(1).optional(),
+          nativeResumeFailed: z.boolean().optional(),
         }),
         response: {
           200: z.object({
@@ -182,7 +184,7 @@ export function startDaemonControlServer({
         }
       }
     }, async (request) => {
-      const { sessionId, metadata, encryption } = request.body;
+      const { sessionId, metadata, encryption, nativeResumeId, nativeResumeFailed } = request.body;
 
       logger.debug(`[CONTROL SERVER] Session started: ${sessionId}`);
 
@@ -197,7 +199,7 @@ export function startDaemonControlServer({
         };
       }
 
-      onHappyHerdSessionWebhook(sessionId, metadata, encryptionData);
+      onHappyHerdSessionWebhook(sessionId, metadata, encryptionData, nativeResumeId, nativeResumeFailed);
 
       return { status: 'ok' as const };
     });

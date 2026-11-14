@@ -23,6 +23,18 @@ export class Session {
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     readonly jsRuntime: JsRuntime;
 
+    nativeResume?: {
+        sessionId: string;
+        mode: EnhancedMode;
+        subscribe: (callback: (sessionId: string, source?: string) => void) => () => void;
+        onRestored: () => Promise<void>;
+        onAborted: () => Promise<void>;
+    };
+    /** Keep recovery re-entry on the retained conversation until its first successful turn. */
+    requiredSessionId?: string;
+    recoveryConfirmed = false;
+    recoveryQueryActive = false;
+    recoveryUnexpectedSessionId?: string;
     sessionId: string | null;
     mode: 'local' | 'remote' = 'local';
     thinking: boolean = false;
@@ -39,6 +51,7 @@ export class Session {
         path: string,
         logPath: string,
         sessionId: string | null,
+        nativeResume?: Session['nativeResume'],
         claudeEnvVars?: Record<string, string>,
         claudeArgs?: string[],
         mcpServers: Record<string, any>,
@@ -57,6 +70,8 @@ export class Session {
         this.client = opts.client;
         this.logPath = opts.logPath;
         this.sessionId = opts.sessionId;
+        this.nativeResume = opts.nativeResume;
+        this.requiredSessionId = opts.nativeResume?.sessionId;
         this.queue = opts.messageQueue;
         this.claudeEnvVars = opts.claudeEnvVars;
         this.claudeArgs = opts.claudeArgs;
@@ -110,9 +125,22 @@ export class Session {
      * Updates internal state, syncs to API metadata, and notifies
      * all registered callbacks (e.g., SessionScanner) about the change.
      */
-    onSessionFound = (sessionId: string) => {
+    onSessionFound = (sessionId: string, source?: string) => {
+        // Only a compact/fork from the active, restored query can advance the
+        // recovery target. A fresh startup or unrelated resume is not proof.
+        if (this.requiredSessionId && sessionId !== this.requiredSessionId) {
+            if (this.recoveryConfirmed && this.recoveryQueryActive
+                && (source === 'compact' || source === 'fork')) {
+                this.requiredSessionId = sessionId;
+                this.recoveryUnexpectedSessionId = undefined;
+            } else {
+                if (this.recoveryConfirmed) this.recoveryUnexpectedSessionId = sessionId;
+                logger.debug('[Session] Ignoring unexpected native session ID during recovery');
+                return;
+            }
+        }
         this.sessionId = sessionId;
-        
+
         // Update metadata with Claude Code session ID
         this.client.updateMetadata((metadata) => ({
             ...metadata,
@@ -148,6 +176,8 @@ export class Session {
      */
     clearSessionId = (): void => {
         this.sessionId = null;
+        this.requiredSessionId = undefined;
+        this.recoveryUnexpectedSessionId = undefined;
         logger.debug('[Session] Session ID cleared');
     }
 

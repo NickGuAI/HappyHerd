@@ -45,6 +45,7 @@ interface LoopOptions {
     messageQueue: MessageQueue2<EnhancedMode>
     allowedTools?: string[]
     sandboxConfig?: SandboxConfig
+    nativeResume?: Session['nativeResume']
     onSessionReady?: (session: Session) => void
     onAbort?: () => void
     onProviderResult?: (result: { status: 'completed' | 'failed'; message: string | null }) => void
@@ -64,6 +65,7 @@ export async function loop(opts: LoopOptions): Promise<number> {
         client: opts.session,
         path: opts.path,
         sessionId: null,
+        nativeResume: opts.nativeResume,
         claudeEnvVars: opts.claudeEnvVars,
         claudeArgs: opts.claudeArgs,
         mcpServers: opts.mcpServers,

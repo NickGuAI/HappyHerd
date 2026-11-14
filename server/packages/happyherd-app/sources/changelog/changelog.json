@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 13 — Continue after an automatic account switch",
+      "summary": "",
+      "markdown": "- After a quota-triggered credential switch succeeds, the original session receives one `continue` message so it can resume its task."
+    },
+    {
       "title": "November 11 — Claude Fable 5.2",
       "summary": "",
       "markdown": "- Select Claude Fable 5.2 on a machine with a supported Claude Code installation. The model supports a 1M context and requires Claude Code 2.1.321 or newer."
@@ -1041,5 +1046,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 11 — Claude Fable 5.2"
+  "latestTitle": "November 13 — Continue after an automatic account switch"
 }

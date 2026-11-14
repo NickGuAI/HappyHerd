@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => {
     let contextMetadata: Record<string, unknown> = {};
     let refreshedSessionMetadata: Record<string, unknown> | undefined;
     let failContextInjection = false;
+    let failResume = false;
+    let staleResumedHostPid = false;
+    let wrongResumedThread = false;
     let automationInstruction = 'Deliver the automation task.';
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
     const startThreadCalls: Array<Record<string, unknown>> = [];
@@ -75,6 +78,12 @@ const mocks = vi.hoisted(() => {
         getRefreshedSessionMetadata(fallback: Record<string, unknown>) { return refreshedSessionMetadata ?? fallback; },
         setFailContextInjection(value: boolean) { failContextInjection = value; },
         shouldFailContextInjection() { return failContextInjection; },
+        setFailResume(value: boolean) { failResume = value; },
+        shouldFailResume() { return failResume; },
+        setStaleResumedHostPid(value: boolean) { staleResumedHostPid = value; },
+        shouldUseStaleResumedHostPid() { return staleResumedHostPid; },
+        setWrongResumedThread(value: boolean) { wrongResumedThread = value; },
+        shouldUseWrongResumedThread() { return wrongResumedThread; },
         setAutomationInstruction(value: string) { automationInstruction = value; },
         getAutomationInstruction() { return automationInstruction; },
         setAgentState(value: Record<string, unknown>) {
@@ -126,6 +135,9 @@ const mocks = vi.hoisted(() => {
             contextMetadata = {};
             refreshedSessionMetadata = undefined;
             failContextInjection = false;
+            failResume = false;
+            staleResumedHostPid = false;
+            wrongResumedThread = false;
             automationInstruction = 'Deliver the automation task.';
             agentState = { controlledByUser: false };
             reconnectAgentState = { controlledByUser: false };
@@ -318,7 +330,9 @@ vi.mock('./codexAppServerClient', () => ({
         });
         resumeThread = vi.fn(async (options: Record<string, unknown>) => {
             mocks.resumeThreadCalls.push(options);
-            this.threadId = String(options.threadId);
+            if (mocks.shouldFailResume()) throw new Error('native thread resume failed');
+            if (mocks.shouldUseStaleResumedHostPid()) mocks.setMetadata({ ...mocks.getMetadata(), hostPid: 999 });
+            this.threadId = mocks.shouldUseWrongResumedThread() ? 'wrong-thread' : String(options.threadId);
             if (mocks.shouldEmitResumeAndTurnUsage()) {
                 mocks.emitEvent({
                     type: 'token_count',
@@ -375,6 +389,7 @@ describe('runCodex automation process lifecycle', () => {
         delete process.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY;
         delete process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT;
         delete process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID;
+        delete process.env.HAPPYHERD_ROTATION_RESUME_ID;
         delete process.env[HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV];
         vi.mocked(notifyDaemonSessionStarted).mockClear();
     });
@@ -459,6 +474,23 @@ describe('runCodex automation process lifecycle', () => {
                 contextHash: 'new-context-hash', instructionHash: 'delivered-instruction-hash',
             });
         }
+    });
+
+    it.each(['success', 'resume', 'injection', 'wrong-thread'] as const)('reports native restoration only after resume succeeds (%s)', async (outcome) => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        process.env.HAPPYHERD_ROTATION_RESUME_ID = 'retained-thread';
+        mocks.setFailResume(outcome === 'resume');
+        mocks.setFailContextInjection(outcome === 'injection');
+        mocks.setStaleResumedHostPid(true);
+        mocks.setWrongResumedThread(outcome === 'wrong-thread');
+        const run = runCodex({ credentials: { token: 'test-token' } as never, startedBy: 'daemon', resumeThreadId: 'retained-thread' });
+        if (outcome !== 'success') await expect(run).rejects.toThrow(outcome === 'resume' ? 'native thread resume failed' : outcome === 'injection' ? 'native context injection failed' : 'unexpected thread');
+        else await run;
+        const calls = vi.mocked(notifyDaemonSessionStarted).mock.calls;
+        expect(calls).toHaveLength(outcome === 'success' ? 2 : 1);
+        expect(calls[0][0]).toBe('session-one');
+        expect(calls[0][3]).toBeUndefined();
+        if (outcome === 'success') expect(calls[1]).toEqual([ 'session-one', expect.objectContaining({ hostPid: 42 }), expect.any(Object), 'retained-thread' ]);
     });
 
     it('persists completion, finalizes the session, then exits with the terminal status', async () => {

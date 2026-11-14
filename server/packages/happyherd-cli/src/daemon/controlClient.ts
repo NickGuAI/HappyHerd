@@ -101,13 +101,15 @@ export async function notifyDaemonSessionStarted(
     seq: number;
     metadataVersion: number;
     agentStateVersion: number;
-  }
+  },
+  nativeResumeId?: string,
+  nativeResumeFailed?: boolean,
 ): Promise<{ error?: string } | any> {
   // Retry briefly — ensureDaemonRunning already waits for readiness, but we may
   // race a daemon that is mid-restart (version upgrade, crash recovery). Without
   // this, the session's encryption data never reaches the daemon and the mobile
   // app's resume-happy-session RPC fails with "not tracked by this daemon".
-  const payload = { sessionId, metadata, encryption };
+  const payload = { sessionId, metadata, encryption, nativeResumeId, nativeResumeFailed };
   const deadline = Date.now() + SESSION_STARTED_RETRY_TIMEOUT_MS;
   let result: { error?: string } | any;
   const installRegistrationWatcher = async (): Promise<void> => {
@@ -123,11 +125,11 @@ export async function notifyDaemonSessionStarted(
   while (true) {
     result = await daemonPost('/session-started', payload);
     if (!result?.error) {
-      await installRegistrationWatcher();
+      if (!nativeResumeFailed) await installRegistrationWatcher();
       return result;
     }
     if (Date.now() >= deadline) {
-      await installRegistrationWatcher();
+      if (!nativeResumeFailed) await installRegistrationWatcher();
       return result;
     }
     await new Promise(resolve => setTimeout(resolve, SESSION_STARTED_RETRY_INTERVAL_MS));

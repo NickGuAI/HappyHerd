@@ -659,10 +659,13 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // Used by hook server to notify Session when Claude changes session ID
     let currentSession: Session | null = null;
 
+    const nativeResumeListeners = new Set<(id: string, source?: string) => void>();
+
     // Start Hook server for receiving Claude session notifications
     const hookServer = await startHookServer({
         onSessionHook: (sessionId, data) => {
             logger.debug(`[START] Session hook received: ${sessionId}`, data);
+            for (const listener of nativeResumeListeners) listener(sessionId, data.source);
 
             // Tell the remote scanner about this sessionId so it knows
             // which JSONL to watch (and so it can fire onNewSession for
@@ -684,7 +687,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 const previousSessionId = currentSession.sessionId;
                 if (previousSessionId !== sessionId) {
                     logger.debug(`[START] Claude session ID changed: ${previousSessionId} -> ${sessionId}`);
-                    currentSession.onSessionFound(sessionId);
+                    currentSession.onSessionFound(sessionId, data.source);
                 }
             }
         }
@@ -1202,6 +1205,31 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             model: effectiveModel,
             permissionMode: effectivePermissionMode,
             startingMode: options.startingMode,
+            nativeResume: process.env.HAPPYHERD_ROTATION_RESUME_ID ? {
+                sessionId: process.env.HAPPYHERD_ROTATION_RESUME_ID,
+                mode: currentEnhancedMode(),
+                subscribe: (callback) => {
+                    nativeResumeListeners.add(callback);
+                    return () => { nativeResumeListeners.delete(callback); };
+                },
+                onAborted: async () => {
+                    const result = await notifyDaemonSessionStarted(
+                        response.id, { ...session.getMetadata(), ...metadata }, undefined,
+                        process.env.HAPPYHERD_ROTATION_RESUME_ID, true,
+                    );
+                    if (result.error) throw new Error(`Claude native resume cancellation failed: ${result.error}`);
+                },
+                onRestored: async () => {
+                    const result = await notifyDaemonSessionStarted(response.id, { ...session.getMetadata(), ...metadata }, {
+                        encryptionKey: encodeBase64(response.encryptionKey),
+                        encryptionVariant: response.encryptionVariant,
+                        seq: response.seq,
+                        metadataVersion: response.metadataVersion,
+                        agentStateVersion: response.agentStateVersion,
+                    }, process.env.HAPPYHERD_ROTATION_RESUME_ID);
+                    if (result.error) throw new Error(`Claude native resume registration failed: ${result.error}`);
+                },
+            } : undefined,
             messageQueue,
             api,
             allowedTools: happyherdServer.toolNames.map(toolName => `mcp__happyherd__${toolName}`),

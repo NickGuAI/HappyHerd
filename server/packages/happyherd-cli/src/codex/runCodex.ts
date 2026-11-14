@@ -1366,7 +1366,7 @@ export async function runCodex(opts: {
                 initialPermissionMode,
                 client.sandboxEnabled,
             );
-            await resumeExistingThread({
+            const restored = await resumeExistingThread({
                 client,
                 session,
                 messageBuffer,
@@ -1381,6 +1381,19 @@ export async function runCodex(opts: {
                 // Side chats start empty — keep the resume notice out of the UI.
                 announce: !isSideChat,
             });
+            const rotationResumeId = process.env.HAPPYHERD_ROTATION_RESUME_ID;
+            if (rotationResumeId && rotationResumeId !== restored.threadId) {
+                throw new Error(`Codex restored unexpected thread ${restored.threadId}`);
+            }
+            if (response && rotationResumeId) {
+                await notifyDaemonSessionStarted(response.id, { ...session.getMetadata(), ...metadata, codexThreadId: restored.threadId }, {
+                    encryptionKey: encodeBase64(response.encryptionKey),
+                    encryptionVariant: response.encryptionVariant,
+                    seq: response.seq,
+                    metadataVersion: response.metadataVersion,
+                    agentStateVersion: response.agentStateVersion,
+                }, restored.threadId);
+            }
             first = false;
         }
 

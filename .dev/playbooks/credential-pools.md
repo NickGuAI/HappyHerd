@@ -16,11 +16,12 @@ account selection
   → daemon accepts or ignores the exact notice
   → accepted notice marks/selects account and resumes the same HappyHerd session
   → provider resumes its retained native conversation/state home
-  → a later Human/heartbeat turn uses the replacement account
+  → one `continue` message is queued in the original session
 ```
 
-Rotation is reactive. It does not poll quota, inject a `continue` prompt, replay
-work, retry an interrupted request, or own heartbeat scheduling. An accepted
+Rotation is reactive. It sends one literal `continue` after a successful switch
+to a different account, without replaying prior messages or retrying the
+interrupted request. It does not poll quota or own heartbeat scheduling. An accepted
 limit notice means only that the daemon owns the incident; final switched,
 exhausted, unchanged, or failed outcomes are separate evidence.
 
@@ -59,9 +60,10 @@ content. Keep live provider smokes isolated and explicitly authorized.
 Start with the focused matrix in `.dev/VERIFY.md`. Include stale/duplicate limit
 notices, stable ID/version attribution, overlapping A/B auth activation and
 writeback, Codex reconnect ownership, nondefault Grok home restoration, the
-same provider-native conversation ID, and zero generated work prompts. Then run
+same provider-native conversation ID, one continuation per successful switch,
+and none on failed or unchanged resumes. Then run
 the affected CLI/app checks and required exact-head CI. A separately initiated
-turn may prove resumability; rotation itself must not manufacture that turn.
+turn may additionally prove resumability.
 
 ## Native verification boundary
 

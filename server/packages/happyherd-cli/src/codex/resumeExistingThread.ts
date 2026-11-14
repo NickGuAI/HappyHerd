@@ -57,6 +57,10 @@ export async function resumeExistingThread(opts: {
             ...(opts.sandbox ? { sandbox: opts.sandbox } : {}),
         });
 
+        if (resumedThread.threadId !== opts.threadId) {
+            throw new Error(`Codex restored unexpected thread ${resumedThread.threadId}`);
+        }
+
         // A resumed Codex history may ignore the thread configuration override.
         // Existing developer-item injection makes this launch's context visible
         // to the next turn and provides the acknowledgement for its receipt.

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => {
     let unattended = false;
     return {
         claudeRemote: vi.fn(),
+        permissionModeChange: vi.fn(),
         setUnattended(value: boolean) {
             unattended = value;
         },
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => {
     };
 });
 
-vi.mock('./claudeRemote', () => ({ claudeRemote: mocks.claudeRemote }));
+vi.mock('./claudeRemote', () => ({ claudeRemote: mocks.claudeRemote, ClaudeRequiredResumeError: class extends Error {} }));
 vi.mock('ink', () => ({ render: vi.fn() }));
 vi.mock('@/ui/ink/messageBuffer', () => ({
     MessageBuffer: class {
@@ -37,7 +38,7 @@ vi.mock('./utils/permissionHandler', () => ({
         getResponseLookup = vi.fn(() => new Map());
         handleToolCall = mocks.permissionToolCall;
         isAborted = vi.fn(() => false);
-        handleModeChange = vi.fn();
+        handleModeChange = mocks.permissionModeChange;
         setPermissionModeUpdater = vi.fn();
         clearPermissionModeUpdater = vi.fn();
         getResponseForToolUseId = vi.fn();
@@ -808,4 +809,173 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             message: expect.stringContaining('requested interactive permission'),
         });
     });
+    it.each(['different-mode', 'isolated'] as const)('defers first %s batch from restored query with its attachment intact', async (boundary) => {
+        const savedMode: EnhancedMode = { permissionMode: 'default', model: 'saved' };
+        const batchMode: EnhancedMode = boundary === 'different-mode'
+            ? { permissionMode: 'default', model: 'changed' } : savedMode;
+        const queue = new MessageQueue2<EnhancedMode>(mode => JSON.stringify(mode));
+        const image = { name: 'image.png', mimeType: 'image/png', data: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]) };
+        if (boundary === 'isolated') queue.pushIsolated('inspect', batchMode, [image], 'batch-id');
+        else queue.push('inspect', batchMode, [image], 'batch-id');
+        let calls = 0;
+        mocks.claudeRemote.mockImplementation(async (options: any) => {
+            calls++;
+            if (calls === 1) {
+                expect(options.nativeResume.mode).toEqual(savedMode);
+                expect(await options.nextMessage()).toBeNull();
+            } else {
+                expect(options.requiredSessionId).toBe('native-id');
+                const message = await options.nextMessage();
+                expect(message).toMatchObject({ mode: batchMode, queueMessageIds: ['batch-id'], message: [
+                    { type: 'image', source: { media_type: 'image/png', data: Buffer.from(image.data).toString('base64') } },
+                    { type: 'text', text: 'inspect' },
+                ] });
+                queue.close();
+            }
+        });
+        const client = {
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler: vi.fn() },
+            updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
+            sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
+        };
+        await expect(claudeRemoteLauncher({
+            sessionId: 'native-id', requiredSessionId: 'native-id',
+            nativeResume: { sessionId: 'native-id', mode: savedMode },
+            path: '/srv/app', logPath: '/tmp/claude.log', allowedTools: [], mcpServers: {},
+            hookSettingsPath: '/tmp/settings', jsRuntime: 'node', queue, client,
+            api: { push: () => ({ sendSessionNotification: vi.fn() }) }, onAbort: vi.fn(),
+            onSessionFound: vi.fn(), onThinkingChange: vi.fn(), clearSessionId: vi.fn(), consumeOneTimeFlags: vi.fn(),
+        } as any)).resolves.toBe('exit');
+        expect(calls).toBe(2);
+    });
+
+    it.each(['success', 'failed', 'unexpected-id', 'unexpected-hook'] as const)('ends strict recovery only after a valid first successful result (%s)', async (outcome) => {
+        const queue = new MessageQueue2<EnhancedMode>(mode => JSON.stringify(mode));
+        queue.close();
+        const client = {
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler: vi.fn() },
+            updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
+            sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
+        };
+        const session: any = {
+            sessionId: outcome === 'unexpected-id' ? 'fresh-id' : 'native-id', requiredSessionId: 'native-id',
+            recoveryUnexpectedSessionId: outcome === 'unexpected-hook' ? 'fresh-id' : undefined,
+            path: '/srv/app', logPath: '/tmp/claude.log', allowedTools: [], mcpServers: {},
+            hookSettingsPath: '/tmp/settings', jsRuntime: 'node', queue, client,
+            api: { push: () => ({ sendSessionNotification: vi.fn() }) }, onAbort: vi.fn(),
+            onSessionFound: vi.fn(), onThinkingChange: vi.fn(), clearSessionId: vi.fn(), consumeOneTimeFlags: vi.fn(),
+        };
+        mocks.claudeRemote.mockImplementation(async (options: any) => {
+            await options.onReady(outcome === 'failed' ? 'failed' : undefined);
+        });
+        const result = claudeRemoteLauncher(session);
+        if (outcome === 'unexpected-id' || outcome === 'unexpected-hook') await expect(result).rejects.toThrow('session ID changed during recovery');
+        else await expect(result).resolves.toBe('exit');
+        expect(session.requiredSessionId).toBe(outcome === 'success' ? undefined : 'native-id');
+        expect(session.recoveryQueryActive).toBe(false);
+    });
+
+    it('keeps the session available after user abort during native readiness and waits for the next prompt', async () => {
+        const queue = new MessageQueue2<EnhancedMode>(mode => JSON.stringify(mode));
+        const registerHandler = vi.fn();
+        const client = {
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler },
+            updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
+            sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
+        };
+        const onRestored = vi.fn(async () => {});
+        const onAborted = vi.fn(async () => {});
+        const onAbort = vi.fn();
+        let received: unknown;
+        let calls = 0;
+        mocks.claudeRemote.mockImplementation(async (options: any) => {
+            calls++;
+            if (calls === 1) {
+                await new Promise<void>(resolve => options.signal.addEventListener('abort', resolve, { once: true }));
+                await options.nativeResume.onAborted();
+                return;
+            }
+            expect(options.nativeResume).toBeUndefined();
+            expect(options.requiredSessionId).toBe('native-id');
+            received = await options.nextMessage();
+            queue.close();
+        });
+        const running = claudeRemoteLauncher({
+            sessionId: 'native-id', requiredSessionId: 'native-id',
+            nativeResume: { sessionId: 'native-id', mode: { permissionMode: 'default' }, onRestored, onAborted },
+            path: '/srv/app', logPath: '/tmp/claude.log', allowedTools: [], mcpServers: {},
+            hookSettingsPath: '/tmp/settings', jsRuntime: 'node', queue, client,
+            api: { push: () => ({ sendSessionNotification: vi.fn() }) }, onAbort,
+            onSessionFound: vi.fn(), onThinkingChange: vi.fn(), clearSessionId: vi.fn(), consumeOneTimeFlags: vi.fn(),
+        } as any);
+        await vi.waitFor(() => expect(calls).toBe(1));
+        const abort = registerHandler.mock.calls.find(([name]) => name === 'abort')?.[1];
+        expect(abort).toBeDefined();
+        await abort();
+        await vi.waitFor(() => expect(calls).toBe(2));
+        expect(received).toBeUndefined();
+        expect(onAbort).toHaveBeenCalledOnce(); expect(onAborted).toHaveBeenCalledOnce();
+        expect(onRestored).not.toHaveBeenCalled();
+        expect(client.closeClaudeSessionTurn).toHaveBeenCalledWith('cancelled');
+        expect(client.sendSessionEvent).toHaveBeenCalledWith({ type: 'message', message: 'Aborted by user' });
+        queue.push('user retry', { permissionMode: 'default' });
+        await expect(running).resolves.toBe('exit');
+        expect(received).toMatchObject({ message: 'user retry' });
+    });
+
+    it.each(['resolved', 'rejected'] as const)('keeps an eager batch pending if abort lands while permission mode is %s', async (outcome) => {
+        const queue = new MessageQueue2<EnhancedMode>(mode => JSON.stringify(mode));
+        const mode: EnhancedMode = { permissionMode: 'default' };
+        const image = { name: 'image.png', mimeType: 'image/png', data: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]) };
+        queue.push('queued input', mode, [image], 'queued-id');
+        const markStarted = vi.spyOn(queue, 'markBatchStarted');
+        const registerHandler = vi.fn();
+        const client = {
+            sessionId: 'happyherd-id', rpcHandlerManager: { registerHandler },
+            updateAgentState: vi.fn(), updateMetadata: vi.fn(), closeClaudeSessionTurn: vi.fn(),
+            sendSessionEvent: vi.fn(), sendClaudeSessionMessage: vi.fn(), getMetadata: vi.fn(() => ({})),
+        };
+        let release!: () => void;
+        let reject!: (error: Error) => void;
+        const permissionWait = new Promise<void>((resolve, rejectPromise) => { release = resolve; reject = rejectPromise; });
+        mocks.permissionModeChange.mockReset();
+        mocks.permissionModeChange.mockImplementationOnce(() => permissionWait);
+        let calls = 0;
+        let received: any;
+        mocks.claudeRemote.mockImplementation(async (options: any) => {
+            calls++;
+            const message = await options.nextMessage();
+            if (calls === 1) {
+                expect(message).toBeNull();
+                expect(markStarted).not.toHaveBeenCalled();
+            } else {
+                received = message;
+                await options.onMessageHandoff({ mode: message.mode, queueMessageIds: message.queueMessageIds });
+                queue.close();
+            }
+        });
+        const running = claudeRemoteLauncher({
+            sessionId: 'native-id', requiredSessionId: 'native-id',
+            nativeResume: { sessionId: 'native-id', mode, onRestored: vi.fn(), onAborted: vi.fn() },
+            path: '/srv/app', logPath: '/tmp/claude.log', allowedTools: [], mcpServers: {},
+            hookSettingsPath: '/tmp/settings', jsRuntime: 'node', queue, client,
+            api: { push: () => ({ sendSessionNotification: vi.fn() }) }, onAbort: vi.fn(),
+            onSessionFound: vi.fn(), onThinkingChange: vi.fn(), clearSessionId: vi.fn(), consumeOneTimeFlags: vi.fn(),
+        } as any);
+        await vi.waitFor(() => expect(mocks.permissionModeChange).toHaveBeenCalled());
+        const abort = registerHandler.mock.calls.find(([name]) => name === 'abort')?.[1];
+        const aborting = abort();
+        if (outcome === 'resolved') release();
+        else reject(new Error('permission cancelled'));
+        await aborting;
+        await expect(running).resolves.toBe('exit');
+        expect(calls).toBe(2);
+        expect(markStarted).toHaveBeenCalledOnce();
+        expect(markStarted).toHaveBeenCalledWith(['queued-id']);
+        expect(received).toMatchObject({ queueMessageIds: ['queued-id'], message: [
+            { type: 'image', source: { media_type: 'image/png', data: Buffer.from(image.data).toString('base64') } },
+            { type: 'text', text: 'queued input' },
+        ] });
+    });
+
 });

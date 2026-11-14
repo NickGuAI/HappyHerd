@@ -1,3 +1,7 @@
+# November 13 — Continue after an automatic account switch
+
+- After a quota-triggered credential switch succeeds, the original session receives one `continue` message so it can resume its task.
+
 # November 11 — Claude Fable 5.2
 
 - Select Claude Fable 5.2 on a machine with a supported Claude Code installation. The model supports a 1M context and requires Claude Code 2.1.321 or newer.

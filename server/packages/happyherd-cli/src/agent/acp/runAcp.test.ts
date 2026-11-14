@@ -1018,6 +1018,7 @@ describe('runAcp', () => {
     vi.stubEnv('HAPPYHERD_RECONNECT_SEQ', '12');
     vi.stubEnv('HAPPYHERD_RECONNECT_METADATA_VERSION', '4');
     vi.stubEnv('HAPPYHERD_RECONNECT_AGENT_STATE_VERSION', '5');
+    vi.stubEnv('HAPPYHERD_ROTATION_RESUME_ID', 'provider-session-1');
     vi.stubEnv(HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV, JSON.stringify(newReceipt));
     mocks.mockRefreshSessionForReconnect.mockResolvedValue({
       id: 'resumed-session',
@@ -1055,7 +1056,9 @@ describe('runAcp', () => {
       ['queue-current', 'queue-pending'],
       12,
     );
-    const daemonNotifications = mocks.mockNotifyDaemonSessionStarted.mock.calls as unknown as Array<[string, Record<string, any>]>;
+    const daemonNotifications = mocks.mockNotifyDaemonSessionStarted.mock.calls as unknown as Array<[string, Record<string, any>, unknown, string?]>;
+    expect(daemonNotifications[0]?.[3]).toBeUndefined();
+    expect(daemonNotifications.at(-1)?.[3]).toBe('provider-session-1');
     expect(daemonNotifications[0]?.[1]).toMatchObject({
       spawnSettings: oldReceipt,
       permissionMode: 'default',

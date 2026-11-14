@@ -10,6 +10,36 @@ describe('provider-limit daemon control route', () => {
     stop = null;
   });
 
+  it('passes a restored native conversation receipt with the registered session', async () => {
+    const onHappyHerdSessionWebhook = vi.fn();
+    const server = await startDaemonControlServer({
+      getChildren: () => [], stopSession: () => false, spawnSession: vi.fn(), sideChat: vi.fn(),
+      requestShutdown: vi.fn(), onHappyHerdSessionWebhook, onProviderLimited: vi.fn(), automations: {} as any,
+    });
+    stop = server.stop;
+    const response = await fetch(`http://127.0.0.1:${server.port}/session-started`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'original-session', metadata: { hostPid: 123 }, nativeResumeId: 'retained-thread' }),
+    });
+    expect(response.status).toBe(200);
+    expect(onHappyHerdSessionWebhook).toHaveBeenCalledExactlyOnceWith('original-session', { hostPid: 123 }, undefined, 'retained-thread', undefined);
+  });
+
+  it('passes a native restoration cancellation separately from success', async () => {
+    const onHappyHerdSessionWebhook = vi.fn();
+    const server = await startDaemonControlServer({
+      getChildren: () => [], stopSession: () => false, spawnSession: vi.fn(), sideChat: vi.fn(),
+      requestShutdown: vi.fn(), onHappyHerdSessionWebhook, onProviderLimited: vi.fn(), automations: {} as any,
+    });
+    stop = server.stop;
+    const response = await fetch(`http://127.0.0.1:${server.port}/session-started`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'original-session', metadata: { hostPid: 123 }, nativeResumeId: 'retained-thread', nativeResumeFailed: true }),
+    });
+    expect(response.status).toBe(200);
+    expect(onHappyHerdSessionWebhook).toHaveBeenCalledExactlyOnceWith('original-session', { hostPid: 123 }, undefined, 'retained-thread', true);
+  });
+
   it('accepts dsh quota notices without a credential-pool account', async () => {
     const onProviderLimited = vi.fn(() => true);
     const server = await startDaemonControlServer({
