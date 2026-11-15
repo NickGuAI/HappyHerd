@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 15 — Automatic log cleanup",
+      "summary": "",
+      "markdown": "- HappyHerd deletes its own log files that have not been written to for more than 7 days, so its logs folder no longer grows without limit. Logs written in the last 7 days are kept, including those of sessions that run for weeks."
+    },
+    {
       "title": "November 13 — Continue after an automatic account switch",
       "summary": "",
       "markdown": "- After a quota-triggered credential switch succeeds, the original session receives one `continue` message so it can resume its task."
@@ -1046,5 +1051,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 13 — Continue after an automatic account switch"
+  "latestTitle": "November 15 — Automatic log cleanup"
 }

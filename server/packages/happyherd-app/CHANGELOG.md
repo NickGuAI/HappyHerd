@@ -1,3 +1,7 @@
+# November 15 — Automatic log cleanup
+
+- HappyHerd deletes its own log files that have not been written to for more than 7 days, so its logs folder no longer grows without limit. Logs written in the last 7 days are kept, including those of sessions that run for weeks.
+
 # November 13 — Continue after an automatic account switch
 
 - After a quota-triggered credential switch succeeds, the original session receives one `continue` message so it can resume its task.

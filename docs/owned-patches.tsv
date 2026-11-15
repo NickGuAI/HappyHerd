@@ -859,3 +859,4 @@ ISSUE_448_FAILED_RESUME_JOIN	code-ready	fix(credentials): retain failed replacem
 ISSUE_448_CLAUDE_NATIVE_RESUME	code-ready	fix(credentials): restore Claude before auto-continuing	server/packages/happyherd-cli/src/claude/claudeRemote.nativeResume.test.ts
 ISSUE_448_TEST_SESSION_ID	code-ready	test(claude): align resume fixture session ID	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.heartbeat.test.ts
 ISSUE_448_CLAUDE_WHITESPACE	code-ready	chore(claude): clean resume whitespace	server/packages/happyherd-cli/src/claude/claudeRemote.ts
+ISSUE_335_LOG_RETENTION	code-ready	feat(cli): remove log files not written for 7 days	server/packages/happyherd-cli/src/ui/logRetention.test.ts
