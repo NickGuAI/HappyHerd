@@ -22,6 +22,7 @@ import { MachineMetadata, DaemonState, Metadata, type Session } from '@/api/type
 import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@happyherd/wire';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { logger } from '@/ui/logger';
+import { removeExpiredLogFiles } from '@/ui/logRetention';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
 import { configuration } from '@/configuration';
 import { startCaffeinate, stopCaffeinate } from '@/utils/caffeinate';
@@ -2555,11 +2556,13 @@ export async function startDaemon(): Promise<void> {
 
     // Every 60 seconds:
     // 1. Prune stale sessions
-    // 2. Check if daemon needs update
-    // 3. If outdated, restart with latest version
-    // 4. Write heartbeat
+    // 2. Remove expired log files hourly
+    // 3. Check if daemon needs update
+    // 4. If outdated, restart with latest version
+    // 5. Write heartbeat
     const heartbeatIntervalMs = parseInt(process.env.HAPPYHERD_DAEMON_HEARTBEAT_INTERVAL || '60000');
     let heartbeatRunning = false
+    let lastLogCleanupStarted = 0;
     const restartOnStaleVersionAndHeartbeat = setInterval(async () => {
       if (heartbeatRunning) {
         return;
@@ -2581,6 +2584,13 @@ export async function startDaemon(): Promise<void> {
       }
       await sessionProcessLifecycle.retryPending();
       await reconcileAutomationRuns();
+      const now = Date.now();
+      if (now - lastLogCleanupStarted >= 60 * 60 * 1000) {
+        lastLogCleanupStarted = now;
+        void removeExpiredLogFiles(configuration.logsDir).then(count => {
+          if (count > 0) logger.debug(`[DAEMON RUN] Removed ${count} expired log files`);
+        });
+      }
 
       // Check if daemon needs update by detecting whether `dist/index.mjs` was
       // replaced on disk since the daemon started (npm install rewrites the file).
