@@ -1,3 +1,4 @@
+vi.mock('./utils/generateHookSettings', () => ({ ensureHookSettingsFile: vi.fn() }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { claudeRemote } from './claudeRemote';
 import { query } from '@/claude/sdk';
@@ -44,7 +45,7 @@ function fixture() {
     } as any));
     const baseline = vi.fn();
     const options = {
-        sessionId: null, path: '/fixture', allowedTools: [], hookSettingsPath: '/fixture/settings',
+        sessionId: null, path: '/fixture', allowedTools: [], hookSettingsPath: '/fixture/settings', hookSettingsPort: 43219,
         nativeResume: {
             sessionId: 'native-id', mode,
             subscribe: (fn: typeof hook) => { hook = fn; return unsubscribe; }, onRestored: restored, onAborted: aborted,
@@ -174,7 +175,7 @@ describe('Claude retained-session native receipt', () => {
             api: {}, client: { keepAlive: vi.fn(), updateMetadata: vi.fn() },
             path: '/fixture', logPath: '/fixture/log', sessionId: 'native-id',
             nativeResume: { sessionId: 'native-id', mode: {}, subscribe: () => () => {}, onRestored: async () => {}, onAborted: async () => {} },
-            mcpServers: {}, messageQueue: {}, onModeChange: () => {}, hookSettingsPath: '/fixture/settings',
+            mcpServers: {}, messageQueue: {}, onModeChange: () => {}, hookSettingsPath: '/fixture/settings', hookSettingsPort: 43219,
         } as any);
         try {
             expect(session.requiredSessionId).toBe('native-id');

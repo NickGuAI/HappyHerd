@@ -885,3 +885,4 @@ ISSUE_464_GOLDEN_MOTION	code-ready	fix(golden): prevent changelog entry animatio
 ISSUE_464_PROBE_CLEANUP	code-ready	test(golden): remove temporary determinism probes	docs/acceptance/issue-287/golden/README.md
 ISSUE_464_CURRENT_MAIN_PROOF	code-ready	test(golden): verify current-main changelog capture stability	docs/acceptance/issue-287/golden/README.md
 ISSUE_464_CURRENT_MAIN_BASELINES	code-ready	test(golden): refresh changelog baselines and finish verification	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_453_HOOK_SETTINGS_LIFETIME	code-ready	fix(claude): recreate temporary hook settings before launch	server/packages/happyherd-cli/src/claude/hookSettingsLaunch.test.ts

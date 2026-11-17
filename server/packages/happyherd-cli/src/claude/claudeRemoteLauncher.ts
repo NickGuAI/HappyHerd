@@ -574,6 +574,7 @@ export async function claudeRemoteLauncher(
                     allowedTools: session.allowedTools ?? [],
                     mcpServers: session.mcpServers,
                     hookSettingsPath: session.hookSettingsPath,
+                    hookSettingsPort: session.hookSettingsPort,
                     jsRuntime: session.jsRuntime,
                     canCallTool: permissionHandler.handleToolCall,
                     isAborted: (toolCallId: string) => {

@@ -18,7 +18,8 @@ export class Session {
     readonly sandboxConfig?: SandboxConfig;
     readonly _onModeChange: (mode: 'local' | 'remote') => void;
     readonly _onAbort?: () => void;
-    /** Path to temporary settings file with SessionStart hook (required for session tracking) */
+    /** Session-owned temporary settings and the current SessionStart hook server port. */
+    readonly hookSettingsPort: number;
     readonly hookSettingsPath: string;
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     readonly jsRuntime: JsRuntime;
@@ -60,7 +61,8 @@ export class Session {
         onAbort?: () => void,
         allowedTools?: string[],
         sandboxConfig?: SandboxConfig,
-        /** Path to temporary settings file with SessionStart hook (required for session tracking) */
+        /** Session-owned temporary settings and the current SessionStart hook server port. */
+        hookSettingsPort: number,
         hookSettingsPath: string,
         /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
         jsRuntime?: JsRuntime,
@@ -81,6 +83,7 @@ export class Session {
         this._onModeChange = opts.onModeChange;
         this._onAbort = opts.onAbort;
         this.hookSettingsPath = opts.hookSettingsPath;
+        this.hookSettingsPort = opts.hookSettingsPort;
         this.jsRuntime = opts.jsRuntime ?? 'node';
 
         // Start keep alive

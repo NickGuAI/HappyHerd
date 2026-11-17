@@ -17,6 +17,10 @@
 
 - Use `happyherd session side-chat create --context fresh` to start a new provider conversation without the parent's transcript, while keeping the parent link and normal side-chat lifecycle. The default `inherit` keeps existing behavior, and the create receipt reports the context used.
 
+# November 17 — Keep long-running Claude sessions working
+
+- Claude sessions can relaunch after the operating system removes their temporary hook settings. HappyHerd recreates the settings for the same session before each launch and removes them at shutdown.
+
 # November 15 — Automatic log cleanup
 
 - HappyHerd deletes its own log files that have not been written to for more than 7 days, so its logs folder no longer grows without limit. Logs written in the last 7 days are kept, including those of sessions that run for weeks.

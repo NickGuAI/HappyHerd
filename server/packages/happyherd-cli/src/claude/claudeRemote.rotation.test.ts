@@ -1,3 +1,4 @@
+vi.mock('./utils/generateHookSettings', () => ({ ensureHookSettingsFile: vi.fn() }));
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { claudeRemote } from './claudeRemote';
 import { query } from '@/claude/sdk';
@@ -63,7 +64,7 @@ function queuedTurn(queueFollowUp = true) {
         sessionId: null,
         path: process.cwd(),
         allowedTools: [],
-        hookSettingsPath: '/tmp/happyherd-rotation-test-settings.json',
+        hookSettingsPath: '/tmp/happyherd-rotation-test-settings.json', hookSettingsPort: 43219,
         nextMessage,
         onReady,
         onProviderHardLimit,

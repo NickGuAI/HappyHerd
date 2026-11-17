@@ -1,3 +1,4 @@
+import { ensureHookSettingsFile } from './utils/generateHookSettings';
 import { spawn as crossSpawn } from "cross-spawn";
 import { resolve, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -45,10 +46,8 @@ export async function claudeLocal(opts: {
     claudeArgs?: string[],
     allowedTools?: string[],
     appendSystemPrompt?: string,
-    /** Path to temporary settings file with SessionStart hook (optional - for session tracking) */
-    hookSettingsPath?: string,
     sandboxConfig?: SandboxConfig,
-}) {
+} & ({ hookSettingsPath: string; hookSettingsPort: number } | { hookSettingsPath?: undefined; hookSettingsPort?: undefined })) {
 
     // Ensure project directory exists
     const projectDir = getProjectPath(opts.path);
@@ -320,6 +319,20 @@ export async function claudeLocal(opts: {
 
                 // Use cross-spawn so `node` resolves to `node.exe` on Windows
                 // (issue #1082 — same root cause as #1022 at a different site).
+                if (opts.hookSettingsPath) {
+                    try {
+                        ensureHookSettingsFile(opts.hookSettingsPath, opts.hookSettingsPort);
+                    } catch (error) {
+                        if (cleanupSandbox) {
+                            try {
+                                await cleanupSandbox();
+                            } catch (cleanupError) {
+                                logger.warn('[ClaudeLocal] Failed to reset sandbox after settings preparation failed.', cleanupError);
+                            }
+                        }
+                        throw error;
+                    }
+                }
                 const child = crossSpawn(
                     spawnWithShell && spawnCommand ? spawnCommand : 'node',
                     spawnWithShell ? [] : spawnArgs,
