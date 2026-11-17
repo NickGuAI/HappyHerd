@@ -117,6 +117,12 @@ Existing old CLI session processes have not been patched in place.
 
 No push, PR creation, merge, installation, service restart, or issue closure.
 Full local sign-off remains withheld for the disclosed aggregate failures and
-any unresolved repository gate prerequisites. The parent owns publication and
-subsequent CI. The canonical repository currently lacks the official `upstream`
-remote/ref needed by historical patch-discipline checks; no bypass is authorized.
+pending exact-head CI. The parent owns publication and subsequent CI. The earlier
+missing-upstream prerequisite is resolved: the parent restored the official
+`https://github.com/slopus/happy.git` remote and trusted upstream/main ref
+`1d6d88c5e14cbfb98cad76881acd7ff171edb50c`. All final repository gates passed on
+`bcc4007806e3e0ea49c45bd7d227731a6ea1d2aa`, including patch discipline
+(863 owned / 28 .dev-only / 1 pinned legacy), without bypasses. Two independent
+parent exact-commit source reviews reported no actionable product-code findings.
+This follow-up changes evidence only; production and test bytes remain identical
+to the tested and live-smoked candidate.
