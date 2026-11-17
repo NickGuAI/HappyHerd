@@ -126,3 +126,45 @@ missing-upstream prerequisite is resolved: the parent restored the official
 parent exact-commit source reviews reported no actionable product-code findings.
 This follow-up changes evidence only; production and test bytes remain identical
 to the tested and live-smoked candidate.
+
+## First CI and approved changelog capture correction
+
+First ordinary CI on d787454f31759974aa4faa12321228840dc70837 completed:
+Quality 44114965818 failed only its four changelog golden comparisons; ordinary
+package tests passed 7,699 with 10 skips, including all eight new boundary tests.
+Contracts 44114965776 passed 7,751 with 10 skips and `contract-suite: ok`; image
+44114965961 passed. Native 44114966002 was cancelled overall: both Darwin ARM64
+jobs were rejected before steps with unsupported runner configuration, and
+prepared Darwin x64 separately failed second-host initial daemon readiness after
+a successful asset build and first-host checks. All 50 readiness observations
+were state-unavailable; a later snapshot reported state present. No causal
+conclusion or installer repair is claimed.
+
+Exact Quality artifact 14343375918 was reviewed at source d787454f: all twelve
+changed expected/actual/diff images show the readable November 17 entry shifting
+older entries in light/dark desktop/mobile. The other 24 PNGs are byte-identical
+to committed baselines. Root approved only those four capture changes.
+
+The supported importer ran once with Node 24.20.0, naturally exiting 0 in
+2.565 seconds and selecting run 44114965818/source d787454f. The private
+preflight had first failed because it counted 28 PNGs plus README.md as 29
+files while asserting 28. A shell without fail-fast incorrectly continued into
+the importer. This is a verification sequencing error, not a passing preflight.
+The initial report also wrongly classified the assertion as a retained-hash
+failure; all retained hashes actually matched. First records and the separate
+classification correction remain preserved. No actual pre-import filesystem
+mode inventory was written; none is reconstructed or claimed.
+
+Work stopped before gates or commit. Root independently verified the existing
+result and authorized continuation without restore or reimport: all 28 PNGs
+match the exact approved artifact; the other 24 and README match committed base;
+the current 29-file path set and current 0644 modes match committed Git base.
+This is post-import-versus-committed-base proof, not before/after filesystem-mode
+proof. Only four PNGs, this evidence, and one ledger row enter the capture commit.
+Production/tests/config/lock/changelog remain identical to d787454f.
+
+Private provenance is under `.artifacts/issue-453/ci-d787-first/` and
+`golden-import-d787/`, including root-independent-post-import-verification.json.
+Capture provenance remains d787454f, not the later capture commit. No importer
+repeat, new artifact download, package test/build, provider run, publication or
+activation accompanies this correction. Native failures remain unresolved.
