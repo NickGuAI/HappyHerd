@@ -168,3 +168,26 @@ Private provenance is under `.artifacts/issue-453/ci-d787-first/` and
 Capture provenance remains d787454f, not the later capture commit. No importer
 repeat, new artifact download, package test/build, provider run, publication or
 activation accompanies this correction. Native failures remain unresolved.
+
+
+## Native CI runner prerequisite
+
+All executed jobs on capture revision 7e1e6561 passed: Quality, Contracts and
+image succeeded; all six executed prepared/stable native jobs succeeded,
+including Darwin x64's two-host online/RPC and upgrade-retention checks. Both
+Darwin ARM64 jobs were rejected before steps because `macos-14` is retired.
+This passing x64 control does not explain the original d787 startup failure.
+
+GitHub's official October 1 retirement notice states macOS 14 was retired on
+November 2, 2026, and lists `macos-15` as an ARM64 replacement:
+https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/
+The current runner reference independently lists `macos-15` as standard ARM64:
+https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+
+The prerequisite correction changes exactly the three Darwin ARM64 matrix
+runner values from `macos-14` to `macos-15` (prepared build, stable install and
+separately gated public install). Target names, steps, commands, permissions,
+conditions, budgets and all x64/Linux entries stay unchanged. This is CI
+configuration repair; it does not change the hook fix or diagnose daemon
+startup. Actual ARM64 execution remains pending a new ordinary CI run. No
+manual rerun or release dispatch is part of this correction.
