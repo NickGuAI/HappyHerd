@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DecryptedMachine, DecryptedSession } from 'happyherd-control-agent/control';
+import { HappyHerdControlClient, type DecryptedMachine, type DecryptedSession } from 'happyherd-control-agent/control';
+import { io } from 'socket.io-client';
+import { encodeBase64, encrypt } from '@/api/encryption';
+
+vi.mock('socket.io-client', () => ({ io: vi.fn() }));
 import { authLogout, authStatus } from 'happyherd-control-agent/auth';
 import {
   HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
@@ -262,6 +266,8 @@ function fakeClient(options: {
     client: {
       listMachines,
       listProjects,
+      createProject: vi.fn(),
+      renameProject: vi.fn(),
       resolveProject,
       resolveMachine,
       resolveSession,
@@ -354,6 +360,85 @@ describe('machine and session command parsing', () => {
 });
 
 describe('machine discovery and resolution', () => {
+  const capacity = {
+    sampledAt: '2026-11-18T12:00:00.000Z',
+    cpu: { busyPercent: 25, sampleWindowMs: 250 },
+    loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+    memory: { usedBytes: 4096, totalBytes: 8192 },
+    runningSessions: 4,
+  };
+
+  it('queries online native machines in parallel and bounds unanswered requests without failing the list', async () => {
+    vi.useFakeTimers();
+    try {
+      const answering = machine('answering');
+      const machines = [answering, machine('old'), machine('offline', { active: false }), machine('silent'), rigMachine()];
+      const sockets: { close: ReturnType<typeof vi.fn> }[] = [];
+      vi.mocked(io).mockImplementation(() => {
+        let timeoutMs = 0;
+        const socket = {
+          connected: true, connect: vi.fn(), close: vi.fn(),
+          timeout: vi.fn((ms: number) => { timeoutMs = ms; return socket; }),
+          emitWithAck: vi.fn(async (_event: string, payload: { method: string }) => {
+            if (payload.method === 'old:machine-capacity') return { ok: false, error: 'RPC method not available' };
+            if (payload.method === 'silent:machine-capacity') {
+              // Socket.IO rejects the acknowledgement when its configured timeout expires.
+              return new Promise((_resolve, reject) => setTimeout(() => reject(new Error('operation has timed out')), timeoutMs));
+            }
+            return { ok: true, result: encodeBase64(encrypt(answering.encryption.key, answering.encryption.variant, capacity)) };
+          }),
+        };
+        sockets.push(socket);
+        return socket as unknown as ReturnType<typeof io>;
+      });
+      const control = new HappyHerdControlClient({
+        config: { serverUrl: 'https://server.example', homeDir: '/tmp/test', credentialPath: '/tmp/test/key' },
+        credentials: { token: 'fixture', secret: new Uint8Array(32), contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) } },
+      });
+      const fake = fakeClient({ listed: machines });
+      const call = vi.spyOn(control, 'callMachineRpc');
+      fake.client.callMachineRpc = control.callMachineRpc.bind(control);
+      const output = vi.fn();
+      const command = handleMachineCommand(['list', '--json'], { createClient: async () => fake.client, output });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(call.mock.calls.map(([target, method, params, timeouts]) => [target.id, method, params, timeouts])).toEqual([
+        ['answering', 'machine-capacity', {}, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }],
+        ['old', 'machine-capacity', {}, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }],
+        ['silent', 'machine-capacity', {}, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }],
+      ]);
+      expect(output).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(4_000);
+      await command;
+      const receipt = JSON.parse(output.mock.calls[0][0]);
+      expect(receipt.machines.map(({ id, capacity }: { id: string; capacity: unknown }) => ({ id, capacity }))).toEqual([
+        { id: 'answering', capacity }, { id: 'offline', capacity: null }, { id: 'old', capacity: null },
+        { id: 'rig-machine', capacity: null }, { id: 'silent', capacity: null },
+      ]);
+      expect(sockets).toHaveLength(3);
+      for (const socket of sockets) expect(socket.close).toHaveBeenCalledOnce();
+      expect(machineListReceipt(machines).machines.every((entry) => entry.capacity === null)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('prints online state and capacity figures in the text table', async () => {
+    const current = { ...capacity, sampledAt: new Date().toISOString() };
+    const fake = fakeClient({ listed: [
+      machine('current'),
+      machine('offline', { active: false }),
+    ] });
+    fake.client.callMachineRpc = vi.fn().mockResolvedValue(current);
+    const output = vi.fn();
+    await handleMachineCommand(['list'], { createClient: async () => fake.client, output });
+    const text = output.mock.calls[0][0];
+    expect(text).toContain('CPU%\tLOAD_1/5/15\tMEMORY_USED/TOTAL_BYTES\tSESSIONS\tSAMPLED_AT');
+    expect(text).toContain('\tonline\t');
+    expect(text).toContain(`\t25\t1/2/3\t4096/8192\t4\t${current.sampledAt}`);
+    expect(text).toContain('\toffline\t');
+    expect(text).toContain('\t-\t-\t-/-\t-\t-');
+  });
+
   it('gives exact IDs priority and accepts only an unambiguous exact hostname', () => {
     const first = machine('same-host-id', { metadata: metadata({ host: 'duplicate' }) });
     const second = machine('machine-2', { metadata: metadata({ host: 'duplicate' }) });

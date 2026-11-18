@@ -2021,6 +2021,8 @@ export async function startDaemon(): Promise<void> {
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
+    apiMachine.getRunningSessionCount = () => [...pidToTrackedSession.values()]
+      .filter((session) => !hasProviderProcessExited(session.pid)).length;
     devicePairing = new DevicePairingService(
       { machineId: machine.id, host: machine.metadata.host },
       configuration.serverUrl,

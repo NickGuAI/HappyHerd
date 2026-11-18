@@ -21,6 +21,7 @@ import {
 
 import {
   AgentCapabilityCatalogSchema,
+  MachineCapacitySchema,
   MachineMetadataSchema,
   type AgentCapabilityCatalog,
   type MachineMetadata,
@@ -51,6 +52,8 @@ export type MachineControlClient = Pick<
   HappyHerdControlClient,
   | 'listMachines'
   | 'listProjects'
+  | 'createProject'
+  | 'renameProject'
   | 'resolveProject'
   | 'resolveMachine'
   | 'resolveSession'
@@ -109,6 +112,8 @@ function machineHelp(): string {
 
 Usage:
   happyherd project list [--json]
+  happyherd project create --name NAME [--json]
+  happyherd project rename PROJECT_ID --name NAME [--json]
   happyherd machine list [--json]
   happyherd machine pair [--json]
   happyherd machine pair cancel [--json]
@@ -117,7 +122,14 @@ Usage:
 Selectors accepted by "happyherd session create" are an exact machine ID or an
 exact, unambiguous hostname from this account catalog. Session creation is
 supported only for machines running the native HappyHerd CLI daemon; receipts mark
-other account-machine kinds explicitly.`;
+other account-machine kinds explicitly.
+
+Machine lists include online state and capacity: CPU busy percent, load averages
+(1/5/15 minutes), memory used/total bytes, running sessions, and sampledAt (UTC).
+Readings are taken when this command runs, requesting online native daemons in
+parallel. Each request takes at most eight seconds including connection time.
+JSON capacity is null for offline machines, older daemons or a failed/unanswered
+request. Unavailable host metrics are null; text uses '-' for unavailable values.`;
 }
 
 function machineAuthHelp(): string {
@@ -358,6 +370,7 @@ export function machineListReceipt(machines: DecryptedMachine[]) {
         platform: identity.platform,
         online: machine.active,
         activeAt: machine.activeAt,
+        capacity: null as ReturnType<typeof MachineCapacitySchema.parse> | null,
         kind,
         machineSessionProtocolVersion: metadata?.machineSessionProtocolVersion ?? null,
         sessionCreateSupported: kind === 'happyherd-cli-daemon' && supportsConfirmedMachineSessions(metadata),
@@ -780,15 +793,33 @@ export async function handleMachineCommand(
   }
   const flags = parseFlags(rest, new Set(), new Set(['json']));
   const client = await controlCall(() => clientFor(dependencies));
-  const receipt = machineListReceipt(await controlCall(() => client.listMachines()));
+  const machines = await controlCall(() => client.listMachines());
+  const receipt = machineListReceipt(machines);
+  await Promise.all(machines.map(async (machine) => {
+    if (!machine.active || classifyMachineKind(machine) !== 'happyherd-cli-daemon') return;
+    try {
+      const response = await client.callMachineRpc(machine, 'machine-capacity', {}, {
+        connectTimeoutMs: 4_000,
+        responseTimeoutMs: 4_000,
+      });
+      const capacity = MachineCapacitySchema.safeParse(response);
+      if (capacity.success) receipt.machines.find((entry) => entry.id === machine.id)!.capacity = capacity.data;
+    } catch {
+      // Offline races, older daemons and unanswered requests leave capacity null.
+    }
+  }));
   if (flags.json === true) {
     outputFor(dependencies)(JSON.stringify(receipt));
     return;
   }
-  const lines = receipt.machines.map((machine) => (
-    `${machine.id}\t${machine.host ?? '-'}\t${machine.online ? 'online' : 'offline'}\t${machine.kind}\t${machine.sessionCreateSupported ? 'yes' : 'no'}\t${machine.availableProviders.join(',') || '-'}`
-  ));
-  outputFor(dependencies)(['ID\tHOST\tSTATUS\tKIND\tSESSION_CREATE\tPROVIDERS', ...lines].join('\n'));
+  const lines = receipt.machines.map((machine) => {
+    const capacity = machine.capacity;
+    const load = capacity
+      ? [capacity.loadAverage.oneMinute, capacity.loadAverage.fiveMinutes, capacity.loadAverage.fifteenMinutes]
+        .map((value) => value ?? '-').join('/') : '-';
+    return `${machine.id}\t${machine.host ?? '-'}\t${machine.online ? 'online' : 'offline'}\t${machine.kind}\t${machine.sessionCreateSupported ? 'yes' : 'no'}\t${machine.availableProviders.join(',') || '-'}\t${capacity?.cpu.busyPercent ?? '-'}\t${load}\t${capacity?.memory.usedBytes ?? '-'}/${capacity?.memory.totalBytes ?? '-'}\t${capacity?.runningSessions ?? '-'}\t${capacity?.sampledAt ?? '-'}`;
+  });
+  outputFor(dependencies)(['ID\tHOST\tSTATUS\tKIND\tSESSION_CREATE\tPROVIDERS\tCPU%\tLOAD_1/5/15\tMEMORY_USED/TOTAL_BYTES\tSESSIONS\tSAMPLED_AT', ...lines].join('\n'));
 }
 
 export async function handleSessionCommand(

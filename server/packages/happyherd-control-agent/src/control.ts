@@ -8,6 +8,8 @@ import type { Credentials } from './credentials';
 import { requireCredentials } from './credentials';
 import {
     assignSessionProject as assignProjectInApi,
+    createProject,
+    renameProject,
     getProjectById,
     getSessionById,
     getSessionMessages,
@@ -22,6 +24,7 @@ import {
 } from './api';
 import {
     callMachineRpc as invokeMachineRpc,
+    type MachineRpcTimeouts,
     resumeSessionOnMachine,
     spawnSessionOnMachine as invokeSpawnSessionOnMachine,
     type SupportedAgent,
@@ -138,6 +141,14 @@ export class HappyHerdControlClient {
         return listProjects(this.config, this.credentials);
     }
 
+    createProject(name: string): Promise<DecryptedProject> {
+        return createProject(this.config, this.credentials, name);
+    }
+
+    renameProject(projectId: string, name: string): Promise<DecryptedProject> {
+        return renameProject(this.config, this.credentials, projectId, name);
+    }
+
     async resolveProject(projectId: string): Promise<DecryptedProject> {
         if (projectId.trim().length === 0 || projectId !== projectId.trim()) {
             throw new Error('Project ID must be an exact, non-empty ID');
@@ -220,6 +231,7 @@ export class HappyHerdControlClient {
         machine: DecryptedMachine,
         method: string,
         params: Record<string, unknown>,
+        timeouts?: MachineRpcTimeouts,
     ): Promise<TResult> {
         return invokeMachineRpc<TResult>(
             this.config,
@@ -227,6 +239,7 @@ export class HappyHerdControlClient {
             this.credentials.token,
             method,
             params,
+            timeouts,
         );
     }
 
@@ -406,5 +419,6 @@ export type {
     DecryptedProject,
     DecryptedSession,
     SpawnSessionRuntimeContext,
+    MachineRpcTimeouts,
     TurnResult,
 };

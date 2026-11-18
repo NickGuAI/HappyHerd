@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   authoritativeActive: false,
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
+  machineClient: undefined as ({ getRunningSessionCount?: () => number } & Record<string, unknown>) | undefined,
   deactivateSession: vi.fn(),
   exitedPids: new Set<number>(),
   resolveCredentialAccountEnvironment: vi.fn(async (): Promise<any> => ({
@@ -64,7 +65,7 @@ vi.mock('@/api/api', () => ({
         id: 'machine-record',
         metadata,
       })),
-      machineSyncClient: vi.fn(() => ({
+      machineSyncClient: vi.fn(() => (mocks.machineClient = {
         connect: vi.fn(),
         forkClaudeBackendSession: mocks.forkClaudeBackendSession,
         forkCodexBackendThread: mocks.forkCodexBackendThread,
@@ -506,6 +507,15 @@ describe('daemon session continuity', () => {
     for (const result of await Promise.all(attempts)) expect(result).toMatchObject({ type: 'success', sessionId });
     await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
     expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+  });
+
+  it('counts running tracked sessions for machine capacity and excludes exited processes', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    expect(mocks.machineClient?.getRunningSessionCount?.()).toBe(0);
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321 }, encryption);
+    expect(mocks.machineClient?.getRunningSessionCount?.()).toBe(1);
+    mocks.exitedPids.add(4321);
+    expect(mocks.machineClient?.getRunningSessionCount?.()).toBe(0);
   });
 
   it.each(['stop', 'webhook'] as const)('rechecks %s arriving during authoritative recovery before spawning', async (race) => {

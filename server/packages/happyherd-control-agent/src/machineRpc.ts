@@ -53,6 +53,11 @@ type RpcAck = {
     error?: string;
 };
 
+export type MachineRpcTimeouts = {
+    connectTimeoutMs?: number;
+    responseTimeoutMs?: number;
+};
+
 function waitForConnect(socket: Socket, timeoutMs = 10_000): Promise<void> {
     return new Promise<void>((resolve, reject) => {
         if (socket.connected) {
@@ -315,6 +320,7 @@ export async function callMachineRpc<TResult = unknown>(
     token: string,
     method: string,
     params: Record<string, unknown>,
+    timeouts: MachineRpcTimeouts = {},
 ): Promise<TResult> {
     const normalizedMethod = normalizeMachineRpcMethod(method);
     const socket = io(config.serverUrl, {
@@ -330,11 +336,11 @@ export async function callMachineRpc<TResult = unknown>(
     socket.connect();
 
     try {
-        await waitForConnect(socket);
+        await waitForConnect(socket, timeouts.connectTimeoutMs ?? 10_000);
         const encryptedParams = encodeBase64(
             encrypt(machine.encryption.key, machine.encryption.variant, params),
         );
-        const response = await socket.timeout(30_000).emitWithAck('rpc-call', {
+        const response = await socket.timeout(timeouts.responseTimeoutMs ?? 30_000).emitWithAck('rpc-call', {
             method: `${machine.id}:${normalizedMethod}`,
             params: encryptedParams,
         }) as RpcAck;

@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { io, type Socket } from 'socket.io-client';
 import { decodeBase64, decrypt, encodeBase64, encrypt, getRandomBytes } from './encryption';
 import type { DecryptedMachine } from './api';
 
 class MockSocket extends EventEmitter {
     connected = true;
     rpcPayload: { method: string; params: string } | null = null;
+    responseTimeoutMs: number | null = null;
     private readonly machine: DecryptedMachine;
 
     constructor(machine: DecryptedMachine) {
@@ -21,7 +23,8 @@ class MockSocket extends EventEmitter {
         this.connected = false;
     }
 
-    timeout(): this {
+    timeout(timeoutMs: number): this {
+        this.responseTimeoutMs = timeoutMs;
         return this;
     }
 
@@ -257,7 +260,7 @@ describe('spawnSessionOnMachine', () => {
         });
     });
 
-    it('serializes provider fork calls through the owning machine encryption', async () => {
+    it.each([undefined, { responseTimeoutMs: 5_000 }])('serializes provider fork calls with response timeouts %j', async (timeouts) => {
         rpcResultOverride = { type: 'success', newCodexThreadId: 'thread-child' };
 
         await expect(callMachineRpc(
@@ -266,15 +269,41 @@ describe('spawnSessionOnMachine', () => {
             'account-token-secret',
             'codex-fork-thread',
             { directory: '/srv/project', codexThreadId: 'thread-parent' },
+            timeouts,
         )).resolves.toEqual({ type: 'success', newCodexThreadId: 'thread-child' });
 
         expect(socket.rpcPayload?.method).toBe('machine-1:codex-fork-thread');
+        expect(socket.responseTimeoutMs).toBe(timeouts?.responseTimeoutMs ?? 30_000);
         expect(decrypt(
             machine.encryption.key,
             machine.encryption.variant,
             decodeBase64(socket.rpcPayload!.params),
         )).toEqual({ directory: '/srv/project', codexThreadId: 'thread-parent' });
         expect(socket.rpcPayload?.params).not.toContain('account-token-secret');
+    });
+
+    it.each([undefined, { connectTimeoutMs: 4_000 }])('bounds a connection with timeouts %j and closes its socket', async (timeouts) => {
+        vi.useFakeTimers();
+        try {
+            const disconnected = new MockSocket(machine);
+            disconnected.connected = false;
+            disconnected.connect = vi.fn();
+            const close = vi.spyOn(disconnected, 'close');
+            vi.mocked(io).mockReturnValueOnce(disconnected as unknown as Socket);
+            const result = callMachineRpc(
+                { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+                machine, 'account-token', 'codex-fork-thread', {}, timeouts,
+            );
+            const rejected = expect(result).rejects.toThrow('Timeout waiting for socket connection');
+            await vi.advanceTimersByTimeAsync((timeouts?.connectTimeoutMs ?? 10_000) - 1);
+            expect(close).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(1);
+            await rejected;
+            expect(close).toHaveBeenCalledOnce();
+            expect(disconnected.listenerCount('connect')).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('rejects method injection before connecting', async () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiMachineClient } from './apiMachine';
 import type { Machine } from './types';
+import { decodeBase64, decrypt } from './encryption';
 
 const {
     mockIo,
@@ -9,6 +10,8 @@ const {
     mockDetectAgentCapabilities,
     mockReadCredentialPoolState,
     mockCredentialAccountEnvironment,
+    mockSampleHostResourceUsage,
+    mockRegisterHandler,
 } = vi.hoisted(() => ({
     mockIo: vi.fn(),
     mockShouldReconnect: vi.fn(() => true),
@@ -16,7 +19,11 @@ const {
     mockDetectAgentCapabilities: vi.fn(),
     mockReadCredentialPoolState: vi.fn(),
     mockCredentialAccountEnvironment: vi.fn(),
+    mockSampleHostResourceUsage: vi.fn(),
+    mockRegisterHandler: vi.fn(),
 }));
+
+vi.mock('@/daemon/hostResourceUsage', () => ({ sampleHostResourceUsage: mockSampleHostResourceUsage }));
 
 vi.mock('socket.io-client', () => ({
     io: mockIo
@@ -46,7 +53,7 @@ vi.mock('@/api/rpc/RpcHandlerManager', () => ({
         onSocketConnect = vi.fn();
         onSocketDisconnect = vi.fn();
         handleRequest = vi.fn(async () => '');
-        registerHandler = vi.fn();
+        registerHandler = mockRegisterHandler;
         unregisterHandler = vi.fn();
         hasHandler = vi.fn(() => false);
     }
@@ -171,6 +178,52 @@ describe('ApiMachineClient socket reconnection', () => {
             happyClient: 'cli-daemon/test',
         });
         client.shutdown();
+    });
+
+    it('answers machine-capacity with a fresh host sample and running session count', async () => {
+        const sample = {
+            sampledAt: new Date().toISOString(),
+            cpu: { busyPercent: 25, sampleWindowMs: 250 },
+            loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+            memory: { usedBytes: 4096, totalBytes: 8192, availableBytes: 4096, swapUsedBytes: 0 },
+        };
+        mockSampleHostResourceUsage.mockResolvedValue(sample);
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        client.getRunningSessionCount = vi.fn(() => 4);
+        client.setRPCHandlers({ spawnSession: vi.fn(), stopSession: vi.fn(), requestShutdown: vi.fn() });
+        const handler = mockRegisterHandler.mock.calls.find(([name]) => name === 'machine-capacity')![1];
+        expect(mockSampleHostResourceUsage).not.toHaveBeenCalled();
+        await expect(handler({})).resolves.toEqual({
+            ...sample, memory: { usedBytes: 4096, totalBytes: 8192 }, runningSessions: 4,
+        });
+        const next = { ...sample, sampledAt: new Date(Date.now() + 1000).toISOString() };
+        mockSampleHostResourceUsage.mockResolvedValue(next);
+        await expect(handler({})).resolves.toMatchObject({ sampledAt: next.sampledAt });
+        expect(mockSampleHostResourceUsage).toHaveBeenCalledTimes(2);
+        await client.shutdown();
+    });
+
+    it('never samples or publishes capacity on keep-alive', async () => {
+        vi.useFakeTimers();
+        const machine = makeMachine();
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => ({
+            result: 'success',
+            ...(event === 'machine-update-state'
+                ? { daemonState: payload.daemonState, version: machine.daemonStateVersion + 1 }
+                : { metadata: payload.metadata, version: machine.metadataVersion + 1 }),
+        }));
+        const client = new ApiMachineClient('fake-token', machine);
+        client.getRunningSessionCount = vi.fn(() => 4);
+        client.connect();
+        emitSocketEvent('connect');
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(mockSocket.emit.mock.calls.filter(([event]: [string]) => event === 'machine-alive')).toHaveLength(4);
+        expect(mockSampleHostResourceUsage).not.toHaveBeenCalled();
+        const stateCalls = mockSocket.emitWithAck.mock.calls.filter(([event]: [string]) => event === 'machine-update-state');
+        expect(stateCalls).toHaveLength(1);
+        const state = decrypt(machine.encryptionKey, machine.encryptionVariant, decodeBase64(stateCalls[0][1].daemonState));
+        expect(state).not.toHaveProperty('capacity');
+        await client.shutdown();
     });
 
     it('retries after initial socket connection error', async () => {

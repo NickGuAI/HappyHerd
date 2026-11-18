@@ -761,6 +761,21 @@ current `origin/main` instead.
 
 ## Named projects and the pinned assistant
 
+CLI `project create --name` and `project rename ID --name` use the control
+client's encrypted Project API. Rename preserves metadata and sends
+`expectedMetadataVersion`; neither command changes session assignments.
+`commands/project.ts` owns receipts and help.
+
+`apiMachine.ts` answers `machine-capacity` through the existing machine RPC.
+`daemon/run.ts` supplies the running session count; `hostResourceUsage.ts`
+samples CPU, load and memory only when requested. `commands/machine.ts` asks
+online native daemons in parallel when `machine list` runs, passing four seconds
+each for connection and acknowledgement through the control client's optional
+RPC timeouts. Other callers retain the 10-second connection and 30-second answer
+defaults. The RPC closes the socket when done. Offline machines, older daemons and failed/unanswered requests
+have `capacity: null`. Catalog reads elsewhere do not request capacity, and
+no capacity is stored in daemon state or published on keep-alive.
+
 Existing named Projects operate as encrypted account records synchronized through `apiProjects.ts`, `projects.ts`, `sync.ts`, and server-side `projectRoutes.ts`, linking UI navigation where `projects/index.tsx` opens `projects/[id].tsx` and `session/[id]/project.tsx` preserves assignment. `projectSessionList.ts` filters session-list row types by project ID while preserving pinned Super Sessions, bots, and archives, with missing-project state gated by a `storage.ts` `projectsLoaded` flag that signals authoritative catalog snapshot completion independently of session readiness. Layout and preferences are updated by reusing `SidebarNavigationButton` for three icon-only top-row destinations (Workspace/Projects/Automations) and a second-row (New Session and archive), alongside a three-choice Appearance setting and a personal-project list setting that groups by explicit personal project IDs across machines while preserving the persisted `project` workspace setting and `flat` mode.
 
 Super Session status is persisted in `metadata.isSuperSession`; `superSession.ts` selects the oldest session by `createdAt` then ID to pin first across desktop/mobile list components. Creating a CLI session via `run.ts` and `createSessionMetadata.ts` with `--super-session` requires `--commander`, routing through agent control and `machineRpc` to propagate a session-scoped environment marker that is stripped from ambient children, reusing ordinary session identities without introducing a new bot lifecycle.
