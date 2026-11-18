@@ -280,11 +280,16 @@ const virtualModules: Record<string, string> = {
                 state().resetFailed = true;
                 throw new Error('Reset unavailable');
             }
-            if (['reset-busy', 'deferred-reset'].includes(state().scenario)) await state().mutationGate;
+            if (['reset-busy', 'deferred-reset', 'deferred-reset-error'].includes(state().scenario)) await state().mutationGate;
+            if (state().scenario === 'deferred-reset-error') {
+                state().resetSettled = true;
+                throw new Error('Late reset failure on original machine');
+            }
             const next = safeAccounts(machineId).map((item) => item.id === target.id
                 ? { ...item, limitedUntil: null, status: 'stored' } : item);
             if (state().accountsByMachine) state().accountsByMachine[machineId] = next;
             else state().accounts = next;
+            state().resetSettled = true;
             return safeAccounts(machineId);
         };
         export const renameManagedCredentialAccount = async (machineId, target) => {
@@ -1462,9 +1467,9 @@ describe('CredentialsSettingsView browser journeys', () => {
         await page.close();
     });
 
-    it('reset cooldown keeps the result bound to the original machine after switching', async () => {
+    it.each(['deferred-reset', 'deferred-reset-error'])('reset cooldown ignores late %s after switching machines', async (scenario) => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-        await page.goto(`${origin}/?scenario=deferred-reset`);
+        await page.goto(`${origin}/?scenario=${scenario}`);
         await page.getByText('personal', { exact: true }).click();
         await page.getByRole('button', { name: 'Reset cooldown', exact: true }).click();
         await expect.poll(async () => page.evaluate(() => (
@@ -1473,9 +1478,16 @@ describe('CredentialsSettingsView browser journeys', () => {
         await page.getByText('Studio', { exact: true }).first().click();
         await page.getByText('Laptop', { exact: true }).click();
         await page.getByText('laptop-only', { exact: true }).waitFor();
+        const laptopBefore = await page.evaluate(() => JSON.stringify((window as any).__FIXTURE_STATE__.accountsByMachine['machine-2']));
+        const visibleBefore = await page.locator('body').innerText();
         await page.evaluate(() => (window as any).__FIXTURE_STATE__.releaseMutation());
+        await expect.poll(() => page.evaluate(() => (window as any).__FIXTURE_STATE__.resetSettled)).toBe(true);
+        await page.waitForTimeout(100); // Let React process the settled promise before comparing the UI.
+        expect(await page.locator('body').innerText()).toBe(visibleBefore);
         await expect.poll(() => page.getByText('laptop-only', { exact: true }).count()).toBe(1);
         await expect(page.getByText('personal', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByText('Late reset failure on original machine', { exact: true }).count()).resolves.toBe(0);
+        expect(await page.evaluate(() => JSON.stringify((window as any).__FIXTURE_STATE__.accountsByMachine['machine-2']))).toBe(laptopBefore);
         const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
         expect(calls.filter((call: unknown[]) => call[0] === 'account-reset')).toEqual([
             ['account-reset', 'machine-1', { id: '22222222-2222-4222-8222-222222222222', provider: 'codex', name: 'personal', expectedCredentialVersion: 1 }],

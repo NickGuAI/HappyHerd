@@ -889,3 +889,4 @@ ISSUE_453_HOOK_SETTINGS_LIFETIME	code-ready	fix(claude): recreate temporary hook
 ISSUE_453_HOOK_SETTINGS_GOLDENS	code-ready	test(changelog): refresh hook settings recovery captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_453_NATIVE_RUNNER	code-ready	ci(installer): replace retired macOS ARM64 runner	.github/workflows/native-installer-release.yml
 CREDENTIAL_ACCOUNT_RESET_COOLDOWN	code-ready	feat(credentials): reset account cooldown	server/packages/happyherd-cli/src/credentialPool/manager.test.ts
+CREDENTIAL_RESET_RACE_COVERAGE	code-ready	test(credentials): cover cooldown reset machine races	server/packages/happyherd-cli/src/credentialPool/manager.test.ts
