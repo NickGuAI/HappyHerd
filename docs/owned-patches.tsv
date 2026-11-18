@@ -890,3 +890,4 @@ ISSUE_453_HOOK_SETTINGS_GOLDENS	code-ready	test(changelog): refresh hook setting
 ISSUE_453_NATIVE_RUNNER	code-ready	ci(installer): replace retired macOS ARM64 runner	.github/workflows/native-installer-release.yml
 CREDENTIAL_ACCOUNT_RESET_COOLDOWN	code-ready	feat(credentials): reset account cooldown	server/packages/happyherd-cli/src/credentialPool/manager.test.ts
 CREDENTIAL_RESET_RACE_COVERAGE	code-ready	test(credentials): cover cooldown reset machine races	server/packages/happyherd-cli/src/credentialPool/manager.test.ts
+CREDENTIAL_RESET_KILV_FIXTURES	code-ready	test(credentials): fix cooldown golden capture	scripts/kilv-capture/routes.mocks.mjs
