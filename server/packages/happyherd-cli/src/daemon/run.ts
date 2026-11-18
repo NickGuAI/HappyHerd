@@ -85,6 +85,7 @@ import {
   formatFreshSideChatResumePrompt,
 } from '@/commands/sideChatContext';
 import type {
+  SideChatContext,
   SideChatDelegationBrief,
   SideChatLaunchOptions,
   SideChatLifecycleReceipt,
@@ -1763,6 +1764,7 @@ export async function startDaemon(): Promise<void> {
     };
     type LocalSideChatCreation = {
       sessionId: string;
+      context: SideChatContext;
       settings?: HappyHerdMachineSessionSettings;
       briefDelivery: SideChatOperationResult | null;
     };
@@ -1770,6 +1772,7 @@ export async function startDaemon(): Promise<void> {
       _parentSessionId: string,
       _brief: SideChatDelegationBrief | null,
       _launch: SideChatLaunchOptions | undefined,
+      _context: SideChatContext | undefined,
     ): Promise<LocalSideChatCreation> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
@@ -2122,9 +2125,10 @@ export async function startDaemon(): Promise<void> {
     const inFlightLocalSideChats = new Map<string, {
       brief: SideChatDelegationBrief | null;
       launch: SideChatLaunchOptions | undefined;
+      context: SideChatContext;
       creation: Promise<LocalSideChatCreation>;
     }>();
-    createLocalSideChat = async (parentSessionId, brief, launch) => {
+    createLocalSideChat = async (parentSessionId, brief, launch, context = 'inherit') => {
       let parent: Session;
       try {
         const session = await resolveLocalReconnectableSession(parentSessionId);
@@ -2143,7 +2147,7 @@ export async function startDaemon(): Promise<void> {
         const briefMatches = existing.brief === null || brief === null
           ? existing.brief === brief
           : sameSideChatDelegationBrief(existing.brief, brief);
-        if (!briefMatches || !sameSideChatLaunchOptions(existing.launch, launch)) {
+        if (!briefMatches || !sameSideChatLaunchOptions(existing.launch, launch) || existing.context !== context) {
           throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief or launch selection.`);
         }
         return existing.creation;
@@ -2159,7 +2163,7 @@ export async function startDaemon(): Promise<void> {
         }
         const sameProvider = provider === parentProvider;
         const isCodexParent = sameProvider && provider === 'codex';
-        const nativeFork = sameProvider && (provider === 'claude' || provider === 'codex');
+        const nativeFork = context === 'inherit' && sameProvider && (provider === 'claude' || provider === 'codex');
         const parentReceipt = parent.metadata.spawnSettings?.provider === provider
           ? parent.metadata.spawnSettings
           : undefined;
@@ -2214,7 +2218,7 @@ export async function startDaemon(): Promise<void> {
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
           })
           : undefined;
-        const freshProviderContext = brief !== null && !nativeFork
+        const freshProviderContext = context === 'inherit' && brief !== null && !nativeFork
           ? buildBoundedVisibleSideChatContext(await api.readRecentSessionMessages(parent))
           : undefined;
 
@@ -2251,7 +2255,7 @@ export async function startDaemon(): Promise<void> {
             ...(codexHome ? { codexHome } : {}),
             ...(isCodexParent ? { providerAccount: providerAccount ?? null } : {}),
           }),
-        }, effectiveLaunch);
+        }, effectiveLaunch, context);
         if (brief === null) {
           return { ...created, briefDelivery: null };
         }
@@ -2276,7 +2280,7 @@ export async function startDaemon(): Promise<void> {
           };
         }
       })();
-      inFlightLocalSideChats.set(parent.id, { brief, launch, creation });
+      inFlightLocalSideChats.set(parent.id, { brief, launch, context, creation });
       try {
         return await creation;
       } finally {

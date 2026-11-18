@@ -10,6 +10,30 @@ describe('side-chat daemon control server aliases', () => {
     stop = null;
   });
 
+  it.each(['/side-chat', '/side-chat-create-with-settings'])('validates context before creation through %s', async (path) => {
+    const sideChat = vi.fn().mockResolvedValue({ success: true });
+    const server = await startDaemonControlServer({
+      getChildren: () => [], stopSession: () => false, spawnSession: vi.fn(), sideChat,
+      requestShutdown: vi.fn(), onHappyHerdSessionWebhook: vi.fn(), onProviderLimited: vi.fn(),
+      automations: {} as any,
+    });
+    stop = server.stop;
+    const request = {
+      action: 'create', parentSessionId: 'parent',
+      brief: { outcome: 'Task', scope: 'Scope', dependencies: 'Base', writeOwnership: 'Files', verification: 'Checks', handoff: 'Evidence' },
+      ...(path.endsWith('with-settings') ? { launch: { provider: 'codex' } } : {}),
+    };
+    for (const context of ['inherit', 'fresh', 'unknown']) {
+      const response = await fetch(`http://127.0.0.1:${server.port}${path}`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...request, context }),
+      });
+      expect(response.status).toBe(context === 'unknown' ? 400 : 200);
+      if (context !== 'unknown') expect(sideChat).toHaveBeenLastCalledWith({ ...request, context });
+    }
+    expect(sideChat).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     ['inspect', 'status'],
     ['pause', 'stop'],

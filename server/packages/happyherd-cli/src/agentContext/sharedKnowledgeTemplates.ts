@@ -164,6 +164,14 @@ non-empty brief flags: --outcome, --scope, --dependencies, --write-ownership,
 does not need machine auth login, and queues the brief as the child's first
 message. Human one-click creation in the app opens an empty child instead.
 
+Optional --context inherit|fresh also works with the parent-ID shorthand.
+The default, inherit, forks the parent's Claude/Codex conversation when the
+provider matches; otherwise it includes bounded visible parent messages with
+the brief. With fresh, the provider starts a new conversation with only the
+six-field brief and lineage: no fork and no parent transcript. The create
+receipt reports the context applied by the daemon. Both choices retain the
+same parent link and lifecycle. The app's one-click action keeps inherit.
+
 Use side-chat list PARENT_SESSION_ID, status CHILD_SESSION_ID, stop
 CHILD_SESSION_ID, close CHILD_SESSION_ID, or reopen CHILD_SESSION_ID. inspect,
 pause, and resume alias status, stop, and reopen. close PARENT_SESSION_ID --all

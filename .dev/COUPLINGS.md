@@ -556,11 +556,12 @@ Both → daemon-owned side-chat lifecycle
   → resolve exact parent from machine-local reconnect data
   → require parent machine ID == this daemon machine ID
   → daemon-owned provider continuation strategy
-       ├── Claude provider-native session fork
-       ├── Codex provider-native thread fork
-       └── Gemini / Grok / DSH / Agy fresh same-provider child
-             → latest 4 visible parent messages, at most 6,000 characters
-             → exclude tools, thinking, attachments, malformed records, old handoffs
+       ├── context=fresh: new provider conversation, brief only, no parent transcript
+       └── context=inherit (default)
+             ├── same-provider Claude/Codex: provider-native fork
+             └── other children: fresh provider process
+                   → latest 4 visible parent messages, at most 6,000 characters
+                   → exclude tools, thinking, attachments, malformed records, old handoffs
   → daemon spawn on the same machine and path
        with native fork ID where available + parentSessionId + isSideChat
   → creation path
@@ -647,13 +648,18 @@ account, and passes an explicit unmanaged mode to the child. Side-chat
 creation is intentionally local-owner-only and does not load `agent.key`, list
 account machines, or fall back to the QR-based account-control flow. The Human
 app request carries only the parent HappyHerd session ID. The Main Agent loopback
-request accepts that ID plus the complete structured brief. The daemon
+request accepts that ID plus the complete structured brief and optional
+`context: inherit|fresh`. The daemon returns the applied context in the create
+receipt, alongside confirmed launch settings; the client does not infer it
+from the request. The app sends no context choice and retains `inherit`.
+The daemon
 re-resolves every launch value from its own persisted record,
 rejects a parent belonging to another machine, and coalesces concurrent
 requests with the same creation input for the same exact parent while fork,
 spawn, and any prompt delivery are in flight. A concurrent no-brief request and
 briefed request, or two requests with different briefs, fail instead of
-assigning different intent to one child. Provider-native fork operations must
+assigning different intent to one child. Different context choices also remain
+distinct creation inputs. Provider-native fork operations, when inheriting, must
 complete before child spawn, and the
 new backend ID—not the parent's ID—is the resume target. `parentSessionId` and
 `isSideChat` are persisted child lineage: top-level session selectors exclude

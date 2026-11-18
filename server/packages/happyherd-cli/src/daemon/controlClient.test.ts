@@ -145,12 +145,13 @@ describe('side-chat daemon control client', () => {
     expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:39001/side-chat');
   });
 
-  it('returns a schema-version-2 create receipt with owning-daemon resources unchanged', async () => {
+  it.each([undefined, 'inherit', 'fresh'] as const)('returns daemon-applied context %s and resources unchanged', async (context) => {
     const receipt = {
       schemaVersion: 2,
       type: 'side-chat',
       action: 'create',
       success: true,
+      ...(context ? { context } : {}),
       parentSessionId: 'parent',
       sessionId: 'child',
       child: null,
@@ -180,6 +181,7 @@ describe('side-chat daemon control client', () => {
       parentSessionId: 'parent',
       brief,
       launch: { permission: 'bypassPermissions' },
+      context: 'fresh',
     }))
       .resolves.toEqual(receipt);
     expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({
@@ -187,6 +189,7 @@ describe('side-chat daemon control client', () => {
       parentSessionId: 'parent',
       brief,
       launch: { permission: 'bypassPermissions' },
+      context: 'fresh',
     });
     expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:39001/side-chat-create-with-settings');
   });

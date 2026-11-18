@@ -11,6 +11,7 @@ import type {
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
 } from '@/commands/sideChat';
+import { formatSideChatDelegationPrompt } from '@/commands/sideChat';
 import type { SessionEncryptionData } from './types';
 import type { SessionTransportRecovery } from './sessionTransport';
 import { superSessionMetadataForReconnect } from '@/utils/createSessionMetadata';
@@ -2797,6 +2798,77 @@ describe('daemon session continuity', () => {
     expect(args).toEqual(expect.arrayContaining(['--permission-mode', permission]));
     expect(JSON.parse(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(settings);
     expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
+  });
+
+  it.each(['claude', 'codex'] as const)('applies the context choice for %s children with the same or a different parent provider', async (provider) => {
+    mocks.authoritativeActive = true;
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const settings = provider === 'codex'
+      ? codexAdvertisedDefaultSettings
+      : { provider, model: 'default', effort: 'max', permission: 'default' };
+    let pid = 5800;
+    for (const sameProvider of [true, false]) {
+      for (const context of [undefined, 'inherit', 'fresh'] as const) {
+        const parentProvider = sameProvider ? provider : provider === 'claude' ? 'codex' : 'claude';
+        const parentMetadata: Metadata = {
+          path: process.cwd(), flavor: parentProvider, host: 'test-host', hostPid: 9876,
+          machineId: 'machine-1', homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+          happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+          ...(parentProvider === 'claude' ? { claudeSessionId: '11111111-1111-4111-8111-111111111111' } : { codexThreadId: 'thread-parent' }),
+        };
+        mocks.resolveLocalReconnectableSession.mockResolvedValue({ id: 'context-parent', metadata: parentMetadata });
+        mocks.readRecentSessionMessages.mockClear().mockResolvedValue([{
+          seq: 1, localId: 'visible-parent', createdAt: 1,
+          content: { role: 'user', content: { type: 'text', text: 'parent-only-message' } },
+        }]);
+        mocks.forkClaudeBackendSession.mockClear();
+        mocks.forkCodexBackendThread.mockClear();
+        mocks.postSideChatBrief.mockClear();
+        mocks.spawnHappyHerdCLI.mockClear().mockReturnValue({ pid: ++pid, kill: vi.fn(), on: vi.fn() });
+        const creation = control.sideChat({
+          action: 'create', parentSessionId: 'context-parent', brief: sideChatBrief,
+          launch: { provider }, ...(context ? { context } : {}),
+        });
+        await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+        if (context === 'fresh') {
+          await expect(control.sideChat({
+            action: 'create', parentSessionId: 'context-parent', brief: sideChatBrief,
+            launch: { provider }, context: 'inherit',
+          })).resolves.toMatchObject({ success: false, sessionId: null });
+          expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+        }
+        const childId = `context-child-${pid}`;
+        control.onHappyHerdSessionWebhook(childId, {
+          ...parentMetadata, flavor: provider, hostPid: pid,
+          parentSessionId: 'context-parent', isSideChat: true, spawnSettings: settings,
+        }, {
+          encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey',
+          seq: 1, metadataVersion: 1, agentStateVersion: 1,
+        });
+        await expect(creation).resolves.toMatchObject({
+          success: true, context: context ?? 'inherit', parentSessionId: 'context-parent', sessionId: childId, settings,
+        });
+        const nativeFork = sameProvider && context !== 'fresh';
+        expect(mocks.forkClaudeBackendSession).toHaveBeenCalledTimes(nativeFork && provider === 'claude' ? 1 : 0);
+        expect(mocks.forkCodexBackendThread).toHaveBeenCalledTimes(nativeFork && provider === 'codex' ? 1 : 0);
+        const [args, options] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+        expect(args.includes('--resume')).toBe(nativeFork);
+        expect(options.env.HAPPYHERD_FORKED_FROM_SESSION_ID).toBe('context-parent');
+        expect(options.env.HAPPYHERD_SIDE_CHAT).toBe('1');
+        const inheritsTranscript = !sameProvider && context !== 'fresh';
+        expect(mocks.readRecentSessionMessages).toHaveBeenCalledTimes(inheritsTranscript ? 1 : 0);
+        expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
+        const [, posted] = mocks.postSideChatBrief.mock.calls[0] as unknown as [unknown, { text: string }];
+        if (inheritsTranscript) {
+          expect(posted.text).toContain('parent-only-message');
+        } else {
+          expect(posted.text).toBe(formatSideChatDelegationPrompt('context-parent', childId, sideChatBrief));
+          expect(posted.text).not.toContain('parent-only-message');
+        }
+      }
+    }
   });
 
   it.each([

@@ -6,6 +6,7 @@ type ParentSession = {
 };
 
 export type SideChatProvider = 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh' | 'agy';
+export type SideChatContext = 'inherit' | 'fresh';
 
 export type ResolvedSideChatMachine = {
   id: string;
@@ -66,6 +67,7 @@ export type SideChatLaunchOptions = Readonly<{
 
 export type CreateChildSideChatResult = {
   sessionId: string;
+  context: SideChatContext;
   settings?: HappyHerdMachineSessionSettings;
 };
 
@@ -114,6 +116,7 @@ export type SideChatLifecycleRequest =
     parentSessionId: string;
     brief: SideChatDelegationBrief | null;
     launch?: SideChatLaunchOptions;
+    context?: SideChatContext;
   }
   | { action: 'list'; parentSessionId: string }
   | { action: 'status' | 'stop' | 'close' | 'reopen'; sessionId: string }
@@ -154,6 +157,7 @@ export type SideChatSingleReceipt = {
   phases: SideChatPhaseReceipt[];
   resource?: SideChatResourceUsage;
   settings?: HappyHerdMachineSessionSettings;
+  context?: SideChatContext;
 };
 
 export type SideChatListReceipt = {
@@ -313,7 +317,11 @@ export function resolveSideChatProvider(metadataValue: unknown): SideChatProvide
     : null;
 }
 
-function resolveSideChatSource(parent: ParentSession, childProvider?: string): SideChatSource {
+function resolveSideChatSource(
+  parent: ParentSession,
+  childProvider: string | undefined,
+  context: SideChatContext,
+): SideChatSource {
   const metadata = record(parent.metadata);
   // Historical Claude sessions predate explicit flavor metadata. Keep the
   // same compatibility contract as the existing UI and resume paths: a
@@ -337,7 +345,7 @@ function resolveSideChatSource(parent: ParentSession, childProvider?: string): S
   const backendSessionId = flavor === 'codex'
     ? metadata.codexThreadId
     : flavor === 'claude' ? metadata.claudeSessionId : undefined;
-  if ((!childProvider || childProvider === flavor) && (flavor === 'claude' || flavor === 'codex') && !nonEmptyString(backendSessionId)) {
+  if (context === 'inherit' && (!childProvider || childProvider === flavor) && (flavor === 'claude' || flavor === 'codex') && !nonEmptyString(backendSessionId)) {
     const backendLabel = flavor === 'codex' ? 'Codex thread' : 'Claude session';
     throw new Error(`HappyHerd session ${parent.id} is missing its ${backendLabel} ID.`);
   }
@@ -372,16 +380,17 @@ export async function createChildSideChat(
   parentSessionId: string,
   dependencies: SideChatCommandDependencies,
   launch?: SideChatLaunchOptions,
+  context: SideChatContext = 'inherit',
 ): Promise<CreateChildSideChatResult> {
   const parent = await dependencies.resolveSession(parentSessionId);
-  const source = resolveSideChatSource(parent, launch?.provider);
+  const source = resolveSideChatSource(parent, launch?.provider, context);
   const provider = launch?.provider === undefined
     ? source.kind
     : resolveSideChatProvider({ flavor: launch.provider });
   if (!provider) {
     throw new Error(`Unsupported side-chat provider "${launch?.provider}".`);
   }
-  const nativeFork = provider === source.kind;
+  const nativeFork = context === 'inherit' && provider === source.kind;
   const machine = await dependencies.resolveMachine(source.machineId);
 
   if (machine.id !== source.machineId) {
@@ -435,6 +444,7 @@ export async function createChildSideChat(
 
   return {
     sessionId: spawnResult.sessionId,
+    context,
     ...(spawnResult.settings ? { settings: spawnResult.settings } : {}),
   };
 }
@@ -446,7 +456,7 @@ Usage:
   happyherd session side-chat create <parent-session-id> \\
     --outcome <text> --scope <text> --dependencies <text> \\
     --write-ownership <text> --verification <text> --handoff <text> \\
-    [--provider <provider>] [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
+    [--context inherit|fresh] [--provider <provider>] [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
   happyherd session side-chat list <parent-session-id> [--json]
   happyherd session side-chat status <child-session-id> [--json]
   happyherd session side-chat inspect <child-session-id> [--json]
@@ -459,15 +469,18 @@ Usage:
 
 The parent-id shorthand remains supported when all six brief options are supplied:
   happyherd session side-chat <parent-session-id> <brief-options> \
-    [--provider <provider>] [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
+    [--context inherit|fresh] [--provider <provider>] [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
 
 Optional --provider selects the child's provider on the parent's machine.
-Omitting it preserves same-provider creation and native Claude/Codex forks.
+Optional --context defaults to inherit: same-provider Claude/Codex children use a native
+fork; other children receive bounded visible parent context with their brief.
+Use --context fresh to start a new provider conversation with only the brief and lineage,
+without a fork or parent transcript. Both choices keep the normal side-chat lifecycle.
 Optional --model, --effort, and --permission values are validated against the parent machine's
-child-provider catalog before the child is forked or started. A different provider starts
-fresh with bounded visible parent context and defaults to its own permission mode.
+child-provider catalog before the child is forked or started. A different provider
+defaults to its own permission mode.
 Permission accepts a native mode such as Claude bypassPermissions or Codex yolo
-when advertised. Create receipts include the daemon-confirmed launch settings.
+when advertised. Create receipts include the daemon-applied context and launch settings.
 
 All lifecycle actions run through the parent machine's local daemon. Close
 stops the provider, deactivates the server session, archives encrypted
@@ -483,6 +496,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
 } {
   let json = false;
   let all = false;
+  let context: SideChatContext | undefined;
   const positional: string[] = [];
   const briefValues: Partial<Record<keyof SideChatDelegationBrief, string>> = {};
   const launchValues: Partial<Record<keyof SideChatLaunchOptions, string>> = {};
@@ -494,6 +508,16 @@ export function parseSideChatLifecycleRequest(args: string[]): {
     }
     if (argument === '--all') {
       all = true;
+      continue;
+    }
+    if (argument === '--context') {
+      if (context !== undefined) throw new Error('Duplicate side-chat option: --context');
+      const value = args[index + 1];
+      if (value !== 'inherit' && value !== 'fresh') {
+        throw new Error('Side-chat option --context requires inherit or fresh');
+      }
+      context = value;
+      index += 1;
       continue;
     }
     const briefField = briefOptions[argument as keyof typeof briefOptions];
@@ -508,6 +532,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
       const value = args[index + 1];
       const valueIsOption = value === '--json'
         || value === '--all'
+        || value === '--context'
         || Object.prototype.hasOwnProperty.call(briefOptions, value)
         || Object.prototype.hasOwnProperty.call(launchOptions, value);
       if (!nonEmptyString(value) || valueIsOption) {
@@ -558,6 +583,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
         parentSessionId: candidateAction,
         brief: normalizeSideChatDelegationBrief(briefValues),
         ...(launch ? { launch } : {}),
+        ...(context ? { context } : {}),
       },
       json,
     };
@@ -572,6 +598,9 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   if (action !== 'create' && launch) {
     throw new Error('Launch options are supported only with the create action');
   }
+  if (action !== 'create' && context) {
+    throw new Error('--context is supported only with the create action');
+  }
   if (action === 'close' && all) {
     return { request: { action: 'close-all', parentSessionId: id }, json };
   }
@@ -585,6 +614,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
         parentSessionId: id,
         brief: normalizeSideChatDelegationBrief(briefValues),
         ...(launch ? { launch } : {}),
+        ...(context ? { context } : {}),
       },
       json,
     };
@@ -635,7 +665,10 @@ export function formatSideChatLifecycleReceipt(receipt: SideChatLifecycleReceipt
   const settings = receipt.action === 'create' && receipt.settings
     ? [`Settings: ${JSON.stringify(receipt.settings)}`]
     : [];
-  return [summary, ...settings, ...resource, ...failures].join('\n');
+  const context = receipt.action === 'create' && receipt.context
+    ? [`Context: ${receipt.context}`]
+    : [];
+  return [summary, ...context, ...settings, ...resource, ...failures].join('\n');
 }
 
 function formatSideChatResourceUsage(resource: SideChatResourceUsage): string[] {
