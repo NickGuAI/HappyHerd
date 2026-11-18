@@ -878,3 +878,4 @@ ISSUE_458_CONTEXT_FOLDER_COMMANDS	code-ready	docs(cli): list the context folder 
 ISSUE_458_CONTEXT_FOLDER_ACCOUNT	code-ready	fix(cli): remember the context folder Google account	server/packages/happyherd-cli/src/commands/contextFolder.test.ts
 ISSUE_458_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh context folder visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_464_PROBE	code-ready	test(golden): measure changelog animation capture states	scripts/kilv-capture/issue464-probe.mjs
+ISSUE_464_FRESH_PROBE	code-ready	test(golden): isolate capture timing across browser launches	scripts/kilv-capture/issue464-probe.mjs
