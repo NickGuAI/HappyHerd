@@ -2519,6 +2519,7 @@ export async function startDaemon(): Promise<void> {
       api: new DefaultAssistantApi(credentials),
       sessions: () => Object.keys(persisted).map(localSessionFromPersistence),
       persist: persistAuthoritativeSession,
+      readAuthoritative: async (session) => (await api.findSessionAuthoritative(session))?.session ?? null,
       ensureCommander: ensureDefaultAssistantCommander,
       machineMetadata: () => machine.metadata,
       createMetadata: (commander, settings) => ({

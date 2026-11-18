@@ -181,15 +181,13 @@ export class ApiClient {
     return refreshed;
   }
 
-  /** Read exact encrypted server state without overlaying stale local metadata. */
-  async inspectSessionAuthoritative(session: Session): Promise<{ session: Session; active: boolean }> {
+  /** Read exact encrypted server state, returning null only when the session is absent. */
+  async findSessionAuthoritative(session: Session): Promise<{ session: Session; active: boolean } | null> {
     const [raw] = await loadSessionRecords(this.credential.token, {
       exactId: session.id,
       timeout: 60000,
     });
-    if (!raw) {
-      throw new Error(`Cannot refresh HappyHerd session ${session.id} for reconnect`);
-    }
+    if (!raw) return null;
 
     const persistedMetadata = decrypt(
       session.encryptionKey,
@@ -212,6 +210,15 @@ export class ApiClient {
         agentStateVersion: raw.agentStateVersion,
       },
     };
+  }
+
+  /** Read exact encrypted server state without overlaying stale local metadata. */
+  async inspectSessionAuthoritative(session: Session): Promise<{ session: Session; active: boolean }> {
+    const inspected = await this.findSessionAuthoritative(session);
+    if (!inspected) {
+      throw new Error(`Cannot refresh HappyHerd session ${session.id} for reconnect`);
+    }
+    return inspected;
   }
 
   async inspectSessionForHeartbeat(session: Session): Promise<{ session: Session; active: boolean }> {

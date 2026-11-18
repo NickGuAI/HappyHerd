@@ -37,6 +37,7 @@ type Dependencies = {
   api: Pick<DefaultAssistantApi, 'get' | 'prepare' | 'publish' | 'hydrate' | 'retire'>;
   sessions: () => Session[];
   persist: (session: Session) => void;
+  readAuthoritative: (session: Session) => Promise<Session | null>;
   ensureCommander: () => Promise<HappyHerdCommanderSummary>;
   machineMetadata: () => MachineMetadata;
   createMetadata: (commander: HappyHerdCommanderSummary, settings: HappyHerdMachineSessionSettings) => Metadata;
@@ -84,8 +85,17 @@ export class DefaultAssistantBootstrap {
     const local = d.sessions().filter(session => session.metadata.isSuperSession === true
       && session.metadata.machineId === d.machineId
       && !session.metadata.isSideChat && !session.metadata.automationId && !session.metadata.automationKind);
-    const saved = existing ? local.find(session => session.id === existing.id) : local[0];
+    let saved = existing ? local.find(session => session.id === existing.id) : local[0];
     if (existing && !saved) return { ...base, sessionId: existing.id, status: 'existing' };
+
+    if (!existing && saved) {
+      const authoritative = await d.readAuthoritative(saved);
+      if (authoritative && authoritative.metadata.isSuperSession !== true) {
+        d.persist(authoritative);
+        saved = undefined;
+      }
+      // A missing row is a prepared, unpublished session; retain its ID/key.
+    }
 
     let session = saved;
     let created = false;

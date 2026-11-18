@@ -897,3 +897,4 @@ ISSUE_466_COMMANDER_REFRESH	code-ready	fix(daemon): refresh Commander names at s
 ISSUE_466_CHANGELOG_GOLDENS	code-ready	test(golden): refresh Commander rename changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 INTEGRATION_20261118_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh November 18 integration baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_468_FRESH_ASSISTANT	code-ready	feat(assistant): start a fresh assistant conversation	server/packages/happyherd-cli/src/daemon/defaultAssistant.ts
+ISSUE_468_ADOPTION_RECOVERY	code-ready	fix(assistant): reconcile retired candidates before adoption	server/packages/happyherd-cli/src/daemon/defaultAssistant.ts

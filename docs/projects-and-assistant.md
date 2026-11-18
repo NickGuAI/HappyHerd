@@ -54,8 +54,10 @@ heartbeats remain attached to their original session.
 
 If the tagged session has no saved copy on this machine, `--fresh` stops without
 changes and reports that it lives on another machine. If retirement fails after
-releasing the tag but before clearing the old marker, ordinary `ensure-assistant`
-can adopt the old session again. A fresh start requires the server's
+releasing the tag, ordinary `ensure-assistant` checks the saved candidate against
+the server before adoption. If its marker remains, it adopts that session again.
+If archiving already cleared the marker, it saves that state locally and creates
+the new Assistant. A failed read publishes nothing. A fresh start requires the server's
 `POST /v1/sessions/default-assistant/retire` route; it releases only the named
 account holder's tag and preserves the session and its keys.
 
