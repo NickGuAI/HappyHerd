@@ -35,12 +35,19 @@ happyherd session side-chat create <parent-session-id> \
 
 The daemon creates a child on the same machine and path. Optional `--provider`
 selects any provider advertised as available by that machine. Omitting it keeps
-the parent provider. Same-provider Claude and Codex retain their provider-native
+the parent provider. Optional `--context inherit|fresh` also works with the
+parent-ID shorthand and defaults to `inherit`. With `inherit`, same-provider
+Claude and Codex retain their provider-native
 forks. Cross-provider children and same-provider Gemini, Grok, DSH, and Agy start
 a fresh provider process and receive only the latest four visible parent
 messages, capped at 6,000 characters, in the existing encrypted queued brief.
 Tools, thinking, attachments, malformed records, and previous continuation
 handoffs are excluded. Context-read and settings failures happen before spawn.
+With `--context fresh`, every provider starts a new conversation without a
+fork or a parent transcript. Its first message contains only the six brief
+fields and existing lineage text. The create receipt's `context` field and
+terminal `Context` line report the choice applied by the daemon. Parent listing,
+status, stop, close, and reopen keep the same lifecycle for either choice.
 Human creation omits the brief, records
 `deliver-brief` as skipped, and leaves the child empty for the Human's first
 message through the normal composer. Main Agent creation validates all six
@@ -61,9 +68,9 @@ terminal output also displays this Settings JSON. For example, Claude accepts
 the owning machine advertises those modes. For cross-provider creation, omitted
 permission uses the child provider default; it never inherits the parent
 provider mode. Same-provider creation retains its
-existing permission inheritance and defaults. Omitting all four options keeps
-the existing side-chat behavior. Human one-click creation still sends
-only the parent session ID.
+existing permission inheritance and defaults. Omitting these settings options
+keeps the existing launch defaults. Human one-click creation still sends only
+the parent session ID and keeps `inherit` behavior.
 
 Use the same command surface for lifecycle operations:
 

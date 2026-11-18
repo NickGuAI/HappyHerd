@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 18 — Start a side chat with only its brief",
+      "summary": "",
+      "markdown": "- Use `happyherd session side-chat create --context fresh` to start a new provider conversation without the parent's transcript, while keeping the parent link and normal side-chat lifecycle. The default `inherit` keeps existing behavior, and the create receipt reports the context used."
+    },
+    {
       "title": "November 15 — Automatic log cleanup",
       "summary": "",
       "markdown": "- HappyHerd deletes its own log files that have not been written to for more than 7 days, so its logs folder no longer grows without limit. Logs written in the last 7 days are kept, including those of sessions that run for weeks."
@@ -1051,5 +1056,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 15 — Automatic log cleanup"
+  "latestTitle": "November 18 — Start a side chat with only its brief"
 }

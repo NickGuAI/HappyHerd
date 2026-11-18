@@ -1,5 +1,6 @@
 import type {
   CreateChildSideChatResult,
+  SideChatContext,
   SideChatDelegationBrief,
   SideChatCloseAllReceipt,
   SideChatListReceipt,
@@ -25,6 +26,7 @@ export type DaemonSideChatLifecycleDependencies = {
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
     launch: SideChatLaunchOptions | undefined,
+    context: SideChatContext | undefined,
   ) => Promise<CreateChildSideChatResult & { briefDelivery: SideChatOperationResult | null }>;
   listSessionIds: (parentSessionId: string) => Promise<string[]>;
   read: (sessionId: string) => Promise<DaemonSideChatRecord>;
@@ -75,7 +77,7 @@ export class DaemonSideChatLifecycle {
 
   async execute(request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> {
     switch (request.action) {
-      case 'create': return this.create(request.parentSessionId, request.brief, request.launch);
+      case 'create': return this.create(request.parentSessionId, request.brief, request.launch, request.context);
       case 'list': return this.list(request.parentSessionId);
       case 'status': return this.status(request.sessionId);
       case 'stop': return this.stop(request.sessionId);
@@ -89,12 +91,13 @@ export class DaemonSideChatLifecycle {
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
     launch: SideChatLaunchOptions | undefined,
+    context: SideChatContext | undefined,
   ): Promise<SideChatSingleReceipt> {
     const resourcePromise = this.dependencies.sampleResources()
       .catch(() => failedHostResourceUsage());
     let created: Awaited<ReturnType<DaemonSideChatLifecycleDependencies['create']>>;
     try {
-      created = await this.dependencies.create(parentSessionId, brief, launch);
+      created = await this.dependencies.create(parentSessionId, brief, launch, context);
     } catch (error) {
       return {
         ...failedSingle('create', null, 'resolve', error),
@@ -114,6 +117,7 @@ export class DaemonSideChatLifecycle {
         success: false,
         parentSessionId,
         sessionId: created.sessionId,
+        context: created.context,
         ...(created.settings ? { settings: created.settings } : {}),
         child: null,
         phases: [
@@ -134,6 +138,7 @@ export class DaemonSideChatLifecycle {
       success: lineageMatches && childIsRunning && (created.briefDelivery?.success ?? true),
       parentSessionId,
       sessionId: child.sessionId,
+      context: created.context,
       ...(created.settings ? { settings: created.settings } : {}),
       child,
       phases: [

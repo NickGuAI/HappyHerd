@@ -62,15 +62,15 @@ function harness(initial: DaemonSideChatRecord[]) {
   const records = new Map(initial.map((record) => [record.sessionId, { ...record }]));
   const calls: string[] = [];
   const dependencies: DaemonSideChatLifecycleDependencies = {
-    create: vi.fn(async (parentSessionId, deliveredBrief, _launch) => {
+    create: vi.fn(async (parentSessionId, deliveredBrief, _launch, context = 'inherit') => {
       const created = child('created-child', 'running', { parentSessionId });
       records.set(created.sessionId, created);
       calls.push(`create:${parentSessionId}`);
       if (deliveredBrief === null) {
-        return { sessionId: created.sessionId, briefDelivery: null };
+        return { sessionId: created.sessionId, context, briefDelivery: null };
       }
       calls.push(`brief:${deliveredBrief.outcome}`);
-      return { sessionId: created.sessionId, briefDelivery: { success: true } };
+      return { sessionId: created.sessionId, context, briefDelivery: { success: true } };
     }),
     listSessionIds: vi.fn(async (parentSessionId) => [...records.values()]
       .filter((record) => record.parentSessionId === parentSessionId)
@@ -114,6 +114,21 @@ function harness(initial: DaemonSideChatRecord[]) {
 }
 
 describe('DaemonSideChatLifecycle', () => {
+  it('keeps a fresh child in the normal parent list and lifecycle', async () => {
+    const { lifecycle, dependencies } = harness([]);
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief, context: 'fresh' }))
+      .resolves.toMatchObject({ success: true, context: 'fresh', sessionId: 'created-child' });
+    expect(dependencies.create).toHaveBeenCalledWith('parent', brief, undefined, 'fresh');
+    await expect(lifecycle.execute({ action: 'list', parentSessionId: 'parent' }))
+      .resolves.toMatchObject({ count: 1, children: [{ sessionId: 'created-child', parentSessionId: 'parent' }] });
+    for (const [action, status] of [
+      ['status', 'running'], ['stop', 'stopped'], ['close', 'archived'], ['reopen', 'running'],
+    ] as const) {
+      await expect(lifecycle.execute({ action, sessionId: 'created-child' }))
+        .resolves.toMatchObject({ success: true, parentSessionId: 'parent', child: { status } });
+    }
+  });
+
   it('creates an unbriefed Human child and records brief delivery as skipped', async () => {
     const { lifecycle, dependencies, calls } = harness([]);
 
@@ -133,7 +148,7 @@ describe('DaemonSideChatLifecycle', () => {
         ],
         resource,
       });
-    expect(dependencies.create).toHaveBeenCalledWith('parent', null, undefined);
+    expect(dependencies.create).toHaveBeenCalledWith('parent', null, undefined, undefined);
     expect(calls).toEqual(['create:parent', 'read:created-child']);
   });
 
@@ -171,7 +186,7 @@ describe('DaemonSideChatLifecycle', () => {
       brief,
       launch,
     })).resolves.toMatchObject({ success: true, sessionId: 'created-child', settings });
-    expect(dependencies.create).toHaveBeenCalledWith('parent', brief, launch);
+    expect(dependencies.create).toHaveBeenCalledWith('parent', brief, launch, undefined);
   });
 
   it('retains the created child and exact failed phase when brief delivery fails', async () => {
@@ -181,6 +196,7 @@ describe('DaemonSideChatLifecycle', () => {
       return {
         sessionId: 'created-child',
         settings,
+        context: 'inherit',
         briefDelivery: { success: false, message: 'message persistence failed' },
       };
     });
@@ -203,7 +219,7 @@ describe('DaemonSideChatLifecycle', () => {
   it('retains the created child ID when authoritative read-back fails', async () => {
     const { lifecycle, dependencies } = harness([]);
     vi.mocked(dependencies.create).mockResolvedValueOnce({
-      sessionId: 'created-child', settings, briefDelivery: { success: true },
+      sessionId: 'created-child', context: 'inherit', settings, briefDelivery: { success: true },
     });
     vi.mocked(dependencies.read).mockRejectedValueOnce(new Error('read-back unavailable'));
 

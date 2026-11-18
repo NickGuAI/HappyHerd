@@ -409,6 +409,7 @@ export function startDaemonControlServer({
         parentSessionId: z.string().min(1),
         brief: sideChatDelegationBriefSchema,
         launch: sideChatLaunchOptionsSchema.optional(),
+        context: z.enum(['inherit', 'fresh']).optional(),
       }),
       z.object({ action: z.literal('list'), parentSessionId: z.string().min(1) }),
       z.object({ action: z.literal('status'), sessionId: z.string().min(1) }),
@@ -425,6 +426,7 @@ export function startDaemonControlServer({
       parentSessionId: z.string().min(1),
       brief: sideChatDelegationBriefSchema,
       launch: sideChatLaunchOptionsSchema,
+      context: z.enum(['inherit', 'fresh']).optional(),
     }).strict();
 
     // Keep launch-bearing requests off the legacy endpoint. Older daemons do

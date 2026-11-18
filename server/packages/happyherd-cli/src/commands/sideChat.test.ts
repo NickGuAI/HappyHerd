@@ -98,6 +98,17 @@ function lifecycleReceipt(): SideChatSingleReceipt {
 }
 
 describe('createChildSideChat', () => {
+  it.each(['claude', 'codex'] as const)('starts fresh %s without a parent backend ID', async (provider) => {
+    const deps = dependencies({ flavor: provider, machineId: machine.id, path: '/srv/project' });
+    await expect(createChildSideChat(parentId, deps, undefined, 'fresh'))
+      .resolves.toEqual({ sessionId: 'happyherd-child', context: 'fresh' });
+    expect(deps.machineRpc).not.toHaveBeenCalled();
+    expect(deps.createMachineSession).toHaveBeenCalledWith({
+      machine, directory: '/srv/project', approvedNewDirectoryCreation: false,
+      agent: provider, parentSessionId: parentId, isSideChat: true,
+    });
+  });
+
   it.each(['claude', 'codex', 'gemini', 'grok', 'dsh', 'agy'])(
     'starts a fresh %s child across providers on the parent machine/path without requiring native parent state',
     async (provider) => {
@@ -107,7 +118,7 @@ describe('createChildSideChat', () => {
         path: '/srv/project',
       });
       await expect(createChildSideChat(parentId, deps, { provider }))
-        .resolves.toEqual({ sessionId: 'happyherd-child' });
+        .resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child' });
       expect(deps.machineRpc).not.toHaveBeenCalled();
       expect(deps.createMachineSession).toHaveBeenCalledWith({
         machine, directory: '/srv/project', approvedNewDirectoryCreation: false,
@@ -150,7 +161,7 @@ describe('createChildSideChat', () => {
       return { type: 'success', newClaudeSessionId: 'claude-child' } as never;
     });
 
-    await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ sessionId: 'happyherd-child' });
+    await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child' });
     expect(deps.resolveSession).toHaveBeenCalledWith(parentId);
     expect(deps.resolveMachine).toHaveBeenCalledWith(machine.id);
     expect(deps.machineRpc).toHaveBeenCalledWith(machine, 'claude-fork-session', {
@@ -177,7 +188,7 @@ describe('createChildSideChat', () => {
       claudeSessionId: 'claude-legacy-parent',
     });
 
-    await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ sessionId: 'happyherd-child' });
+    await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child' });
     expect(deps.machineRpc).toHaveBeenCalledWith(machine, 'claude-fork-session', {
       directory: '/srv/legacy-project',
       claudeSessionId: 'claude-legacy-parent',
@@ -202,7 +213,7 @@ describe('createChildSideChat', () => {
       newCodexThreadId: 'codex-child',
     });
 
-    await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ sessionId: 'happyherd-child' });
+    await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child' });
     expect(deps.machineRpc).toHaveBeenCalledWith(machine, 'codex-fork-thread', {
       directory: '/srv/project',
       codexThreadId: 'codex-parent',
@@ -233,7 +244,7 @@ describe('createChildSideChat', () => {
     await expect(createChildSideChat(parentId, deps, {
       model: 'gpt-5.6-sol',
       effort: 'xhigh',
-    })).resolves.toEqual({ sessionId: 'happyherd-child' });
+    })).resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child' });
     expect(deps.createMachineSession).toHaveBeenCalledWith(expect.objectContaining({
       agent: 'codex',
       modelMode: 'gpt-5.6-sol',
@@ -252,7 +263,7 @@ describe('createChildSideChat', () => {
     });
 
     await expect(createChildSideChat(parentId, deps, { permission: 'bypassPermissions' }))
-      .resolves.toEqual({ sessionId: 'happyherd-child', settings });
+      .resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child', settings });
     expect(deps.createMachineSession).toHaveBeenCalledWith(expect.objectContaining({
       agent: 'claude', permissionMode: 'bypassPermissions',
     }));
@@ -268,7 +279,7 @@ describe('createChildSideChat', () => {
         path: '/srv/project',
       });
 
-      await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ sessionId: 'happyherd-child' });
+      await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ context: 'inherit', sessionId: 'happyherd-child' });
       expect(deps.machineRpc).not.toHaveBeenCalled();
       expect(deps.createMachineSession).toHaveBeenCalledWith({
         machine,
@@ -409,6 +420,32 @@ describe('handleSideChatCommand', () => {
 });
 
 describe('parseSideChatLifecycleRequest', () => {
+  it.each(['create', 'shorthand'])('parses both context choices for %s', (shape) => {
+    const prefix = shape === 'create' ? ['create', parentId] : [parentId];
+    for (const context of ['inherit', 'fresh']) {
+      expect(parseSideChatLifecycleRequest([...prefix, ...briefArgs, '--context', context]).request)
+        .toEqual({ action: 'create', parentSessionId: parentId, brief, context });
+    }
+  });
+
+  it.each([
+    ['--context', 'unknown'], ['--context'], ['--context', '--json'],
+    ['--context', 'fresh', '--context', 'inherit'], ['--model', '--context', 'fresh'],
+  ])('rejects invalid context options before daemon execution: %j', async (...options) => {
+    const execute = vi.fn();
+    await expect(handleSideChatCommand(['create', parentId, ...briefArgs, ...options], { execute }))
+      .rejects.toThrow();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('limits context to create and documents the default and fresh behavior', () => {
+    expect(() => parseSideChatLifecycleRequest(['reopen', 'child', '--context', 'fresh']))
+      .toThrow('--context is supported only with the create action');
+    expect(sideChatHelp()).toContain('--context inherit|fresh');
+    expect(sideChatHelp()).toContain('defaults to inherit');
+    expect(sideChatHelp()).toContain('without a fork or parent transcript');
+  });
+
   it('supports briefed shorthand create and every lifecycle action', () => {
     expect(parseSideChatLifecycleRequest([parentId, ...briefArgs])).toEqual({
       request: { action: 'create', parentSessionId: parentId, brief },
@@ -635,6 +672,19 @@ describe('formatSideChatDelegationPrompt', () => {
 });
 
 describe('formatSideChatLifecycleReceipt', () => {
+  it('prints only daemon-confirmed context, including when a daemon omits it', async () => {
+    const output = vi.fn();
+    for (const context of [undefined, 'inherit', 'fresh'] as const) {
+      const receipt = { ...lifecycleReceipt(), ...(context ? { context } : {}) };
+      await handleSideChatCommand(['create', parentId, ...briefArgs, '--context', 'fresh'], {
+        execute: async () => receipt, output,
+      });
+      const text = output.mock.calls.at(-1)![0];
+      if (context) expect(text).toContain(`Context: ${context}`);
+      else expect(text).not.toContain('Context:');
+    }
+  });
+
   it('shows the daemon-confirmed permission in the text receipt', () => {
     const settings = { provider: 'claude' as const, model: 'default', effort: 'high', permission: 'bypassPermissions' };
     expect(formatSideChatLifecycleReceipt({ ...lifecycleReceipt(), settings }))
