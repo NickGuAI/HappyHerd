@@ -24,6 +24,7 @@ import {
 } from './api';
 import {
     callMachineRpc as invokeMachineRpc,
+    type MachineRpcTimeouts,
     resumeSessionOnMachine,
     spawnSessionOnMachine as invokeSpawnSessionOnMachine,
     type SupportedAgent,
@@ -230,6 +231,7 @@ export class HappyHerdControlClient {
         machine: DecryptedMachine,
         method: string,
         params: Record<string, unknown>,
+        timeouts?: MachineRpcTimeouts,
     ): Promise<TResult> {
         return invokeMachineRpc<TResult>(
             this.config,
@@ -237,6 +239,7 @@ export class HappyHerdControlClient {
             this.credentials.token,
             method,
             params,
+            timeouts,
         );
     }
 
@@ -416,5 +419,6 @@ export type {
     DecryptedProject,
     DecryptedSession,
     SpawnSessionRuntimeContext,
+    MachineRpcTimeouts,
     TurnResult,
 };

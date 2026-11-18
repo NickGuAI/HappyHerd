@@ -164,7 +164,7 @@ describe('HappyHerdControlClient machine session creation', () => {
         expect(mocks.listSessions).toHaveBeenCalledTimes(1);
     });
 
-    it('forwards encrypted machine RPC calls with account authority', async () => {
+    it.each([undefined, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }])('forwards machine RPC calls with account authority and timeouts %j', async (timeouts) => {
         const target = machine();
         mocks.invokeRpc.mockResolvedValueOnce({ type: 'success', newClaudeSessionId: 'claude-child' });
         const client = new HappyHerdControlClient({
@@ -179,13 +179,14 @@ describe('HappyHerdControlClient machine session creation', () => {
         await expect(client.callMachineRpc(target, 'claude-fork-session', {
             directory: '/srv/project',
             claudeSessionId: 'claude-parent',
-        })).resolves.toEqual({ type: 'success', newClaudeSessionId: 'claude-child' });
+        }, timeouts)).resolves.toEqual({ type: 'success', newClaudeSessionId: 'claude-child' });
         expect(mocks.invokeRpc).toHaveBeenCalledWith(
             client.config,
             target,
             'account-token',
             'claude-fork-session',
             { directory: '/srv/project', claudeSessionId: 'claude-parent' },
+            timeouts,
         );
     });
 

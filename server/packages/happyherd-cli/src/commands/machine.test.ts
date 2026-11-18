@@ -401,8 +401,10 @@ describe('machine discovery and resolution', () => {
       const output = vi.fn();
       const command = handleMachineCommand(['list', '--json'], { createClient: async () => fake.client, output });
       await vi.advanceTimersByTimeAsync(0);
-      expect(call.mock.calls.map(([target, method, params]) => [target.id, method, params])).toEqual([
-        ['answering', 'machine-capacity', {}], ['old', 'machine-capacity', {}], ['silent', 'machine-capacity', {}],
+      expect(call.mock.calls.map(([target, method, params, timeouts]) => [target.id, method, params, timeouts])).toEqual([
+        ['answering', 'machine-capacity', {}, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }],
+        ['old', 'machine-capacity', {}, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }],
+        ['silent', 'machine-capacity', {}, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }],
       ]);
       expect(output).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(4_000);

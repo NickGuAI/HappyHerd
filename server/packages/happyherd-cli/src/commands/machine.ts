@@ -798,7 +798,10 @@ export async function handleMachineCommand(
   await Promise.all(machines.map(async (machine) => {
     if (!machine.active || classifyMachineKind(machine) !== 'happyherd-cli-daemon') return;
     try {
-      const response = await client.callMachineRpc(machine, 'machine-capacity', {});
+      const response = await client.callMachineRpc(machine, 'machine-capacity', {}, {
+        connectTimeoutMs: 4_000,
+        responseTimeoutMs: 4_000,
+      });
       const capacity = MachineCapacitySchema.safeParse(response);
       if (capacity.success) receipt.machines.find((entry) => entry.id === machine.id)!.capacity = capacity.data;
     } catch {

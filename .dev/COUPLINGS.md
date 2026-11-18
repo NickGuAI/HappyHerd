@@ -769,9 +769,10 @@ client's encrypted Project API. Rename preserves metadata and sends
 `apiMachine.ts` answers `machine-capacity` through the existing machine RPC.
 `daemon/run.ts` supplies the running session count; `hostResourceUsage.ts`
 samples CPU, load and memory only when requested. `commands/machine.ts` asks
-online native daemons in parallel when `machine list` runs. The control-client
-RPC allows four seconds each for connection and acknowledgement, then closes
-the socket. Offline machines, older daemons and failed/unanswered requests
+online native daemons in parallel when `machine list` runs, passing four seconds
+each for connection and acknowledgement through the control client's optional
+RPC timeouts. Other callers retain the 10-second connection and 30-second answer
+defaults. The RPC closes the socket when done. Offline machines, older daemons and failed/unanswered requests
 have `capacity: null`. Catalog reads elsewhere do not request capacity, and
 no capacity is stored in daemon state or published on keep-alive.
 
