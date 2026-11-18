@@ -135,11 +135,12 @@ use only the target's advertised values. Omit --super-session for ordinary
 tasks; that flag requires --commander. session ensure-assistant --json reuses
 the account's persistent Assistant through the local daemon.
 
-Machine lists include online state and capacity from native daemons, refreshed
-every 20 seconds. capacity contains sampledAt (UTC), cpu.busyPercent and
+Machine lists request online native daemons in parallel for a fresh capacity
+reading when the command runs. capacity contains sampledAt (UTC), cpu.busyPercent and
 cpu.sampleWindowMs, loadAverage (oneMinute/fiveMinutes/fifteenMinutes), memory
 (usedBytes/totalBytes), and runningSessions. Offline machines, older daemons,
-and samples older than two minutes return capacity: null. Unavailable metrics
+and failed or unanswered requests return capacity: null. Each capacity request
+waits at most eight seconds including connection time. Unavailable metrics
 are null. The text table shows the same figures.
 
 The account Project is separate from the workspace path. project create --name

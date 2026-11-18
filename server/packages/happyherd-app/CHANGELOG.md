@@ -1,7 +1,7 @@
 # November 18 — Projects and machine capacity from the CLI
 
 - Create and rename Projects from the CLI with `project create --name` and `project rename ID --name`. Names sync with the app, and renaming keeps existing session assignments. Both commands require the account-control link.
-- `machine list` now shows CPU use, load averages, memory use, running sessions and the sample time for online native daemons. Readings refresh every 20 seconds; offline machines, older daemons and readings older than two minutes show no capacity.
+- `machine list` now shows CPU use, load averages, memory use, running sessions and the sample time for online native daemons. Readings are taken when the command runs. Offline machines, older daemons and machines that do not answer show no capacity; capacity requests finish within eight seconds.
 
 # November 18 — Meet OldBlue
 

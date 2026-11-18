@@ -330,11 +330,13 @@ export async function callMachineRpc<TResult = unknown>(
     socket.connect();
 
     try {
-        await waitForConnect(socket);
+        // Capacity reads must finish within ten seconds, including connection.
+        const capacityRequest = normalizedMethod === 'machine-capacity';
+        await waitForConnect(socket, capacityRequest ? 4_000 : 10_000);
         const encryptedParams = encodeBase64(
             encrypt(machine.encryption.key, machine.encryption.variant, params),
         );
-        const response = await socket.timeout(30_000).emitWithAck('rpc-call', {
+        const response = await socket.timeout(capacityRequest ? 4_000 : 30_000).emitWithAck('rpc-call', {
             method: `${machine.id}:${normalizedMethod}`,
             params: encryptedParams,
         }) as RpcAck;

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { io, type Socket } from 'socket.io-client';
 import { decodeBase64, decrypt, encodeBase64, encrypt, getRandomBytes } from './encryption';
 import type { DecryptedMachine } from './api';
 
@@ -275,6 +276,28 @@ describe('spawnSessionOnMachine', () => {
             decodeBase64(socket.rpcPayload!.params),
         )).toEqual({ directory: '/srv/project', codexThreadId: 'thread-parent' });
         expect(socket.rpcPayload?.params).not.toContain('account-token-secret');
+    });
+
+    it('bounds a capacity connection that never answers and closes its socket', async () => {
+        vi.useFakeTimers();
+        try {
+            const disconnected = new MockSocket(machine);
+            disconnected.connected = false;
+            disconnected.connect = vi.fn();
+            const close = vi.spyOn(disconnected, 'close');
+            vi.mocked(io).mockReturnValueOnce(disconnected as unknown as Socket);
+            const result = callMachineRpc(
+                { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+                machine, 'account-token', 'machine-capacity', {},
+            );
+            const rejected = expect(result).rejects.toThrow('Timeout waiting for socket connection');
+            await vi.advanceTimersByTimeAsync(4_000);
+            await rejected;
+            expect(close).toHaveBeenCalledOnce();
+            expect(disconnected.listenerCount('connect')).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('rejects method injection before connecting', async () => {

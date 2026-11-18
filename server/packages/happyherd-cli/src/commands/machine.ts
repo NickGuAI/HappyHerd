@@ -126,9 +126,10 @@ other account-machine kinds explicitly.
 
 Machine lists include online state and capacity: CPU busy percent, load averages
 (1/5/15 minutes), memory used/total bytes, running sessions, and sampledAt (UTC).
-Native daemons publish every 20 seconds. JSON capacity is null for offline
-machines, older daemons, or samples older than two minutes. Unavailable host
-metrics are null; text output uses '-' for unavailable values.`;
+Readings are taken when this command runs, requesting online native daemons in
+parallel. Each request takes at most eight seconds including connection time.
+JSON capacity is null for offline machines, older daemons or a failed/unanswered
+request. Unavailable host metrics are null; text uses '-' for unavailable values.`;
 }
 
 function machineAuthHelp(): string {
@@ -355,7 +356,7 @@ function safeCatalogs(metadata: MachineMetadata | null): Record<string, AgentCap
   return catalogs;
 }
 
-export function machineListReceipt(machines: DecryptedMachine[], now = Date.now()) {
+export function machineListReceipt(machines: DecryptedMachine[]) {
   return {
     schemaVersion: 1,
     type: 'machine-list' as const,
@@ -363,17 +364,13 @@ export function machineListReceipt(machines: DecryptedMachine[], now = Date.now(
       const metadata = summaryMetadata(machine);
       const identity = machineIdentity(machine);
       const kind = classifyMachineKind(machine);
-      const state = machine.daemonState as { capacity?: unknown } | null;
-      const capacity = MachineCapacitySchema.safeParse(state?.capacity);
-      const sampledAt = capacity.success ? Date.parse(capacity.data.sampledAt) : NaN;
       return {
         id: machine.id,
         host: identity.host,
         platform: identity.platform,
         online: machine.active,
         activeAt: machine.activeAt,
-        capacity: machine.active && capacity.success && now - sampledAt <= 120_000
-          ? capacity.data : null,
+        capacity: null as ReturnType<typeof MachineCapacitySchema.parse> | null,
         kind,
         machineSessionProtocolVersion: metadata?.machineSessionProtocolVersion ?? null,
         sessionCreateSupported: kind === 'happyherd-cli-daemon' && supportsConfirmedMachineSessions(metadata),
@@ -796,7 +793,18 @@ export async function handleMachineCommand(
   }
   const flags = parseFlags(rest, new Set(), new Set(['json']));
   const client = await controlCall(() => clientFor(dependencies));
-  const receipt = machineListReceipt(await controlCall(() => client.listMachines()));
+  const machines = await controlCall(() => client.listMachines());
+  const receipt = machineListReceipt(machines);
+  await Promise.all(machines.map(async (machine) => {
+    if (!machine.active || classifyMachineKind(machine) !== 'happyherd-cli-daemon') return;
+    try {
+      const response = await client.callMachineRpc(machine, 'machine-capacity', {});
+      const capacity = MachineCapacitySchema.safeParse(response);
+      if (capacity.success) receipt.machines.find((entry) => entry.id === machine.id)!.capacity = capacity.data;
+    } catch {
+      // Offline races, older daemons and unanswered requests leave capacity null.
+    }
+  }));
   if (flags.json === true) {
     outputFor(dependencies)(JSON.stringify(receipt));
     return;

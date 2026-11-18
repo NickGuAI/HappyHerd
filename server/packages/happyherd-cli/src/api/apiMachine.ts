@@ -310,6 +310,16 @@ export class ApiMachineClient {
         devicePairing,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
+        this.rpcHandlerManager.registerHandler('machine-capacity', async () => {
+            const sample = await sampleHostResourceUsage();
+            return {
+                sampledAt: sample.sampledAt,
+                cpu: sample.cpu,
+                loadAverage: sample.loadAverage,
+                memory: { usedBytes: sample.memory.usedBytes, totalBytes: sample.memory.totalBytes },
+                runningSessions: this.getRunningSessionCount?.() ?? 0,
+            };
+        });
         if (sessionTransport) {
             this.rpcHandlerManager.registerHandler('session-transport-status', async (params: any) => (
                 sessionTransport.status(requireNonEmptyString(params?.sessionId, 'sessionId'))
@@ -865,11 +875,6 @@ export class ApiMachineClient {
         }
         this.socket.emit('machine-alive', payload);
 
-        // Reuse the 20-second heartbeat and encrypted machine state channel.
-        void this.publishCapacity().catch((error) => {
-            logger.debug('[API MACHINE] Failed to publish machine capacity:', error);
-        });
-
         // Re-detect CLI availability and push metadata update if changed
         const newAvailability = detectCLIAvailability();
         const prev = this.lastKnownCLIAvailability;
@@ -968,22 +973,6 @@ export class ApiMachineClient {
         });
 
         return this.capabilitiesRefreshInFlight;
-    }
-
-    private async publishCapacity(): Promise<void> {
-        if (!this.getRunningSessionCount) return;
-        const sample = await sampleHostResourceUsage();
-        await this.updateDaemonState((state) => ({
-            ...state,
-            status: state?.status ?? 'running',
-            capacity: {
-                sampledAt: sample.sampledAt,
-                cpu: sample.cpu,
-                loadAverage: sample.loadAverage,
-                memory: { usedBytes: sample.memory.usedBytes, totalBytes: sample.memory.totalBytes },
-                runningSessions: this.getRunningSessionCount!(),
-            },
-        }));
     }
 
     private startKeepAlive() {
