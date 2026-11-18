@@ -2032,8 +2032,8 @@
     "keySaved": "Your credential has been saved to your account. It is stored only and is not active for Codex."
   },
   "superSession": {
-    "pinned": "Super Session (Pinned)",
-    "disconnected": "Super Session disconnected",
+    "pinned": "Assistant (Pinned)",
+    "disconnected": "Assistant disconnected",
     "reconnecting": "Reconnecting…",
     "reconnect": "Reconnect to current server",
     "pendingReplay": "Queued messages will replay automatically after reconnecting. Do not resubmit them.",

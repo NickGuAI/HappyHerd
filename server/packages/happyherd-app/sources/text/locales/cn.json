@@ -2032,8 +2032,8 @@
     "keySaved": "您的凭据已保存到账号中。它仅作为存储，目前未对 Codex 激活。"
   },
   "superSession": {
-    "pinned": "Super Session（已置顶）",
-    "disconnected": "超级会话已断开",
+    "pinned": "助手（已置顶）",
+    "disconnected": "助手已断开连接",
     "reconnecting": "正在重新连接…",
     "reconnect": "重新连接到当前服务器",
     "pendingReplay": "重新连接后，排队的消息将自动重放。请勿重复提交。",

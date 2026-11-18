@@ -115,7 +115,7 @@ const virtualModules: Record<string, string> = {
             machineId: 'machine-1', daemonLabel: 'Main machine', daemonShortId: 'machine-1',
             machineName: 'Main machine', botId: null, botUsername: null,
             commanderId: id === 'super-session' ? 'assistant' : null,
-            commanderName: id === 'super-session' ? 'HappyHerd' : null,
+            commanderName: id === 'super-session' ? ((new URLSearchParams(window.location.search).get('assistant-name') ?? 'OldBlue') || null) : null,
             machineOffline: false, path: id === 'super-session' ? '/assistant' : '/work/current',
             homeDir: '/work', completedTodosCount: 0, totalTodosCount: 0, hasUnread: false,
             projectId: id === 'ordinary-session' ? 'project-alpha' : null,
@@ -184,7 +184,7 @@ const virtualModules: Record<string, string> = {
             id: item.id, seq: item.updateSequence, createdAt: item.createdAt, updatedAt: item.lastActivityAt,
             active: item.active, activeAt: item.lastActivityAt, archived: item.archived, projectId: item.projectId,
             presence: 'online', metadata: { path: item.path, machineId: item.machineId, summary: { text: item.name },
-                isSuperSession: item.id === 'super-session', homeDir: '/work' },
+                isSuperSession: item.id === 'super-session', commanderName: item.commanderName ?? undefined, homeDir: '/work' },
         }]));
         let sessionList = Object.values(sessions);
         const settings = {
@@ -319,12 +319,11 @@ const virtualModules: Record<string, string> = {
         };
         export const getLanguageNativeName = () => 'English';
         export const resolveSupportedLanguage = () => 'en';
-        export const t = (key, params) => key.startsWith('focusMode.') ? focusText(key, params) : ({
+        export const t = (key, params) => (key.startsWith('focusMode.') || key.startsWith('superSession.')) ? focusText(key, params) : ({
             'sidebar.newSession': 'New Chat', 'sidebar.projects': 'Projects',
             'sidebar.showArchived': 'Show Archived', 'sidebar.hideArchived': 'Hide Archived',
             'workspace.title': 'Workspace', 'happyHerd.automations.title': 'Automations',
             'settings.title': 'Settings', 'status.unknown': 'Unknown',
-            'superSession.pinned': 'Super Session (Pinned)',
             'sessions.bots': 'Bots', 'machine.machineId': 'Machine ID',
             'happyHerd.sessionStatusAvatar.actionRequired': 'Action required',
             'happyHerd.sessionStatusAvatar.unread': 'Unread',
@@ -821,7 +820,7 @@ describe('Projects and Super Session production UI gestures', () => {
         expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(8);
         await startFocus(page, 15, false, 'empty-project');
         await page.getByRole('heading', { name: 'Roadmap', exact: true }).waitFor();
-        for (const text of ['Persistent assistant source title', 'Super Session (Pinned)', 'Newest ordinary session', 'Build assistant', 'Unassigned work']) {
+        for (const text of ['Persistent assistant source title', 'OldBlue', 'Newest ordinary session', 'Build assistant', 'Unassigned work']) {
             expect(await page.getByText(text, { exact: true }).count()).toBe(0);
         }
         await page.getByTestId('focus-mode-exit').click();
@@ -940,12 +939,16 @@ describe('Projects and Super Session production UI gestures', () => {
             const avatar = row.getByRole('img');
             await avatar.waitFor();
             await expect.poll(() => avatar.getAttribute('aria-label')).toContain('Disconnected');
+            await row.getByText('OldBlue', { exact: true }).waitFor();
+            await screenshot(page, `assistant-disconnected-${surface.name}`);
             const ordinary = page.locator('[data-herd-row="ordinary-session"]').getByRole('img');
             expect(await ordinary.getAttribute('aria-label')).toContain('Waiting');
             await page.evaluate(() => (window as any).__SET_TRANSPORT_STATE__('reconnecting'));
             expect(await avatar.getAttribute('aria-label')).toContain('Disconnected');
             await page.evaluate(() => (window as any).__SET_TRANSPORT_STATE__('connected'));
             await expect.poll(() => avatar.getAttribute('aria-label')).toContain('Waiting');
+            await row.getByText('OldBlue', { exact: true }).waitFor();
+            await screenshot(page, `assistant-connected-${surface.name}`);
             await page.evaluate(() => (window as any).__SET_TRANSPORT_STATE__('error'));
             await expect.poll(() => avatar.getAttribute('aria-label')).toContain('Disconnected');
             expect(errors).toEqual([]);
@@ -956,7 +959,7 @@ describe('Projects and Super Session production UI gestures', () => {
     for (const surface of surfaces) {
         it(`keeps one pinned session first and opens the same stable ID repeatedly on ${surface.name}`, async () => {
             const { page, errors } = await openPage(surface);
-            const pinned = page.getByText('Super Session (Pinned)', { exact: true });
+            const pinned = page.getByText('OldBlue', { exact: true });
             await pinned.waitFor();
             expect(await pinned.count()).toBe(1);
             const [pinnedBox, ordinaryBox] = await Promise.all([
@@ -975,6 +978,27 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(errors).toEqual([]);
             await page.close();
         }, 15_000);
+
+        it.each([
+            ['River', 'en', 'River'],
+            ['', 'en', 'Assistant (Pinned)'],
+            ['', 'cn', '助手（已置顶）'],
+            ['', 'de', 'Assistent (Angeheftet)'],
+        ])(`shows the configured or fallback pinned session label (%s, %s) on ${surface.name}`, async (name, locale, label) => {
+            const { page, errors } = await openPage(surface, `assistant-name=${name}&locale=${locale}`);
+            const pinned = page.locator('[data-herd-row="super-session"]');
+            await pinned.getByText(label, { exact: true }).waitFor();
+            expect(await page.evaluate(() => window.innerWidth)).toBe(surface.viewport.width);
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(surface.viewport.width);
+            await screenshot(page, `assistant-${name || 'fallback'}-${locale}-${surface.name}`);
+            await pinned.click();
+            await page.getByTestId('opened-session').getByText('Persistent assistant source title').waitFor();
+            await page.getByTestId('fixture-history-back').click();
+            await page.reload();
+            await page.locator('[data-herd-row="super-session"]').getByText(label, { exact: true }).waitFor();
+            expect(errors).toEqual([]);
+            await page.close();
+        });
 
         it(`navigates project rows to assigned sessions, opens a session, and retains membership through Rename on ${surface.name}`, async () => {
             const { page, errors } = await openPage(surface, 'scenario=projects');
@@ -1039,7 +1063,7 @@ describe('Projects and Super Session production UI gestures', () => {
                 await page.reload();
                 expect(await grouping.inputValue()).toBe(value);
                 await page.getByTestId('fixture-history-back').click();
-                const pinned = page.getByText('Super Session (Pinned)', { exact: true });
+                const pinned = page.getByText('OldBlue', { exact: true });
                 await pinned.waitFor();
                 expect(await pinned.count()).toBe(1);
                 await page.getByText('Remote project session', { exact: true }).waitFor();
@@ -1113,7 +1137,7 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(await page.locator('[data-status-pulse="false"]').count()).toBeGreaterThanOrEqual(3);
             const bots = page.getByText('Build assistant', { exact: true });
             const [pinnedBox, ordinaryBox, firstBotBox, secondBotBox] = await Promise.all([
-                page.getByText('Super Session (Pinned)', { exact: true }).boundingBox(),
+                page.getByText('OldBlue', { exact: true }).boundingBox(),
                 page.getByText('Newest ordinary session', { exact: true }).boundingBox(),
                 bots.nth(0).boundingBox(), bots.nth(1).boundingBox(),
             ]);
@@ -1157,7 +1181,7 @@ describe('Projects and Super Session production UI gestures', () => {
         const newButton = page.getByRole('button', { name: 'New Chat', exact: true });
         const archive = page.getByRole('button', { name: 'Show Archived', exact: true }).first();
         const [newBox, archiveBox, pinnedBox] = await Promise.all([
-            newButton.boundingBox(), archive.boundingBox(), page.getByText('Super Session (Pinned)', { exact: true }).boundingBox(),
+            newButton.boundingBox(), archive.boundingBox(), page.getByText('OldBlue', { exact: true }).boundingBox(),
         ]);
         expect(newBox!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
         expect(newBox!.y).toBe(archiveBox!.y);
