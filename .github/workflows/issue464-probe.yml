@@ -1,0 +1,40 @@
+name: Temporary issue 464 capture experiment
+on:
+  push:
+    branches: [fix/464-golden-determinism]
+    paths: [.github/workflows/issue464-probe.yml, scripts/kilv-capture/issue464-probe.mjs]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 05a2ee06b04fc4868f7062977214dd90202f4e78
+          path: .probe-source
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        working-directory: .probe-source/server
+        run: pnpm install --frozen-lockfile
+      - name: Build reproduction content
+        working-directory: .probe-source/server
+        run: APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir dist-ci
+      - name: Install pinned Chromium
+        working-directory: .probe-source/server
+        run: pnpm --filter happyherd-app exec playwright-core install --with-deps chromium
+      - name: Compare animation states on one runner
+        run: node scripts/kilv-capture/issue464-probe.mjs .probe-source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue464-${{ github.run_id }}
+          path: .artifacts/issue464/
