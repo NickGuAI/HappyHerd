@@ -1140,6 +1140,7 @@ export type TranslationKey =
     | "settingsCredentials.removeLocalTitle"
     | "settingsCredentials.rename"
     | "settingsCredentials.required"
+    | "settingsCredentials.resetCooldown"
     | "settingsCredentials.retry"
     | "settingsCredentials.returnToSession"
     | "settingsCredentials.save"

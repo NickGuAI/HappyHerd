@@ -63,6 +63,7 @@ const SUPPORTED_RPC_METRIC_METHODS = new Set([
     'happyherd-automations-update',
     'happyherd-credential-accounts-list',
     'happyherd-credential-accounts-use',
+    'happyherd-credential-accounts-reset-cooldown',
     'happyherd-credential-accounts-rename',
     'happyherd-credential-accounts-remove',
     'happyherd-credential-auth-start',

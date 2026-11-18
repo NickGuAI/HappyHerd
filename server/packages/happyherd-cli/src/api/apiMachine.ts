@@ -349,6 +349,11 @@ export class ApiMachineClient {
                     accounts: await credentialAccounts.use(CredentialAccountTargetSchema.parse(params)),
                 })
             ));
+            this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-reset-cooldown', async (params: unknown) => (
+                ManagedProviderAccountListSchema.parse({
+                    accounts: await credentialAccounts.resetCooldown(CredentialAccountTargetSchema.parse(params)),
+                })
+            ));
             this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-rename', async (params: unknown) => (
                 ManagedProviderAccountListSchema.parse({
                     accounts: await credentialAccounts.rename(CredentialAccountRenameRequestSchema.parse(params)),

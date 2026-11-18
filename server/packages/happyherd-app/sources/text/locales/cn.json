@@ -1962,6 +1962,7 @@
     "stored": "已存储",
     "default": "默认",
     "limitedUntil": "受限至 {time}",
+    "resetCooldown": "重置冷却时间",
     "addAccount": "添加账号",
     "login": "登录",
     "relogin": "重新登录",

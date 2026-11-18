@@ -1962,6 +1962,7 @@
     "stored": "Stored",
     "default": "Default",
     "limitedUntil": "Limited until {time}",
+    "resetCooldown": "Reset cooldown",
     "addAccount": "Add Account",
     "login": "Log In",
     "relogin": "Log In Again",

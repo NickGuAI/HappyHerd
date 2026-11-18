@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "a9e423adb9d147a8bba63193cbfd27e568906290383fa43fe515bf24abf6e707",
+  "sourceFingerprint": "60b534308a8263528cb983718b6c71dd295df993b26664f77a8ed87ce0a136cc",
   "routeCount": 45,
   "surfaceCount": 349,
   "hardcodedCopyCount": 0,
@@ -3517,6 +3517,7 @@
         "settingsCredentials.removeLocalTitle",
         "settingsCredentials.rename",
         "settingsCredentials.required",
+        "settingsCredentials.resetCooldown",
         "settingsCredentials.retry",
         "settingsCredentials.returnToSession",
         "settingsCredentials.save",

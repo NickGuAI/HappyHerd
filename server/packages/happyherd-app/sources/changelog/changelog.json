@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 18 — Reset account cooldown",
+      "summary": "",
+      "markdown": "- Reset a provider account’s saved HappyHerd cooldown after restoring quota with the provider. This does not reset quota at the provider."
+    },
+    {
       "title": "November 18 — Choose a Google Drive context folder",
       "summary": "",
       "markdown": "- Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.\n- Use `happyherd context-folder show`, `ensure`, or `set --id ID` to view, find, or select this machine's folder. With several Google sign-ins, choose `--account EMAIL` on `ensure` or `set`; the saved account is shown and reused. HappyHerd stores the folder name, ID and selected account, without a Google token or any document changes."
@@ -1076,5 +1081,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 18 — Choose a Google Drive context folder"
+  "latestTitle": "November 18 — Reset account cooldown"
 }

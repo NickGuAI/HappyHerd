@@ -10,6 +10,7 @@ import {
   defaultCredentialPoolPaths,
   listCredentialAccounts,
   removeCredentialAccount,
+  resetCredentialAccountCooldown,
   renameCredentialAccount,
   useCredentialAccount,
   type CredentialPoolPaths,
@@ -58,6 +59,16 @@ export class CredentialAccountManager {
   async use(target: CredentialAccountTarget): Promise<ManagedProviderAccountSummary[]> {
     return this.login.withTargetReservations([target], async () => {
       await useCredentialAccount(target.provider, target.name, this.paths, {
+        id: target.id,
+        credentialVersion: target.expectedCredentialVersion,
+      });
+      return this.listAccounts();
+    });
+  }
+
+  async resetCooldown(target: CredentialAccountTarget): Promise<ManagedProviderAccountSummary[]> {
+    return this.login.withTargetReservations([target], async () => {
+      await resetCredentialAccountCooldown(target.provider, target.name, this.paths, {
         id: target.id,
         credentialVersion: target.expectedCredentialVersion,
       });

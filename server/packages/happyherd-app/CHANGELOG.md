@@ -1,3 +1,7 @@
+# November 18 — Reset account cooldown
+
+- Reset a provider account’s saved HappyHerd cooldown after restoring quota with the provider. This does not reset quota at the provider.
+
 # November 18 — Choose a Google Drive context folder
 
 - Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.

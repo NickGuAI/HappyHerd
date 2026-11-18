@@ -1962,6 +1962,7 @@
     "stored": "Gespeichert",
     "default": "Standard",
     "limitedUntil": "Eingeschränkt bis {time}",
+    "resetCooldown": "Abklingzeit zurücksetzen",
     "addAccount": "Konto hinzufügen",
     "login": "Anmelden",
     "relogin": "Erneut anmelden",
