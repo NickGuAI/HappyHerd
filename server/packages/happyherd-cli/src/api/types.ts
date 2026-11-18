@@ -215,6 +215,18 @@ export type MachineMetadata = z.infer<typeof MachineMetadataSchema>
 /**
  * Daemon state - dynamic runtime information (frequently updated)
  */
+export const MachineCapacitySchema = z.object({
+  sampledAt: z.string(),
+  cpu: z.object({ busyPercent: z.number().nullable(), sampleWindowMs: z.number() }),
+  loadAverage: z.object({
+    oneMinute: z.number().nullable(),
+    fiveMinutes: z.number().nullable(),
+    fifteenMinutes: z.number().nullable(),
+  }),
+  memory: z.object({ usedBytes: z.number().nullable(), totalBytes: z.number().nullable() }),
+  runningSessions: z.number(),
+});
+
 export const DaemonStateSchema = z.object({
   status: z.union([
     z.enum(['running', 'shutting-down']),
@@ -224,6 +236,7 @@ export const DaemonStateSchema = z.object({
   httpPort: z.number().optional(),
   startedAt: z.number().optional(),
   shutdownRequestedAt: z.number().optional(),
+  capacity: MachineCapacitySchema.optional(),
   shutdownSource:
     z.union([
       z.enum(['mobile-app', 'cli', 'os-signal', 'unknown']),

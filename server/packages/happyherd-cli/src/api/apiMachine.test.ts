@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiMachineClient } from './apiMachine';
 import type { Machine } from './types';
+import { decodeBase64, decrypt } from './encryption';
 
 const {
     mockIo,
@@ -9,6 +10,7 @@ const {
     mockDetectAgentCapabilities,
     mockReadCredentialPoolState,
     mockCredentialAccountEnvironment,
+    mockSampleHostResourceUsage,
 } = vi.hoisted(() => ({
     mockIo: vi.fn(),
     mockShouldReconnect: vi.fn(() => true),
@@ -16,7 +18,10 @@ const {
     mockDetectAgentCapabilities: vi.fn(),
     mockReadCredentialPoolState: vi.fn(),
     mockCredentialAccountEnvironment: vi.fn(),
+    mockSampleHostResourceUsage: vi.fn(),
 }));
+
+vi.mock('@/daemon/hostResourceUsage', () => ({ sampleHostResourceUsage: mockSampleHostResourceUsage }));
 
 vi.mock('socket.io-client', () => ({
     io: mockIo
@@ -171,6 +176,45 @@ describe('ApiMachineClient socket reconnection', () => {
             happyClient: 'cli-daemon/test',
         });
         client.shutdown();
+    });
+
+    it('publishes encrypted capacity at connect and every 20 seconds, then stops on disconnect', async () => {
+        vi.useFakeTimers();
+        const machine = makeMachine();
+        const sample = {
+            sampledAt: new Date().toISOString(),
+            cpu: { busyPercent: 25, sampleWindowMs: 250 },
+            loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+            memory: { usedBytes: 4096, totalBytes: 8192, availableBytes: 4096, swapUsedBytes: 0 },
+        };
+        mockSampleHostResourceUsage.mockImplementation(async () => ({ ...sample, sampledAt: new Date().toISOString() }));
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => ({
+            result: 'success',
+            ...(event === 'machine-update-state'
+                ? { daemonState: payload.daemonState, version: machine.daemonStateVersion + 1 }
+                : { metadata: payload.metadata, version: machine.metadataVersion + 1 }),
+        }));
+        const client = new ApiMachineClient('fake-token', machine);
+        client.getRunningSessionCount = vi.fn(() => 4);
+        client.connect();
+        emitSocketEvent('connect');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(machine.daemonState?.capacity).toEqual({
+            ...sample, memory: { usedBytes: 4096, totalBytes: 8192 }, runningSessions: 4,
+        });
+        const firstSample = machine.daemonState!.capacity!.sampledAt;
+        await vi.advanceTimersByTimeAsync(20_000);
+        expect(mockSampleHostResourceUsage).toHaveBeenCalledTimes(2);
+        expect(Date.parse(machine.daemonState!.capacity!.sampledAt) - Date.parse(firstSample)).toBe(20_000);
+        const stateCalls = mockSocket.emitWithAck.mock.calls.filter(([event]: [string]) => event === 'machine-update-state');
+        const payload = stateCalls.at(-1)![1];
+        expect(decrypt(machine.encryptionKey, machine.encryptionVariant, decodeBase64(payload.daemonState)))
+            .toMatchObject({ status: 'running', capacity: { runningSessions: 4 } });
+        expect(payload.expectedVersion).toBeGreaterThan(0);
+        emitSocketEvent('disconnect', 'test');
+        await vi.advanceTimersByTimeAsync(40_000);
+        expect(mockSampleHostResourceUsage).toHaveBeenCalledTimes(2);
+        await client.shutdown();
     });
 
     it('retries after initial socket connection error', async () => {

@@ -262,6 +262,8 @@ function fakeClient(options: {
     client: {
       listMachines,
       listProjects,
+      createProject: vi.fn(),
+      renameProject: vi.fn(),
       resolveProject,
       resolveMachine,
       resolveSession,
@@ -354,6 +356,44 @@ describe('machine and session command parsing', () => {
 });
 
 describe('machine discovery and resolution', () => {
+  const capacity = {
+    sampledAt: '2026-11-18T12:00:00.000Z',
+    cpu: { busyPercent: 25, sampleWindowMs: 250 },
+    loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+    memory: { usedBytes: 4096, totalBytes: 8192 },
+    runningSessions: 4,
+  };
+
+  it('returns current capacity, and null for old daemons, offline machines, and stale samples', () => {
+    const machines = [
+      machine('current', { daemonState: { status: 'running', capacity } }),
+      machine('old', { daemonState: { status: 'running' } }),
+      machine('offline', { active: false, daemonState: { status: 'running', capacity } }),
+    ];
+    const now = Date.parse(capacity.sampledAt) + 120_000;
+    const receipt = machineListReceipt(machines, now);
+    expect(receipt.machines.map(({ id, capacity }) => ({ id, capacity }))).toEqual([
+      { id: 'current', capacity }, { id: 'offline', capacity: null }, { id: 'old', capacity: null },
+    ]);
+    expect(machineListReceipt(machines, now + 1).machines.every((entry) => entry.capacity === null)).toBe(true);
+  });
+
+  it('prints online state and capacity figures in the text table', async () => {
+    const current = { ...capacity, sampledAt: new Date().toISOString() };
+    const fake = fakeClient({ listed: [
+      machine('current', { daemonState: { status: 'running', capacity: current } }),
+      machine('offline', { active: false }),
+    ] });
+    const output = vi.fn();
+    await handleMachineCommand(['list'], { createClient: async () => fake.client, output });
+    const text = output.mock.calls[0][0];
+    expect(text).toContain('CPU%\tLOAD_1/5/15\tMEMORY_USED/TOTAL_BYTES\tSESSIONS\tSAMPLED_AT');
+    expect(text).toContain('\tonline\t');
+    expect(text).toContain(`\t25\t1/2/3\t4096/8192\t4\t${current.sampledAt}`);
+    expect(text).toContain('\toffline\t');
+    expect(text).toContain('\t-\t-\t-/-\t-\t-');
+  });
+
   it('gives exact IDs priority and accepts only an unambiguous exact hostname', () => {
     const first = machine('same-host-id', { metadata: metadata({ host: 'duplicate' }) });
     const second = machine('machine-2', { metadata: metadata({ host: 'duplicate' }) });

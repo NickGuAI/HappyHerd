@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { randomUUID } from 'node:crypto';
 import type { SessionMessage as WireSessionMessage } from '@happyherd/wire';
 import type { Config } from './config';
 import type { Credentials } from './credentials';
@@ -9,6 +10,7 @@ import {
     decryptWithDataKey,
     decryptLegacy,
     encryptWithDataKey,
+    encryptLegacy,
     libsodiumEncryptForPublicKey,
     getRandomBytes,
 } from './encryption';
@@ -57,6 +59,7 @@ export type DecryptedSession = {
 export type RawProject = {
     id: string;
     metadata: string;
+    metadataVersion: number;
     dataEncryptionKey: string | null;
 };
 
@@ -200,12 +203,14 @@ function parseRawProject(value: unknown): RawProject {
     if (!isRecord(value)
         || typeof value.id !== 'string' || value.id.length === 0
         || typeof value.metadata !== 'string' || value.metadata.length === 0
+        || typeof value.metadataVersion !== 'number' || !Number.isFinite(value.metadataVersion)
         || (value.dataEncryptionKey !== null && typeof value.dataEncryptionKey !== 'string')) {
         throw new Error('Server returned an invalid Project record');
     }
     return {
         id: value.id,
         metadata: value.metadata,
+        metadataVersion: value.metadataVersion,
         dataEncryptionKey: value.dataEncryptionKey as string | null,
     };
 }
@@ -320,6 +325,69 @@ export async function getProjectById(
         throw new Error(`Server returned Project ${project.id} while resolving ${projectId}`);
     }
     return project;
+}
+
+export async function createProject(
+    config: Config,
+    creds: Credentials,
+    name: string,
+): Promise<DecryptedProject> {
+    const normalizedName = name.trim();
+    if (!normalizedName) throw new Error('Project name is required');
+
+    const projectKey = getRandomBytes(32);
+    const encryptedKey = libsodiumEncryptForPublicKey(projectKey, creds.contentKeyPair.publicKey);
+    const withVersion = new Uint8Array(1 + encryptedKey.length);
+    withVersion[0] = 0;
+    withVersion.set(encryptedKey, 1);
+    const metadata = encodeBase64(encryptWithDataKey({ name: normalizedName, kind: 'personal' }, projectKey));
+
+    let data: unknown;
+    try {
+        const resp = await axios.post(
+            `${config.serverUrl}/v1/projects`,
+            { externalId: randomUUID(), metadata, dataEncryptionKey: encodeBase64(withVersion) },
+            { headers: authHeaders(creds) },
+        );
+        data = resp.data;
+    } catch (err) {
+        handleApiError(err, 'creating Project');
+    }
+    return decryptProject(parseRawProject(data), creds);
+}
+
+export async function renameProject(
+    config: Config,
+    creds: Credentials,
+    projectId: string,
+    name: string,
+): Promise<DecryptedProject> {
+    const normalizedName = name.trim();
+    if (!normalizedName) throw new Error('Project name is required');
+    const url = `${config.serverUrl}/v1/projects/${encodeURIComponent(projectId)}`;
+    let data: unknown;
+    try {
+        const current = await axios.get(url, { headers: authHeaders(creds) });
+        const raw = parseRawProject(current.data);
+        const encryption = resolveRecordEncryption(raw, creds, 'project');
+        const metadata = decryptField(raw.metadata, encryption);
+        if (!isRecord(metadata)) {
+            throw new Error(`Failed to decrypt project metadata for project ${projectId}`);
+        }
+        const updated = { ...metadata, name: normalizedName };
+        const encrypted = encryption.variant === 'dataKey'
+            ? encryptWithDataKey(updated, encryption.key)
+            : encryptLegacy(updated, encryption.key);
+        const resp = await axios.patch(
+            url,
+            { metadata: encodeBase64(encrypted), expectedMetadataVersion: raw.metadataVersion },
+            { headers: authHeaders(creds) },
+        );
+        data = resp.data;
+    } catch (err) {
+        handleApiError(err, `renaming Project ${projectId}`);
+    }
+    return decryptProject(parseRawProject(data), creds);
 }
 
 export async function assignSessionProject(

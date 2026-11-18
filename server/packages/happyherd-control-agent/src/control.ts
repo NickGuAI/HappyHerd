@@ -8,6 +8,8 @@ import type { Credentials } from './credentials';
 import { requireCredentials } from './credentials';
 import {
     assignSessionProject as assignProjectInApi,
+    createProject,
+    renameProject,
     getProjectById,
     getSessionById,
     getSessionMessages,
@@ -136,6 +138,14 @@ export class HappyHerdControlClient {
 
     listProjects(): Promise<DecryptedProject[]> {
         return listProjects(this.config, this.credentials);
+    }
+
+    createProject(name: string): Promise<DecryptedProject> {
+        return createProject(this.config, this.credentials, name);
+    }
+
+    renameProject(projectId: string, name: string): Promise<DecryptedProject> {
+        return renameProject(this.config, this.credentials, projectId, name);
     }
 
     async resolveProject(projectId: string): Promise<DecryptedProject> {

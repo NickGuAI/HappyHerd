@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import tweetnacl from 'tweetnacl';
 import {
     encodeBase64,
+    decodeBase64,
+    decryptBoxBundle,
+    decryptWithDataKey,
+    decryptLegacy,
     getRandomBytes,
     encryptWithDataKey,
     encryptLegacy,
@@ -44,6 +48,8 @@ import {
     resolveSessionEncryption,
     listProjects,
     getProjectById,
+    createProject,
+    renameProject,
     assignSessionProject,
 } from './api';
 
@@ -138,7 +144,11 @@ function makeRawSessionLegacy(
     };
 }
 
-function makeRawProjectWithDataKey(creds: Credentials, id = 'project-data-key'): RawProject {
+function makeRawProjectWithDataKey(
+    creds: Credentials,
+    id = 'project-data-key',
+    metadata: unknown = { name: 'Example Project A', kind: 'work' },
+): RawProject {
     const projectKey = getRandomBytes(32);
     const wrappedKey = libsodiumEncryptForPublicKey(projectKey, creds.contentKeyPair.publicKey);
     const withVersion = new Uint8Array(1 + wrappedKey.length);
@@ -146,15 +156,21 @@ function makeRawProjectWithDataKey(creds: Credentials, id = 'project-data-key'):
     withVersion.set(wrappedKey, 1);
     return {
         id,
-        metadata: encodeBase64(encryptWithDataKey({ name: 'Example Project A', kind: 'work' }, projectKey)),
+        metadata: encodeBase64(encryptWithDataKey(metadata, projectKey)),
+        metadataVersion: 7,
         dataEncryptionKey: encodeBase64(withVersion),
     };
 }
 
-function makeRawProjectLegacy(creds: Credentials, id = 'project-legacy'): RawProject {
+function makeRawProjectLegacy(
+    creds: Credentials,
+    id = 'project-legacy',
+    metadata: unknown = { name: 'Personal Notes', kind: null },
+): RawProject {
     return {
         id,
-        metadata: encodeBase64(encryptLegacy({ name: 'Personal Notes', kind: null }, creds.secret)),
+        metadata: encodeBase64(encryptLegacy(metadata, creds.secret)),
+        metadataVersion: 7,
         dataEncryptionKey: null,
     };
 }
@@ -337,6 +353,70 @@ describe('api', () => {
     });
 
     describe('account Projects', () => {
+        it('creates an encrypted Project that appears in the decrypted account catalog', async () => {
+            let stored: RawProject;
+            mockedAxios.post.mockImplementationOnce(async (_url, body) => {
+                stored = { ...body, id: 'created-project', metadataVersion: 1 };
+                return { data: stored };
+            });
+            const created = await createProject(config, creds, '  Example Project  ');
+            expect(created).toEqual({ id: 'created-project', name: 'Example Project', kind: 'personal' });
+            const [url, body, options] = mockedAxios.post.mock.calls[0];
+            expect(url).toBe('https://test-server.example.com/v1/projects');
+            expect(options).toEqual({ headers: authHeader });
+            expect(Object.keys(body).sort()).toEqual(['dataEncryptionKey', 'externalId', 'metadata']);
+            expect(body.externalId).toMatch(/^[0-9a-f-]{36}$/);
+            const wrappedKey = decodeBase64(body.dataEncryptionKey);
+            expect(wrappedKey[0]).toBe(0);
+            const key = decryptBoxBundle(wrappedKey.slice(1), creds.contentKeyPair.secretKey)!;
+            expect(key.length).toBe(32);
+            expect(decryptWithDataKey(decodeBase64(body.metadata), key)).toEqual({
+                name: 'Example Project', kind: 'personal',
+            });
+            mockedAxios.get.mockResolvedValueOnce({ data: { projects: [stored!] } });
+            await expect(listProjects(config, creds)).resolves.toEqual([created]);
+        });
+
+        it.each(['dataKey', 'legacy'] as const)('renames a %s Project without changing other metadata or assignments', async (variant) => {
+            const metadata = {
+                name: 'Original Project', kind: 'work', description: 'Keep this description',
+                settings: { color: 'blue', order: 3 },
+            };
+            const raw = variant === 'dataKey'
+                ? makeRawProjectWithDataKey(creds, 'project-one', metadata)
+                : makeRawProjectLegacy(creds, 'project-one', metadata);
+            mockedAxios.get.mockResolvedValueOnce({ data: raw });
+            mockedAxios.patch.mockImplementationOnce(async (_url, body) => ({
+                data: { ...raw, metadata: body.metadata, metadataVersion: 8 },
+            }));
+            await expect(renameProject(config, creds, raw.id, '  New Name  ')).resolves.toEqual({
+                id: raw.id, name: 'New Name', kind: 'work',
+            });
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                'https://test-server.example.com/v1/projects/project-one', { headers: authHeader },
+            );
+            expect(mockedAxios.patch).toHaveBeenCalledTimes(1);
+            const [url, body, options] = mockedAxios.patch.mock.calls[0];
+            expect(url).toBe('https://test-server.example.com/v1/projects/project-one');
+            expect(options).toEqual({ headers: authHeader });
+            expect(body).toEqual({ metadata: expect.any(String), expectedMetadataVersion: 7 });
+            const updated = variant === 'dataKey'
+                ? decryptWithDataKey(decodeBase64(body.metadata), decryptBoxBundle(
+                    decodeBase64(raw.dataEncryptionKey!).slice(1), creds.contentKeyPair.secretKey,
+                )!)
+                : decryptLegacy(decodeBase64(body.metadata), creds.secret);
+            expect(updated).toEqual({ ...metadata, name: 'New Name' });
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+        });
+
+        it('reports a version conflict without retrying or overwriting concurrent changes', async () => {
+            const { AxiosError } = await import('axios');
+            mockedAxios.get.mockResolvedValueOnce({ data: makeRawProjectLegacy(creds) });
+            mockedAxios.patch.mockRejectedValueOnce(new (AxiosError as any)('Conflict', { response: { status: 409 } }));
+            await expect(renameProject(config, creds, 'project-legacy', 'New Name')).rejects.toThrow('409');
+            expect(mockedAxios.patch).toHaveBeenCalledTimes(1);
+        });
+
         it('lists decrypted names for data-key and legacy Projects without exposing wire data', async () => {
             mockedAxios.get.mockResolvedValueOnce({
                 data: { projects: [makeRawProjectWithDataKey(creds), makeRawProjectLegacy(creds)] },

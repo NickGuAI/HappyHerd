@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
     getSessionById: vi.fn(),
     getProjectById: vi.fn(),
     listProjects: vi.fn(),
+    createProject: vi.fn(),
+    renameProject: vi.fn(),
     listMachines: vi.fn(),
     listSessions: vi.fn(),
     listActiveSessions: vi.fn(),
@@ -21,6 +23,8 @@ vi.mock('./api', async (importOriginal) => ({
     getSessionById: mocks.getSessionById,
     getProjectById: mocks.getProjectById,
     listProjects: mocks.listProjects,
+    createProject: mocks.createProject,
+    renameProject: mocks.renameProject,
     listMachines: mocks.listMachines,
     listSessions: mocks.listSessions,
     listActiveSessions: mocks.listActiveSessions,
@@ -183,6 +187,25 @@ describe('HappyHerdControlClient machine session creation', () => {
             'claude-fork-session',
             { directory: '/srv/project', claudeSessionId: 'claude-parent' },
         );
+    });
+
+    it('creates and renames Projects with account credentials', async () => {
+        const created = { id: 'project-one', name: 'Example Project', kind: 'personal' };
+        const renamed = { ...created, name: 'Renamed Project' };
+        mocks.createProject.mockResolvedValueOnce(created);
+        mocks.renameProject.mockResolvedValueOnce(renamed);
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token', secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+        await expect(client.createProject('Example Project')).resolves.toEqual(created);
+        await expect(client.renameProject(created.id, 'Renamed Project')).resolves.toEqual(renamed);
+        expect(mocks.createProject).toHaveBeenCalledWith(client.config, client.credentials, 'Example Project');
+        expect(mocks.renameProject).toHaveBeenCalledWith(client.config, client.credentials, created.id, 'Renamed Project');
+        expect(mocks.assignSessionProject).not.toHaveBeenCalled();
     });
 
     it('lists and resolves account Projects by exact ID', async () => {

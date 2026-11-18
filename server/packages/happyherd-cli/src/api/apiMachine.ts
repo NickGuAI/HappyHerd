@@ -28,6 +28,7 @@ import { MachineMetadata, DaemonState, Machine, Update, UpdateMachineBody } from
 import { registerCommonHandlers, SpawnSessionOptions, SpawnSessionResult } from '../modules/common/registerCommonHandlers';
 import { encodeBase64, decodeBase64, encrypt, decrypt } from './encryption';
 import { backoff } from '@/utils/time';
+import { sampleHostResourceUsage } from '@/daemon/hostResourceUsage';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
 import { detectCLIAvailability, CLIAvailability } from '@/utils/detectCLI';
 import {
@@ -217,6 +218,7 @@ async function withCodexAppServerClient<T>(
 
 export class ApiMachineClient {
     onCapabilitiesReady?: () => void;
+    getRunningSessionCount?: () => number;
     private socket!: Socket<ServerToDaemonEvents, DaemonToServerEvents>;
     private keepAliveInterval: NodeJS.Timeout | null = null;
     private lastKnownCLIAvailability: CLIAvailability | null = null;
@@ -863,6 +865,11 @@ export class ApiMachineClient {
         }
         this.socket.emit('machine-alive', payload);
 
+        // Reuse the 20-second heartbeat and encrypted machine state channel.
+        void this.publishCapacity().catch((error) => {
+            logger.debug('[API MACHINE] Failed to publish machine capacity:', error);
+        });
+
         // Re-detect CLI availability and push metadata update if changed
         const newAvailability = detectCLIAvailability();
         const prev = this.lastKnownCLIAvailability;
@@ -961,6 +968,22 @@ export class ApiMachineClient {
         });
 
         return this.capabilitiesRefreshInFlight;
+    }
+
+    private async publishCapacity(): Promise<void> {
+        if (!this.getRunningSessionCount) return;
+        const sample = await sampleHostResourceUsage();
+        await this.updateDaemonState((state) => ({
+            ...state,
+            status: state?.status ?? 'running',
+            capacity: {
+                sampledAt: sample.sampledAt,
+                cpu: sample.cpu,
+                loadAverage: sample.loadAverage,
+                memory: { usedBytes: sample.memory.usedBytes, totalBytes: sample.memory.totalBytes },
+                runningSessions: this.getRunningSessionCount!(),
+            },
+        }));
     }
 
     private startKeepAlive() {

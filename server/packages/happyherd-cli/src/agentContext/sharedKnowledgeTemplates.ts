@@ -110,6 +110,9 @@ happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID --js
 happyherd resume SESSION_ID
 happyherd session set-commander SESSION_ID COMMANDER_ID --json
 happyherd project list --json
+happyherd project create --name NAME --json
+happyherd project rename PROJECT_ID --name NAME --json
+happyherd machine list --json
 happyherd session set-project SESSION_ID PROJECT_ID --json
 happyherd session set-settings SESSION_ID --model MODEL --permission MODE --json
 ~~~
@@ -132,8 +135,17 @@ use only the target's advertised values. Omit --super-session for ordinary
 tasks; that flag requires --commander. session ensure-assistant --json reuses
 the account's persistent Assistant through the local daemon.
 
-The account Project is separate from the workspace path. Use project list to
-find an existing Project ID, add --project PROJECT_ID at creation, or use
+Machine lists include online state and capacity from native daemons, refreshed
+every 20 seconds. capacity contains sampledAt (UTC), cpu.busyPercent and
+cpu.sampleWindowMs, loadAverage (oneMinute/fiveMinutes/fifteenMinutes), memory
+(usedBytes/totalBytes), and runningSessions. Offline machines, older daemons,
+and samples older than two minutes return capacity: null. Unavailable metrics
+are null. The text table shows the same figures.
+
+The account Project is separate from the workspace path. project create --name
+NAME returns the new ID and name; project rename PROJECT_ID --name NAME changes
+only its name and retains its sessions and other metadata. Both synchronize
+with the app. Use project list to find an existing Project ID, add --project PROJECT_ID at creation, or use
 set-project with that ID or none to assign or clear an existing session. These
 Project operations require the separate account-control link, even for local
 creation. A failed assignment after creation retains the new session ID in its

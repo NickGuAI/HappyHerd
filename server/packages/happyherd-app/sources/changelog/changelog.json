@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 18 — Projects and machine capacity from the CLI",
+      "summary": "",
+      "markdown": "- Create and rename Projects from the CLI with `project create --name` and `project rename ID --name`. Names sync with the app, and renaming keeps existing session assignments. Both commands require the account-control link.\n- `machine list` now shows CPU use, load averages, memory use, running sessions and the sample time for online native daemons. Readings refresh every 20 seconds; offline machines, older daemons and readings older than two minutes show no capacity."
+    },
+    {
       "title": "November 18 — Meet OldBlue",
       "summary": "",
       "markdown": "- New installs start with OldBlue, a BigBoss assistant that routes work to project managers. Choose its name with `--assistant-name NAME` during installation. Names cannot contain double quotes, backslashes, or control characters. Existing Commanders keep their names and definitions.\n- The pinned assistant row shows its Commander name, with a readable label when no name is available."
@@ -1061,5 +1066,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 18 — Meet OldBlue"
+  "latestTitle": "November 18 — Projects and machine capacity from the CLI"
 }
