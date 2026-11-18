@@ -26,6 +26,13 @@ it and moves the pointer away from controls. The changelog's animated WebP is
 decoded to its actual first frame (including its CSS background), without masking
 the decoration or changing application source.
 
+Changelog goldens prevent `herd-rise-sm` from starting before the page renders.
+Its `both` fill keeps the finished effect applied; waiting for finite animations
+and two paint frames still reproduced one-level mobile colour changes on one CI
+runner. Preventing the animation produced identical captures across three runners.
+This golden-only rule captures the final unanimated layout and changes text
+antialiasing, so all four changelog baselines are refreshed together.
+
 ## Regenerate
 
 Push the intended source to the PR branch, then from `server/` run:

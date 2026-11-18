@@ -21,7 +21,12 @@ const server=createServer(async(req,res)=>{
   const file=resolve(dist,extname(url.pathname)?decodeURIComponent(url.pathname).replace(/^\/+/, ''):'index.html');
   if(!file.startsWith(dist+sep)){res.writeHead(403);res.end();return;}
   try{await stat(file);res.setHeader('content-type',types[extname(file)]??'application/octet-stream');
-    if(file===resolve(dist,'index.html'))res.end(index.replace(/<head[^>]*>/i,head=>head+`<script>window.__HAPPYHERD_CONFIG__=${JSON.stringify({serverUrl:origin,disableAnalytics:true})}</script>`));
+    if(file===resolve(dist,'index.html')){
+      // Finished entry animations retain a different raster path. Golden
+      // changelog captures must prevent that effect before the first paint.
+      const motion=process.env.KILV_GOLDEN && url.pathname==='/changelog' ? '<style>.herd-rise-sm{animation:none!important}</style>' : '';
+      res.end(index.replace(/<head[^>]*>/i,head=>head+motion+`<script>window.__HAPPYHERD_CONFIG__=${JSON.stringify({serverUrl:origin,disableAnalytics:true})}</script>`));
+    }
     else createReadStream(file).pipe(res);
   }catch{res.writeHead(404);res.end();}
 });
