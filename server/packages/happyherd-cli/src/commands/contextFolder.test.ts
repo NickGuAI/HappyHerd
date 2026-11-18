@@ -1,10 +1,10 @@
-/** Exercise the built command and installer with a recording gog executable. */
+/** Exercise the command and built installer path with a recording gog executable. */
 import { spawnSync } from 'node:child_process';
 import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const cli = fileURLToPath(new URL('../../bin/happyherd.mjs', import.meta.url));
 const root = fileURLToPath(new URL('../../../../../', import.meta.url));
@@ -14,6 +14,7 @@ let settingsPath: string;
 let env: NodeJS.ProcessEnv;
 
 beforeEach(async () => {
+  vi.resetModules();
   directory = await mkdtemp(path.join(tmpdir(), 'happyherd-context-folder-'));
   const home = path.join(directory, 'home');
   const bin = path.join(directory, 'bin');
@@ -59,10 +60,35 @@ switch (args[3]) {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+  vi.resetModules();
   await rm(directory, { recursive: true, force: true });
 });
 
-function run(args: string[]) {
+async function run(args: string[]) {
+  for (const key of ['HAPPYHERD_HOME_DIR', 'PATH', 'GOG_TEST_CALLS', 'GOG_TEST_NAME', 'GOG_TEST_SCENARIO']) {
+    vi.stubEnv(key, env[key]);
+  }
+  const output: string[] = [];
+  const log = vi.spyOn(console, 'log').mockImplementation((value) => output.push(value));
+  const previousExitCode = process.exitCode;
+  process.exitCode = undefined;
+  let stderr = '';
+  try {
+    const { handleContextFolderCommand } = await import('./contextFolder');
+    await handleContextFolderCommand(args);
+  } catch (error) {
+    stderr = String(error);
+    process.exitCode = 1;
+  }
+  const status = Number(process.exitCode ?? 0);
+  process.exitCode = previousExitCode;
+  log.mockRestore();
+  return { status, stdout: output.join('\n'), stderr };
+}
+
+function runBuilt(args: string[]) {
   return spawnSync(process.execPath, [cli, 'context-folder', ...args], { env, encoding: 'utf8' });
 }
 
@@ -78,21 +104,21 @@ describe('context-folder', () => {
   it.each([undefined, '', '  '])('shows the default without gog when the name is %s', async (name) => {
     if (name !== undefined) await writeFile(settingsPath, JSON.stringify({ contextFolder: { name } }));
     await rm(path.join(directory, 'bin/gog'));
-    const result = run(['show', '--json']);
+    const result = await run(['show', '--json']);
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({ name: 'MyContext', id: null, link: null });
-    expect(run(['show']).stdout).toContain('no folder is recorded yet');
+    expect((await run(['show'])).stdout).toContain('no folder is recorded yet');
     await expect(readFile(env.GOG_TEST_CALLS!)).rejects.toThrow();
   });
 
   it('confirms a recorded ID without searching, creating or rewriting settings', async () => {
     const saved = JSON.stringify({ contextFolder: { name: 'Saved context', id: 'fixture-saved' }, assistantName: 'River' });
     await writeFile(settingsPath, saved);
-    const result = run(['ensure', '--json']);
+    const result = await run(['ensure', '--json']);
     expect(result.status, result.stderr).toBe(0);
     const receipt = { name: 'Saved context', id: 'fixture-saved', link: 'https://drive.google.com/drive/folders/fixture-saved' };
     expect(JSON.parse(result.stdout)).toEqual(receipt);
-    expect(JSON.parse(run(['show', '--json']).stdout)).toEqual(receipt);
+    expect(JSON.parse((await run(['show', '--json'])).stdout)).toEqual(receipt);
     expect(await calls()).toEqual([['--json', '--no-input', 'drive', 'get', 'fixture-saved', '--fields', 'id,name,mimeType']]);
     expect(await readFile(settingsPath, 'utf8')).toBe(saved);
   });
@@ -102,7 +128,7 @@ describe('context-folder', () => {
     const name = "Team's \\ context $(literal)";
     env.GOG_TEST_NAME = name;
     await writeFile(settingsPath, JSON.stringify({ contextFolder: { name }, assistantName: 'River' }));
-    const result = run(['ensure', '--json']);
+    const result = await run(['ensure', '--json']);
     expect(result.status, result.stderr).toBe(0);
     expect((await settings()).contextFolder).toEqual({ name, id: 'fixture-folder' });
     expect((await settings()).assistantName).toBe('River');
@@ -114,9 +140,9 @@ describe('context-folder', () => {
   });
 
   it('creates the missing folder once and reuses it on a second ensure', async () => {
-    expect(run(['ensure', '--json']).status).toBe(0);
+    expect((await run(['ensure', '--json'])).status).toBe(0);
     expect((await settings()).contextFolder).toEqual({ name: 'MyContext', id: 'fixture-folder' });
-    expect(run(['ensure', '--json']).status).toBe(0);
+    expect((await run(['ensure', '--json'])).status).toBe(0);
     const recorded = await calls();
     expect(recorded.map((args) => args[3])).toEqual(['ls', 'mkdir', 'get']);
     expect(recorded[1]).toEqual(['--json', '--no-input', 'drive', 'mkdir', '--parent', 'root', '--', 'MyContext']);
@@ -126,7 +152,7 @@ describe('context-folder', () => {
     env.GOG_TEST_SCENARIO = scenario;
     const saved = JSON.stringify({ contextFolder: { name: 'MyContext' }, assistantName: 'River' });
     await writeFile(settingsPath, saved);
-    const result = run(['ensure', '--json']);
+    const result = await run(['ensure', '--json']);
     expect(result.status).toBe(1);
     const receipt = JSON.parse(result.stdout);
     expect(receipt.error).toContain('happyherd context-folder set --id ID');
@@ -134,12 +160,12 @@ describe('context-folder', () => {
     expect(await readFile(settingsPath, 'utf8')).toBe(saved);
     expect((await calls()).every((args) => args[3] === 'ls')).toBe(true);
     if (scenario === 'paged') expect((await calls())[1].slice(-2)).toEqual(['--page', 'fixture-page-2']);
-    else expect(run(['ensure']).stdout).toContain('fixture-other');
+    else expect((await run(['ensure'])).stdout).toContain('fixture-other');
   });
 
   it('sets a folder only after confirming its type and readable metadata', async () => {
     env.GOG_TEST_NAME = 'Selected context';
-    const result = run(['set', '--id', 'fixture-selected', '--json']);
+    const result = await run(['set', '--id', 'fixture-selected', '--json']);
     expect(result.status, result.stderr).toBe(0);
     expect((await settings()).contextFolder).toEqual({ name: 'Selected context', id: 'fixture-selected' });
     expect((await calls()).map((args) => args[3])).toEqual(['get']);
@@ -150,7 +176,7 @@ describe('context-folder', () => {
     env.GOG_TEST_SCENARIO = scenario;
     const saved = JSON.stringify({ contextFolder: { name: 'Saved context', id: 'fixture-saved' } });
     await writeFile(settingsPath, saved);
-    const result = run(['set', '--id', 'fixture-selected', '--json']);
+    const result = await run(['set', '--id', 'fixture-selected', '--json']);
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout).error).toContain(scenario === 'file' ? 'not a folder' : 'Drive access denied');
     expect(await readFile(settingsPath, 'utf8')).toBe(saved);
@@ -160,7 +186,7 @@ describe('context-folder', () => {
     if (scenario === 'missing') await rm(path.join(directory, 'bin/gog'));
     else env.GOG_TEST_SCENARIO = scenario;
     for (const args of [['ensure'], ['set', '--id', 'fixture-selected']]) {
-      const result = run([...args, '--json']);
+      const result = await run([...args, '--json']);
       expect(result.status).toBe(1);
       expect(JSON.parse(result.stdout).error).toContain('Sign in to Google Workspace with gog, then run: happyherd context-folder ensure');
     }
@@ -168,7 +194,7 @@ describe('context-folder', () => {
   });
 
   it('documents all three actions in the built help and shared guide', async () => {
-    const result = run(['--help']);
+    const result = runBuilt(['--help']);
     expect(result.status, result.stderr).toBe(0);
     for (const action of ['show [--json]', 'ensure [--json]', 'set --id ID [--json]']) expect(result.stdout).toContain(action);
     const guide = await readFile(new URL('../agentContext/sharedKnowledgeTemplates.ts', import.meta.url), 'utf8');
@@ -234,6 +260,6 @@ describe('installer context folder', () => {
     expect(result.stdout).toContain('Next: happyherd context-folder ensure');
     expect(result.stderr).toContain('Sign in to Google Workspace with gog');
     expect((await settings()).contextFolder).toEqual({ name: 'Team context' });
-    expect(run(['ensure']).status).toBe(1);
+    expect(runBuilt(['ensure']).status).toBe(1);
   }, 15_000);
 });
