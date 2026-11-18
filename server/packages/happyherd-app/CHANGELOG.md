@@ -1,3 +1,8 @@
+# November 18 — Choose a Google Drive context folder
+
+- Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.
+- Use `happyherd context-folder show`, `ensure`, or `set --id ID` to view, find, or select this machine's folder. With several Google sign-ins, choose `--account EMAIL` on `ensure` or `set`; the saved account is shown and reused. HappyHerd stores the folder name, ID and selected account, without a Google token or any document changes.
+
 # November 18 — Projects and machine capacity from the CLI
 
 - Create and rename Projects from the CLI with `project create --name` and `project rename ID --name`. Names sync with the app, and renaming keeps existing session assignments. Both commands require the account-control link.

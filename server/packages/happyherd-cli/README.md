@@ -437,6 +437,9 @@ pause/stop-run/abandon-run actions. `server --help` describes local self-hosting
 | `happyherd session create ... [--commander ID] [--json]` | Create a tracked session on a selected HappyHerd CLI daemon machine |
 | `happyherd session set-commander <session-id> <commander-id\|none> [--json]` | Change the Commander used on the session's next resume |
 | `happyherd project list [--json]` | List existing account Project IDs and names |
+| `happyherd context-folder show [--json]` | Show this machine's saved Drive folder name, ID, link and account without a network call; account is null when unrecorded |
+| `happyherd context-folder ensure [--account EMAIL] [--json]` | Confirm, find or create the context folder through `gog`; save an explicit account on success and reuse it later |
+| `happyherd context-folder set --id ID [--account EMAIL] [--json]` | Confirm an existing Drive folder and save its ID, name and selected account; use `--account` when `gog` needs an account choice |
 | `happyherd session set-project SESSION_ID PROJECT_ID\|none [--json]` | Assign, reassign, or clear the account Project |
 | `happyherd session set-settings SESSION_ID [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]` | Save provider choices for the next message or resume |
 

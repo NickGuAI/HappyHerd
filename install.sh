@@ -7,6 +7,8 @@ DEFAULT_SERVER="http://127.0.0.1:3005"
 server_url=""
 assistant_name=""
 assistant_name_set=0
+context_folder=""
+context_folder_set=0
 asset_source=""
 release_version=""
 start_host=1
@@ -16,12 +18,13 @@ usage() {
 Install a prepared HappyHerd release into the current user's home directory.
 
 Usage:
-  install.sh [--server URL] [--assistant-name NAME] [--version VERSION] [--asset FILE_OR_URL] [--no-start]
+  install.sh [--server URL] [--assistant-name NAME] [--context-folder NAME] [--version VERSION] [--asset FILE_OR_URL] [--no-start]
 
 Options:
   --server URL         Persist this HappyHerd server URL (default: http://127.0.0.1:3005).
   --assistant-name NAME  Name the default assistant (default: OldBlue).
                          No double quotes, backslashes, or control characters.
+  --context-folder NAME  Name the Google Drive context folder (default: MyContext).
   --version VERSION    Install a tagged release instead of the latest stable release.
   --asset FILE_OR_URL  Install a prepared platform asset directly.
   --no-start           Install and configure without starting the local server or daemon.
@@ -45,6 +48,12 @@ while [ "$#" -gt 0 ]; do
       fi
       assistant_name="$2"
       assistant_name_set=1
+      shift 2
+      ;;
+    --context-folder)
+      [ "$#" -ge 2 ] || { echo 'error: --context-folder requires a name' >&2; exit 1; }
+      context_folder="$2"
+      context_folder_set=1
       shift 2
       ;;
     --version)
@@ -347,7 +356,7 @@ NODE
   server_url=${response:-$server_default}
 fi
 
-"$node_bin" - "$settings_path" "$server_url" "$assistant_name_set" "$assistant_name" <<'NODE'
+"$node_bin" - "$settings_path" "$server_url" "$assistant_name_set" "$assistant_name" "$context_folder_set" "$context_folder" <<'NODE'
 const fs = require('node:fs');
 const path = process.argv[2];
 const serverUrl = process.argv[3];
@@ -356,6 +365,14 @@ if (fs.existsSync(path)) settings = JSON.parse(fs.readFileSync(path, 'utf8'));
 settings.serverUrl = serverUrl;
 settings.webappUrl = serverUrl;
 if (process.argv[4] === '1') settings.assistantName = process.argv[5];
+if (process.argv[6] === '1') {
+  const name = process.argv[7].trim() || 'MyContext';
+  if (name !== (settings.contextFolder?.name?.trim() || 'MyContext')) {
+    settings.contextFolder = { name, account: settings.contextFolder?.account };
+  } else {
+    settings.contextFolder = { ...settings.contextFolder, name };
+  }
+}
 const temporary = `${path}.tmp`;
 fs.writeFileSync(temporary, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
 fs.renameSync(temporary, path);
@@ -405,6 +422,10 @@ NODE
   else
     auth_deferred=1
   fi
+fi
+
+if ! "$node_bin" "$happyherd_entry" context-folder ensure; then
+  printf 'Next: happyherd context-folder ensure\n'
 fi
 
 printf '\nHappyHerd installed.\n'

@@ -481,6 +481,7 @@ Never update only the live or only the installation-template instruction.
 | App local persistence | `happyherd-app/sources/sync/persistence.ts` | MMKV/local cache is device state, not cross-client authority |
 | App credentials | `happyherd-app/sources/auth/tokenStorage.ts` | SecureStore/native and browser storage implementations differ |
 | Maintained CLI machine/session runtime | `happyherd-cli/src/configuration.ts` and `persistence.ts` | Defaults beneath `~/.happyherd`; do not mix with other package defaults |
+| Google Drive context folder | CLI `persistence.ts` machine settings `contextFolder: { name, id?, account? }`; `commands/contextFolder.ts` | Name defaults to `MyContext`; `install.sh --context-folder` writes the name and runs `ensure` once. Successful `ensure`/`set --account` records the choice for later `gog` calls. Only the user's `gog` accesses Google; no token or cross-machine sync in HappyHerd |
 | Automation definitions and history | `happyherd-cli/src/automations/{store,service}.ts` | Sole owner for scheduled and heartbeat definitions and runs; provider sessions own provider lifetime, while exec runs own their direct process exit record |
 | Commander identity and AgentContext | Human-authored Markdown/JSONL beneath the HappyHerd home | Human knowledge remains reviewable files; runtime state does not own it |
 | Governed Discord settlement and surface bindings | `happyherd-agent` `BridgeStore` | Dedicated bridge state; not server message authority |

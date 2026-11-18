@@ -872,3 +872,8 @@ ISSUE_457_ON_DEMAND_CAPACITY	code-ready	fix(cli): request machine capacity only 
 ISSUE_457_RPC_TIMEOUT_OPTIONS	code-ready	refactor(control): let callers set machine RPC timeouts	server/packages/happyherd-control-agent/src/machineRpc.test.ts
 ISSUE_457_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh project and capacity visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_457_MOBILE_LIGHT_GOLDEN	code-ready	test(changelog): use repeated mobile light capture	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_458_CONTEXT_FOLDER	code-ready	feat(cli): manage the Google Drive context folder	server/packages/happyherd-cli/src/commands/contextFolder.test.ts
+ISSUE_458_CONTEXT_FOLDER_TESTS	code-ready	test(cli): focus context folder checks on the command handler	server/packages/happyherd-cli/src/commands/contextFolder.test.ts
+ISSUE_458_CONTEXT_FOLDER_COMMANDS	code-ready	docs(cli): list the context folder commands	server/packages/happyherd-cli/README.md
+ISSUE_458_CONTEXT_FOLDER_ACCOUNT	code-ready	fix(cli): remember the context folder Google account	server/packages/happyherd-cli/src/commands/contextFolder.test.ts
+ISSUE_458_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh context folder visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
