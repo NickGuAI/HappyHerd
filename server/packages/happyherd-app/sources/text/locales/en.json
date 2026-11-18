@@ -1073,6 +1073,7 @@
     "notAvailable": "Not available",
     "linkNewDevice": "Link New Device",
     "linkNewDeviceSubtitle": "Scan QR code to link device",
+    "linkNewDevicePasteLink": "Paste the link from happyherd machine auth login.",
     "profile": "Profile",
     "name": "Name",
     "github": "GitHub",

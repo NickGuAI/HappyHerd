@@ -1004,6 +1004,7 @@ export type TranslationKey =
     | "settingsAccount.dangerZone"
     | "settingsAccount.github"
     | "settingsAccount.linkNewDevice"
+    | "settingsAccount.linkNewDevicePasteLink"
     | "settingsAccount.linkNewDeviceSubtitle"
     | "settingsAccount.logout"
     | "settingsAccount.logoutConfirm"

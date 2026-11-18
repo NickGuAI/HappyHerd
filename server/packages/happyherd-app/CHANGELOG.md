@@ -1,3 +1,7 @@
+# November 18 — Link a device from the web app
+
+- In Settings → Account, choose Link New Device and paste the link from `happyherd machine auth login`. You can now link a device from a desktop or mobile browser. Native apps still open the QR scanner.
+
 # November 18 — Reset account cooldown
 
 - Reset a provider account’s saved HappyHerd cooldown after restoring quota with the provider. This does not reset quota at the provider.

@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 18 — Link a device from the web app",
+      "summary": "",
+      "markdown": "- In Settings → Account, choose Link New Device and paste the link from `happyherd machine auth login`. You can now link a device from a desktop or mobile browser. Native apps still open the QR scanner."
+    },
+    {
       "title": "November 18 — Reset account cooldown",
       "summary": "",
       "markdown": "- Reset a provider account’s saved HappyHerd cooldown after restoring quota with the provider. This does not reset quota at the provider."
@@ -1081,5 +1086,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 18 — Reset account cooldown"
+  "latestTitle": "November 18 — Link a device from the web app"
 }

@@ -1073,6 +1073,7 @@
     "notAvailable": "Nicht verfügbar",
     "linkNewDevice": "Neues Gerät verknüpfen",
     "linkNewDeviceSubtitle": "QR-Code scannen, um das Gerät zu verknüpfen",
+    "linkNewDevicePasteLink": "Füge den Link aus happyherd machine auth login ein.",
     "profile": "Profil",
     "name": "Anzeigename",
     "github": "GitHub",
