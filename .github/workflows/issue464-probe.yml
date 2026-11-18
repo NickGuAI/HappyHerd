@@ -9,7 +9,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -31,6 +31,10 @@ jobs:
       - name: Install pinned Chromium
         working-directory: .probe-source/server
         run: pnpm --filter happyherd-app exec playwright-core install --with-deps chromium
+      - name: Record runner CPU
+        run: |
+          mkdir -p .artifacts/issue464
+          lscpu --json > .artifacts/issue464/cpu.json
       - name: Compare animation states on one runner
         run: node scripts/kilv-capture/issue464-probe.mjs .probe-source
       - uses: actions/upload-artifact@v4

@@ -879,3 +879,4 @@ ISSUE_458_CONTEXT_FOLDER_ACCOUNT	code-ready	fix(cli): remember the context folde
 ISSUE_458_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh context folder visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_464_PROBE	code-ready	test(golden): measure changelog animation capture states	scripts/kilv-capture/issue464-probe.mjs
 ISSUE_464_FRESH_PROBE	code-ready	test(golden): isolate capture timing across browser launches	scripts/kilv-capture/issue464-probe.mjs
+ISSUE_464_FULL_PROBE	code-ready	test(golden): retain the complete production capture sequence	scripts/kilv-capture/issue464-probe.mjs

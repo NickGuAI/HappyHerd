@@ -12,22 +12,21 @@ const capture=Number(process.env.PROBE_CAPTURE);
 const records=[];`);
 source = source.replace("const page=await context.newPage();", `
   if(strategy==='none')await context.addInitScript(()=>{
+    if(location.pathname!=='/changelog')return;
     const style=document.createElement('style');style.textContent='.herd-rise-sm { animation: none !important; }';
     new MutationObserver((_,observer)=>{if(document.documentElement){document.documentElement.append(style);observer.disconnect();}}).observe(document,{childList:true,subtree:true});
   });
   const page=await context.newPage();`);
 source = source.replace("const filename=`${panelId}-${state}-${theme}-${viewport.width}.png`;", `
-   if(strategy==='wait')await page.evaluate(async()=>{
+   if(strategy==='wait'&&panelId==='changelog')await page.evaluate(async()=>{
      await Promise.all(document.getAnimations().filter(animation=>Number.isFinite(animation.effect.getComputedTiming().endTime)).map(animation=>animation.finished));
      await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));
    });
    const filename=\`\${panelId}-\${state}-\${theme}-\${viewport.width}-\${String(capture).padStart(2,'0')}.png\`;`);
-source = source.replace("manifest.push({panelId", `records.push({strategy,capture,theme,viewport,filename,sha256:createHash('sha256').update(readFileSync(resolve(directory,filename))).digest('hex')});
+source = source.replace("manifest.push({panelId", `records.push({strategy,capture,panelId,theme,viewport,filename,sha256:createHash('sha256').update(readFileSync(resolve(directory,filename))).digest('hex')});
    writeFileSync(resolve(directory,'probe.json'),JSON.stringify(records,null,2)+'\\n');
    console.log(JSON.stringify({strategy,capture,theme,width:viewport.width,sha256:records.at(-1).sha256}));
    manifest.push({panelId`);
-// Keep the production navigation sequence; only retain changelog screenshots.
-source = source.replace("if(process.env.KILV_GOLDEN) await page.mouse.move(0,0);", "if(panelId!=='changelog')return;\n    if(process.env.KILV_GOLDEN) await page.mouse.move(0,0);");
 const generated=resolve(target,'scripts/kilv-capture/issue464-generated.mjs');
 writeFileSync(generated,source);
 const app=resolve(target,'server/packages/happyherd-app');
