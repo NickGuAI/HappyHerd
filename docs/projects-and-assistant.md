@@ -33,6 +33,32 @@ The daemon automatically configures a default HappyHerd Assistant Commander sess
 
 The server includes this reserved entry even after it falls outside the 150 most recently updated sessions. Another machine reuses the account entry without decrypting or starting its provider locally. If multiple manually marked Super Sessions already exist, the UI selects the oldest creation time first, then by ID.
 
+To start over on the machine that owns the Assistant, run:
+
+```sh
+happyherd session ensure-assistant --fresh --json
+```
+
+```text
+old Assistant → provider stopped → tag released → marker cleared + archived
+                                                       ↓
+current default Commander → new empty Assistant → pinned in the app
+```
+
+The receipt contains the new `sessionId` and `retiredSessionId` (null when no
+Assistant existed). The old thread keeps its messages and remains readable in
+the archive. The new thread uses the current default Commander's name and
+context, with no earlier messages or provider conversation. A later ordinary
+`ensure-assistant` returns the new session. Side chats, automations and
+heartbeats remain attached to their original session.
+
+If the tagged session has no saved copy on this machine, `--fresh` stops without
+changes and reports that it lives on another machine. If retirement fails after
+releasing the tag but before clearing the old marker, ordinary `ensure-assistant`
+can adopt the old session again. A fresh start requires the server's
+`POST /v1/sessions/default-assistant/retire` route; it releases only the named
+account holder's tag and preserves the session and its keys.
+
 ## Commander & Machine Management
 
 Local Assistant setup and delegation use the daemon’s existing machine login. List account machines with `happyherd machine list --json`; this separate remote-control path requires `happyherd machine auth login`. Account linking currently uses the native app’s QR scanner. Safari has no account-link approval interface; its Connect Terminal page handles a different protocol.

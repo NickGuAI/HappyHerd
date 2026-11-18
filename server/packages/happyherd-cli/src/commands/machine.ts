@@ -149,7 +149,7 @@ function sessionHelp(): string {
   return `happyherd session - Create a tracked session on an account machine
 
 Usage:
-  happyherd session ensure-assistant [--json]
+  happyherd session ensure-assistant [--fresh] [--json]
   happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID [--json]
   happyherd session inspect SESSION_ID [--limit 1..100] [--json]
   happyherd session set-settings <session-id> [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]
@@ -167,6 +167,9 @@ HappyHerd CLI daemon providers: ${DAEMON_PROVIDERS.join(', ')}
 
 ensure-assistant uses the local daemon's existing machine login and reuses the
 account's persistent Assistant session. It does not require machine auth login.
+With --fresh, this machine stops and archives its old Assistant, keeping its
+history, then starts a new conversation from the current default Commander.
+Run --fresh on the machine that owns the Assistant.
 
 The selected machine must run a native HappyHerd CLI daemon that advertises the
 target-confirmed machine-session protocol. Upgrade and restart older daemons.
@@ -876,12 +879,13 @@ export async function handleSessionCommand(
       outputFor(dependencies)(sessionHelp());
       return;
     }
-    const flags = parseFlags(rest, new Set(), new Set(['json']));
-    const receipt = await (dependencies?.ensureLocalAssistant ?? ensureDaemonAssistant)();
+    const flags = parseFlags(rest, new Set(), new Set(['json', 'fresh']));
+    const receipt = await (dependencies?.ensureLocalAssistant ?? ensureDaemonAssistant)(flags.fresh === true);
     if (flags.json === true) {
       outputFor(dependencies)(JSON.stringify(receipt));
     } else {
       outputFor(dependencies)(`Assistant: ${receipt.status}${receipt.sessionId ? ` (${receipt.sessionId})` : ''}`);
+      if (receipt.retiredSessionId) outputFor(dependencies)(`Archived Assistant: ${receipt.retiredSessionId}`);
     }
     if (receipt.status === 'waiting-for-provider' || !receipt.sessionId) {
       (dependencies?.setExitCode ?? ((code) => { process.exitCode = code; }))(1);

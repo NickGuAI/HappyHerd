@@ -3,6 +3,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { handleSessionCommand, parseSessionCreateOptions } from './machine';
 
 describe('local default Assistant command', () => {
+  it('passes --fresh to the daemon and prints both session IDs', async () => {
+    const ensureLocalAssistant = vi.fn(async () => ({
+      schemaVersion: 1 as const, type: 'default-assistant' as const, status: 'created' as const,
+      sessionId: 'new-assistant', retiredSessionId: 'old-assistant',
+    }));
+    const output = vi.fn();
+    await handleSessionCommand(['ensure-assistant', '--fresh', '--json'], { ensureLocalAssistant, output });
+    expect(ensureLocalAssistant).toHaveBeenCalledExactlyOnceWith(true);
+    expect(JSON.parse(output.mock.calls[0][0])).toMatchObject({
+      sessionId: 'new-assistant', retiredSessionId: 'old-assistant',
+    });
+  });
+
   it('reuses the daemon session without requesting account-control authentication', async () => {
     const createClient = vi.fn();
     const ensureLocalAssistant = vi.fn(async () => ({
@@ -20,6 +33,7 @@ describe('local default Assistant command', () => {
 
     expect(createClient).not.toHaveBeenCalled();
     expect(ensureLocalAssistant).toHaveBeenCalledOnce();
+    expect(ensureLocalAssistant).toHaveBeenCalledWith(false);
     expect(JSON.parse(output.mock.calls[0][0])).toMatchObject({
       sessionId: 'persistent-assistant', status: 'existing',
     });
@@ -46,9 +60,12 @@ describe('local default Assistant command', () => {
 
   it('does not execute setup for help or an unsupported option', async () => {
     const ensureLocalAssistant = vi.fn();
+    const output = vi.fn();
     await handleSessionCommand(['ensure-assistant', '--help'], {
-      ensureLocalAssistant, output: vi.fn(),
+      ensureLocalAssistant, output,
     });
+    expect(output.mock.calls[0][0]).toContain('ensure-assistant [--fresh] [--json]');
+    expect(output.mock.calls[0][0]).toContain('keeping its\nhistory');
     await expect(handleSessionCommand(['ensure-assistant', '--machine', 'another-host'], {
       ensureLocalAssistant,
     })).rejects.toThrow('Unknown option');

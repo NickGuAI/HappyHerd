@@ -36,13 +36,17 @@ function fixture() {
     machineId: 'machine-one',
     api: {
       get: vi.fn(async () => winner),
-      prepare: vi.fn(() => prepared),
+      prepare: vi.fn((_metadata: Metadata) => prepared),
       publish: vi.fn(async (session: Session) => {
         expect(sessions.find(item => item.id === session.id)?.encryptionKey).toEqual(session.encryptionKey);
         winner = { id: session.id };
         return { session: winner, isRequestedSession: true };
       }),
       hydrate: vi.fn((_record: any, saved: Session) => saved),
+      retire: vi.fn(async (_sessionId: string) => {
+        winner = null;
+        return { retired: true, session: null };
+      }),
     },
     sessions: () => sessions,
     persist: vi.fn((session: Session) => {
@@ -55,11 +59,77 @@ function fixture() {
     createMetadata: vi.fn(() => metadata),
     isRunning: vi.fn(() => running),
     start: vi.fn(async () => { running = true; }),
+    stop: vi.fn(async (_session: Session) => { running = false; }),
+    archive: vi.fn(async (session: Session) => ({
+      ...session, metadata: { ...session.metadata, isSuperSession: false, lifecycleState: 'archived' },
+    })),
   };
   return { dependencies, sessions, prepared, machine, setWinner: (value: any) => { winner = value; } };
 }
 
 describe('default Assistant bootstrap', () => {
+  it('retires in order, keeps the old conversation, and creates then reuses a fresh Assistant', async () => {
+    const { dependencies: d, sessions, prepared, setWinner } = fixture();
+    const old: Session = {
+      ...prepared, id: 'old-assistant', seq: 900,
+      metadata: { ...metadata, codexThreadId: 'old-thread', commanderName: 'Earlier name' },
+    };
+    sessions.push(old);
+    setWinner({ id: old.id });
+    const currentCommander = { ...commander, name: 'Current Assistant' };
+    d.ensureCommander.mockResolvedValue(currentCommander);
+    d.createMetadata.mockReturnValue({ ...metadata, commanderName: currentCommander.name });
+    d.api.prepare.mockImplementation(value => ({ ...prepared, metadata: value }));
+
+    const bootstrap = new DefaultAssistantBootstrap(d);
+    await expect(bootstrap.ensure(true)).resolves.toEqual({
+      schemaVersion: 1, type: 'default-assistant', status: 'created', sessionId: prepared.id,
+      retiredSessionId: old.id, commanderId: commander.id, machineId: 'machine-one',
+    });
+    const calls = [d.api.get, d.stop, d.api.retire, d.archive, d.ensureCommander, d.api.prepare, d.api.publish, d.start];
+    const order = calls.map(call => call.mock.invocationCallOrder[0]);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(d.api.retire).toHaveBeenCalledExactlyOnceWith(old.id);
+    expect(d.createMetadata).toHaveBeenCalledWith(currentCommander, expect.anything());
+    expect(d.start).toHaveBeenCalledWith(expect.objectContaining({
+      id: prepared.id, seq: 0, metadata: { ...metadata, commanderName: currentCommander.name },
+    }));
+    expect(sessions.find(session => session.id === old.id)).toEqual({
+      ...old, metadata: { ...old.metadata, isSuperSession: false, lifecycleState: 'archived' },
+    });
+    expect(sessions.filter(session => session.metadata.isSuperSession).map(session => session.id)).toEqual([prepared.id]);
+    await expect(bootstrap.ensure()).resolves.toMatchObject({ status: 'existing', sessionId: prepared.id });
+    expect(d.api.prepare).toHaveBeenCalledOnce();
+    expect(d.start).toHaveBeenCalledOnce();
+  });
+
+  it('changes nothing when the Assistant lives on another machine', async () => {
+    const { dependencies: d, setWinner } = fixture();
+    setWinner({ id: 'remote-assistant' });
+    await expect(new DefaultAssistantBootstrap(d).ensure(true)).rejects.toThrow('Assistant session remote-assistant lives on another machine');
+    for (const call of [d.stop, d.api.retire, d.archive, d.persist, d.api.prepare, d.api.publish, d.start]) {
+      expect(call).not.toHaveBeenCalled();
+    }
+  });
+
+  it('normal ensure adopts the old session after a failure between retirement and clearing its marker', async () => {
+    const { dependencies: d, sessions, prepared, setWinner } = fixture();
+    const old = { ...prepared, id: 'old-assistant', seq: 900, metadata: { ...metadata, codexThreadId: 'old-thread' } };
+    sessions.push(old);
+    setWinner({ id: old.id });
+    d.archive.mockRejectedValueOnce(new Error('metadata unavailable'));
+    await expect(new DefaultAssistantBootstrap(d).ensure(true)).rejects.toThrow('metadata unavailable');
+    expect(await d.api.get()).toBeNull();
+    expect(sessions).toEqual([old]);
+
+    await expect(new DefaultAssistantBootstrap(d).ensure()).resolves.toMatchObject({ sessionId: old.id, status: 'existing' });
+    expect(await d.api.get()).toEqual({ id: old.id });
+    expect(sessions.filter(session => session.metadata.isSuperSession)).toEqual([old]);
+    expect(d.api.publish).toHaveBeenCalledExactlyOnceWith(old);
+    expect(d.api.prepare).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+  });
+
   it('persists first, creates once, and reuses its identity across repeated calls and a daemon restart', async () => {
     const { dependencies: d } = fixture();
     const bootstrap = new DefaultAssistantBootstrap(d);

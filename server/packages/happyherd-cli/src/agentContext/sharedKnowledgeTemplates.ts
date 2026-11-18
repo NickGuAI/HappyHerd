@@ -164,7 +164,10 @@ support the native machine-session protocol. --create-dir explicitly allows a
 missing target directory. --model, --effort, and --permission are optional;
 use only the target's advertised values. Omit --super-session for ordinary
 tasks; that flag requires --commander. session ensure-assistant --json reuses
-the account's persistent Assistant through the local daemon.
+the account's persistent Assistant through the local daemon. Add --fresh on its
+owning machine to archive that conversation and start an empty Assistant from
+the current default Commander. The receipt includes retiredSessionId; the old
+thread stays readable, with its side chats and schedules unchanged.
 
 Machine lists request online native daemons in parallel for a fresh capacity
 reading when the command runs. capacity contains sampledAt (UTC), cpu.busyPercent and

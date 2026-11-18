@@ -25,6 +25,15 @@ export class DefaultAssistantApi {
     return response.data.session;
   }
 
+  async retire(sessionId: string): Promise<{ retired: boolean; session: DefaultAssistantRecord | null }> {
+    const response = await axios.post<{ retired: boolean; session: DefaultAssistantRecord | null }>(
+      `${configuration.serverUrl}/v1/sessions/default-assistant/retire`,
+      { sessionId },
+      this.options(),
+    );
+    return response.data;
+  }
+
   prepare(metadata: Metadata): Session {
     const encryptionVariant = this.credentials.encryption.type;
     return {

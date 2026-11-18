@@ -85,6 +85,8 @@ No UI filesystem or registry lookup may infer loaded-file chips.
 
 The server enforces a unique constraint on the existing `(accountId, tag)` to reserve one account entry. A stable prepared session ID and key are stored in the reconnect store before publishing, so retries or lost responses reuse the identity, and another machine reuses the existing entry without decrypting or relaunching it. The initial server list includes the reserved row outside the 150 most recent updates.
 
+`ensure-assistant --fresh` is local to the owning machine: read the tag, stop the old provider, conditionally release the tag through `POST /v1/sessions/default-assistant/retire`, clear `isSuperSession` and archive through the daemon metadata path, persist the old session, then run normal ensure. Creation reads the current default Commander and prepares a new ID/key without provider resume identity. A failure between tag release and marker clearing leaves the existing adoption path available to normal ensure. The retired row, messages, keys, side chats and schedules remain; the app pins the new marker without a UI change.
+
 Evidence: `server/packages/happyherd-server/sources/app/api/routes/sessionRoutes.ts` and `server/packages/happyherd-cli/src/{api,daemon,agentContext}/defaultAssistant.ts`. Local `session ensure-assistant` and `session create --local` use `daemon/controlClient.ts` → `daemon/controlServer.ts`; `session send` and `session inspect` use `daemon/localSessionClient.ts` with the existing encrypted message API. Remote `--machine` retains the separate account-control owner.
 
 ### Machine RPC

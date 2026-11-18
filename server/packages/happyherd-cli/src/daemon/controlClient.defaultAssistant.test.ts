@@ -14,7 +14,7 @@ describe('local Assistant transport', () => {
     vi.restoreAllMocks();
   });
 
-  it('ensures through the existing local daemon without sending account credentials', async () => {
+  it.each([false, true])('ensures through the existing local daemon with fresh=%s', async (fresh) => {
     vi.spyOn(process, 'kill').mockImplementation(() => true);
     const receipt = {
       schemaVersion: 1, type: 'default-assistant', status: 'existing', sessionId: 'same-assistant',
@@ -22,9 +22,9 @@ describe('local Assistant transport', () => {
     const fetch = vi.fn(async () => ({ ok: true, json: async () => receipt }));
     vi.stubGlobal('fetch', fetch);
 
-    await expect(ensureDaemonAssistant()).resolves.toEqual(receipt);
+    await expect(ensureDaemonAssistant(fresh)).resolves.toEqual(receipt);
     expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:39001/ensure-assistant', expect.objectContaining({
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fresh ? { fresh: true } : {}),
     }));
   });
 

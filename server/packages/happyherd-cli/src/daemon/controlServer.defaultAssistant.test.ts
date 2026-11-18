@@ -20,15 +20,16 @@ async function fixture(overrides: Record<string, unknown> = {}) {
 }
 
 describe('local Assistant and confirmed creation control routes', () => {
-  it('returns the safe Assistant receipt and keeps a deferred result truthful', async () => {
+  it.each([undefined, true])('forwards fresh=%s and returns the Assistant receipt', async (fresh) => {
     const ensureDefaultAssistant = vi.fn(async () => ({
       schemaVersion: 1 as const, type: 'default-assistant' as const,
       status: 'waiting-for-provider' as const, sessionId: null,
     }));
     const { post, spawnSession } = await fixture({ ensureDefaultAssistant });
-    const response = await post('/ensure-assistant');
+    const response = await post('/ensure-assistant', { fresh });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(await ensureDefaultAssistant.mock.results[0].value);
+    expect(ensureDefaultAssistant).toHaveBeenCalledExactlyOnceWith(fresh);
     expect(spawnSession).not.toHaveBeenCalled();
   });
 

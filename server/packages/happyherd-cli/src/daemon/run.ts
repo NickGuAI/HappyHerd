@@ -1934,7 +1934,7 @@ export async function startDaemon(): Promise<void> {
       return true;
     };
 
-    let ensureDefaultAssistant = async (): Promise<DefaultAssistantReceipt> => {
+    let ensureDefaultAssistant = async (_fresh?: boolean): Promise<DefaultAssistantReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry Assistant setup.');
     };
     let createLocalSession = async (_request: LocalSessionCreationRequest): Promise<LocalSessionCreationReceipt> => {
@@ -1967,7 +1967,7 @@ export async function startDaemon(): Promise<void> {
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappyHerdSessionWebhook,
       automations,
-      ensureDefaultAssistant: () => ensureDefaultAssistant(),
+      ensureDefaultAssistant: (fresh) => ensureDefaultAssistant(fresh),
       createLocalSession: (request) => createLocalSession(request),
       sendLocalMessage: (request) => sendLocalMessage(request),
       inspectLocalSession: (request) => inspectLocalSession(request),
@@ -2549,8 +2549,34 @@ export async function startDaemon(): Promise<void> {
           throw new Error(result.type === 'error' ? result.errorMessage : 'Assistant workspace is unavailable');
         }
       },
+      stop: async (session) => {
+        const live = [...pidToTrackedSession.values()].find(item => item.happySessionId === session.id && !hasProviderProcessExited(item.pid));
+        if (!live) return;
+        if (!stopSession(session.id)) throw new Error('Daemon could not signal the Assistant provider');
+        await waitFor(`provider process ${live.pid} to exit`, () => hasProviderProcessExited(live.pid));
+        await onChildExited(live.pid);
+      },
+      archive: async (session) => {
+        const inspected = await api.inspectSessionAuthoritative(session);
+        const client = api.sessionSyncClient(inspected.session);
+        try {
+          await client.waitForConnected();
+          client.suppressNextArchiveSignal();
+          await client.updateMetadata(metadata => ({
+            ...metadata,
+            isSuperSession: false,
+            lifecycleState: 'archived',
+            lifecycleStateSince: Date.now(),
+            archivedBy: 'cli',
+            archiveReason: 'Assistant replaced from HappyHerd CLI',
+          }), 10_000);
+          return (await api.inspectSessionAuthoritative(inspected.session)).session;
+        } finally {
+          await client.close();
+        }
+      },
     });
-    ensureDefaultAssistant = () => defaultAssistant.ensure();
+    ensureDefaultAssistant = (fresh) => defaultAssistant.ensure(fresh);
     apiMachine.onCapabilitiesReady = () => {
       void ensureDefaultAssistant().catch(error => {
         logger.debug('[DEFAULT ASSISTANT] Setup deferred:', error instanceof Error ? error.message : String(error));

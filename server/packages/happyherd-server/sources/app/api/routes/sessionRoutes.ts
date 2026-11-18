@@ -182,6 +182,28 @@ export function sessionRoutes(app: Fastify) {
         return reply.send({ session: serializeSession(session), isRequestedSession: session.id === sessionId });
     });
 
+    app.post('/v1/sessions/default-assistant/retire', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({ sessionId: z.string().min(1) }),
+        },
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.body;
+        const retiredTag = `happyherd-retired-assistant-${randomKeyNaked(32)}`;
+        // Update only the tag; Prisma's normal update would also change updatedAt.
+        const retired = await db.$executeRaw`
+            UPDATE "Session" SET "tag" = ${retiredTag}
+            WHERE "id" = ${sessionId} AND "accountId" = ${userId} AND "tag" = ${DEFAULT_ASSISTANT_TAG}
+        `;
+        if (retired === 1) return reply.send({ retired: true, session: null });
+
+        const session = await db.session.findUnique({
+            where: { accountId_tag: { accountId: userId, tag: DEFAULT_ASSISTANT_TAG } },
+        });
+        return reply.send({ retired: false, session: session ? serializeSession(session) : null });
+    });
+
     // V2 Sessions API - Active sessions only
     app.get('/v2/sessions/active', {
         preHandler: app.authenticate,

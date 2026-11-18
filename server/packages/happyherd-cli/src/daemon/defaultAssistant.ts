@@ -9,6 +9,7 @@ export type DefaultAssistantReceipt = {
   sessionId: string | null;
   commanderId?: string;
   machineId?: string;
+  retiredSessionId?: string | null;
   status: 'created' | 'existing' | 'waiting-for-provider';
 };
 
@@ -33,7 +34,7 @@ export function defaultAssistantSettings(metadata: MachineMetadata, machineId: s
 
 type Dependencies = {
   machineId: string;
-  api: Pick<DefaultAssistantApi, 'get' | 'prepare' | 'publish' | 'hydrate'>;
+  api: Pick<DefaultAssistantApi, 'get' | 'prepare' | 'publish' | 'hydrate' | 'retire'>;
   sessions: () => Session[];
   persist: (session: Session) => void;
   ensureCommander: () => Promise<HappyHerdCommanderSummary>;
@@ -41,6 +42,8 @@ type Dependencies = {
   createMetadata: (commander: HappyHerdCommanderSummary, settings: HappyHerdMachineSessionSettings) => Metadata;
   isRunning: (session: Session) => boolean;
   start: (session: Session) => Promise<void>;
+  stop: (session: Session) => Promise<void>;
+  archive: (session: Session) => Promise<Session>;
 };
 
 /** The server's reserved session tag owns identity; reconnect data owns local keys. */
@@ -49,10 +52,29 @@ export class DefaultAssistantBootstrap {
 
   constructor(private readonly dependencies: Dependencies) {}
 
-  ensure(): Promise<DefaultAssistantReceipt> {
-    if (this.inFlight) return this.inFlight;
-    this.inFlight = this.ensureOnce().finally(() => { this.inFlight = null; });
+  ensure(fresh = false): Promise<DefaultAssistantReceipt> {
+    if (this.inFlight) return fresh ? this.inFlight.then(() => this.ensure(true)) : this.inFlight;
+    this.inFlight = (fresh ? this.ensureFresh() : this.ensureOnce()).finally(() => { this.inFlight = null; });
     return this.inFlight;
+  }
+
+  private async ensureFresh(): Promise<DefaultAssistantReceipt> {
+    const d = this.dependencies;
+    const existing = await d.api.get();
+    if (!existing) return { ...await this.ensureOnce(), retiredSessionId: null };
+    const saved = d.sessions().find(session => session.id === existing.id && session.metadata.machineId === d.machineId);
+    if (!saved) {
+      throw new Error(`Assistant session ${existing.id} lives on another machine. Run --fresh on that machine.`);
+    }
+    await d.stop(saved);
+    const result = await d.api.retire(saved.id);
+    if (!result.retired) {
+      throw new Error(`Assistant changed before retirement (current session: ${result.session?.id ?? 'none'}). Run ensure-assistant again.`);
+    }
+    // Until archive clears the marker, normal ensure can adopt this same
+    // session again if retirement was interrupted.
+    d.persist(await d.archive(saved));
+    return { ...await this.ensureOnce(), retiredSessionId: saved.id };
   }
 
   private async ensureOnce(): Promise<DefaultAssistantReceipt> {

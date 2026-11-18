@@ -185,8 +185,8 @@ export async function cancelDaemonDevicePairing(): Promise<DevicePairingCancelRe
   return DevicePairingCancelResponseSchema.parse(result);
 }
 
-export async function ensureDaemonAssistant(): Promise<DefaultAssistantReceipt> {
-  const result = await daemonPost('/ensure-assistant', {}, 120_000);
+export async function ensureDaemonAssistant(fresh = false): Promise<DefaultAssistantReceipt> {
+  const result = await daemonPost('/ensure-assistant', fresh ? { fresh: true } : {}, 120_000);
   if (result?.error) throw new Error(result.error);
   if (result?.schemaVersion !== 1 || result?.type !== 'default-assistant') {
     throw new Error('Daemon returned an invalid default Assistant receipt');
