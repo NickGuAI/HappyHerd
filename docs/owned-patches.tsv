@@ -870,3 +870,4 @@ ISSUE_455_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh OldBlue and side
 ISSUE_457_PROJECTS_CAPACITY	code-ready	feat(cli): create and rename projects and report machine capacity	server/packages/happyherd-cli/src/commands/machine.test.ts
 ISSUE_457_ON_DEMAND_CAPACITY	code-ready	fix(cli): request machine capacity only on demand	server/packages/happyherd-cli/src/commands/machine.test.ts
 ISSUE_457_RPC_TIMEOUT_OPTIONS	code-ready	refactor(control): let callers set machine RPC timeouts	server/packages/happyherd-control-agent/src/machineRpc.test.ts
+ISSUE_457_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh project and capacity visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
