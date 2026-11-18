@@ -37,12 +37,12 @@ while [ "$#" -gt 0 ]; do
       ;;
     --assistant-name)
       [ "$#" -ge 2 ] || { echo 'error: --assistant-name requires a name' >&2; exit 1; }
-      case "$2" in
-        *\"*|*\\*|*[[:cntrl:]]*)
-          echo 'error: --assistant-name must not contain double quotes, backslashes, or control characters' >&2
-          exit 1
-          ;;
-      esac
+      # Check ASCII and UTF-8 C1 controls independently of the caller's locale.
+      if [ "$(printf '%s' "$2" | LC_ALL=C tr -d '"\\[:cntrl:]')" != "$2" ] ||
+        printf '%s' "$2" | LC_ALL=C grep -q "$(printf '\302[\200-\237]')"; then
+        echo 'error: --assistant-name must not contain double quotes, backslashes, or control characters' >&2
+        exit 1
+      fi
       assistant_name="$2"
       assistant_name_set=1
       shift 2

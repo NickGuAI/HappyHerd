@@ -53,7 +53,8 @@ describe('default Assistant Commander', () => {
     expect(await readFile(created.commanderPath, 'utf8')).toContain(`# ${name}\n`);
   });
 
-  it.each(['River "Blue"', 'River \\ Blue', 'River\nBlue'])('refuses the installer name %j before writing settings', async (name) => {
+  it.each(['River "Blue"', 'River \\ Blue', 'River\nBlue', 'River\u0085Blue'])('refuses the installer name %j before writing settings', async (name) => {
+    vi.stubEnv('LC_ALL', 'C');
     const result = await installAssistantName(name);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('--assistant-name must not contain double quotes, backslashes, or control characters');

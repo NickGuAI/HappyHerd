@@ -865,3 +865,4 @@ ISSUE_456_SIDE_CHAT_CONTEXT	code-ready	feat(side-chat): add fresh context creati
 ISSUE_456_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh fresh side-chat visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_455_ASSISTANT_NAME	code-ready	feat(assistant): configure the default BigBoss name	server/packages/happyherd-cli/src/agentContext/defaultAssistant.test.ts
 ISSUE_455_ASSISTANT_NAME_INPUT	code-ready	fix(installer): reject unsupported assistant name characters	server/packages/happyherd-cli/src/agentContext/defaultAssistant.test.ts
+ISSUE_455_ASSISTANT_NAME_LOCALE	code-ready	fix(installer): reject control characters across locales	server/packages/happyherd-cli/src/agentContext/defaultAssistant.test.ts
