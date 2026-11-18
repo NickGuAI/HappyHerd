@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 18 — Meet OldBlue",
+      "summary": "",
+      "markdown": "- New installs start with OldBlue, a BigBoss assistant that routes work to project managers. Choose its name with `--assistant-name NAME` during installation. Existing Commanders keep their names and definitions.\n- The pinned assistant row shows its Commander name, with a readable label when no name is available."
+    },
+    {
       "title": "November 18 — Start a side chat with only its brief",
       "summary": "",
       "markdown": "- Use `happyherd session side-chat create --context fresh` to start a new provider conversation without the parent's transcript, while keeping the parent link and normal side-chat lifecycle. The default `inherit` keeps existing behavior, and the create receipt reports the context used."
@@ -1056,5 +1061,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 18 — Start a side chat with only its brief"
+  "latestTitle": "November 18 — Meet OldBlue"
 }

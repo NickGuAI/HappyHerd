@@ -177,7 +177,7 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
                             ]}
                             numberOfLines={1}
                         >
-                            {pinned ? sessionListText('superSession.pinned') : session.name}
+                            {pinned ? session.commanderName?.trim() || sessionListText('superSession.pinned') : session.name}
                         </Text>
                     </View>
                     <SessionShortcutHintBadge sessionId={session.id} style={styles.shortcutBadge} />

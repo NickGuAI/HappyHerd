@@ -2032,8 +2032,8 @@
     "keySaved": "Ihre Zugangsdaten wurden im Konto gespeichert. Sie sind nur gespeichert und nicht für Codex aktiv."
   },
   "superSession": {
-    "pinned": "Super Session (Angeheftet)",
-    "disconnected": "Super Session getrennt",
+    "pinned": "Assistent (Angeheftet)",
+    "disconnected": "Assistent getrennt",
     "reconnecting": "Verbindung wird wiederhergestellt…",
     "reconnect": "Mit aktuellem Server verbinden",
     "pendingReplay": "Nach der Wiederverbindung werden Nachrichten in der Warteschlange automatisch zugestellt. Bitte nicht erneut senden.",

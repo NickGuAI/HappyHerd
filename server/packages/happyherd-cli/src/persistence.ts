@@ -46,6 +46,7 @@ interface Settings {
   sandboxConfig?: SandboxConfig
   serverUrl?: string
   webappUrl?: string
+  assistantName?: string
 }
 
 const defaultSettings: Settings = {

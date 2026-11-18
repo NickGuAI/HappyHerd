@@ -5,6 +5,8 @@ REPOSITORY="https://github.com/NickGuAI/HappyHerd"
 DEFAULT_SERVER="http://127.0.0.1:3005"
 
 server_url=""
+assistant_name=""
+assistant_name_set=0
 asset_source=""
 release_version=""
 start_host=1
@@ -14,10 +16,11 @@ usage() {
 Install a prepared HappyHerd release into the current user's home directory.
 
 Usage:
-  install.sh [--server URL] [--version VERSION] [--asset FILE_OR_URL] [--no-start]
+  install.sh [--server URL] [--assistant-name NAME] [--version VERSION] [--asset FILE_OR_URL] [--no-start]
 
 Options:
   --server URL         Persist this HappyHerd server URL (default: http://127.0.0.1:3005).
+  --assistant-name NAME  Name the default assistant (default: OldBlue).
   --version VERSION    Install a tagged release instead of the latest stable release.
   --asset FILE_OR_URL  Install a prepared platform asset directly.
   --no-start           Install and configure without starting the local server or daemon.
@@ -29,6 +32,12 @@ while [ "$#" -gt 0 ]; do
     --server)
       [ "$#" -ge 2 ] || { echo 'error: --server requires a URL' >&2; exit 1; }
       server_url="$2"
+      shift 2
+      ;;
+    --assistant-name)
+      [ "$#" -ge 2 ] || { echo 'error: --assistant-name requires a name' >&2; exit 1; }
+      assistant_name="$2"
+      assistant_name_set=1
       shift 2
       ;;
     --version)
@@ -331,7 +340,7 @@ NODE
   server_url=${response:-$server_default}
 fi
 
-"$node_bin" - "$settings_path" "$server_url" <<'NODE'
+"$node_bin" - "$settings_path" "$server_url" "$assistant_name_set" "$assistant_name" <<'NODE'
 const fs = require('node:fs');
 const path = process.argv[2];
 const serverUrl = process.argv[3];
@@ -339,6 +348,7 @@ let settings = {};
 if (fs.existsSync(path)) settings = JSON.parse(fs.readFileSync(path, 'utf8'));
 settings.serverUrl = serverUrl;
 settings.webappUrl = serverUrl;
+if (process.argv[4] === '1') settings.assistantName = process.argv[5];
 const temporary = `${path}.tmp`;
 fs.writeFileSync(temporary, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
 fs.renameSync(temporary, path);

@@ -863,3 +863,4 @@ ISSUE_335_LOG_RETENTION	code-ready	feat(cli): remove log files not written for 7
 ISSUE_335_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh log cleanup visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_456_SIDE_CHAT_CONTEXT	code-ready	feat(side-chat): add fresh context creation	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_456_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh fresh side-chat visual references	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_455_ASSISTANT_NAME	code-ready	feat(assistant): configure the default BigBoss name	server/packages/happyherd-cli/src/agentContext/defaultAssistant.test.ts
