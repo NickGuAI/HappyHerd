@@ -883,3 +883,4 @@ ISSUE_464_FULL_PROBE	code-ready	test(golden): retain the complete production cap
 ISSUE_464_LIFECYCLE_PROBE	code-ready	test(golden): isolate the finished entry animation effect	docs/acceptance/issue-287/golden/README.md
 ISSUE_464_GOLDEN_MOTION	code-ready	fix(golden): prevent changelog entry animation before capture	scripts/kilv-capture/production.mjs
 ISSUE_464_PROBE_CLEANUP	code-ready	test(golden): remove temporary determinism probes	docs/acceptance/issue-287/golden/README.md
+ISSUE_464_CURRENT_MAIN_PROOF	code-ready	test(golden): verify current-main changelog capture stability	docs/acceptance/issue-287/golden/README.md
