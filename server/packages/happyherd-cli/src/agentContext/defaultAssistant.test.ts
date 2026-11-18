@@ -1,4 +1,5 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +16,19 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
+async function installAssistantName(name: string) {
+  const installer = await readFile(new URL('../../../../../install.sh', import.meta.url), 'utf8');
+  // Exercise the real argument parser and settings writer without installing a runtime.
+  const argumentsScript = installer.slice(0, installer.indexOf('[ "$(id -u)"'));
+  const settingsStart = installer.indexOf('"$node_bin" - "$settings_path" "$server_url"');
+  const settingsScript = installer.slice(settingsStart, installer.indexOf('\nNODE', settingsStart) + 5);
+  return spawnSync('sh', ['-s', '--', '--assistant-name', name], {
+    input: `${argumentsScript}\nnode_bin=node\nsettings_path="$HAPPYHERD_HOME_DIR/settings.json"\n${settingsScript}`,
+    encoding: 'utf8',
+    env: process.env,
+  });
+}
+
 describe('default Assistant Commander', () => {
   it.each([undefined, '', '  '])('creates OldBlue with the BigBoss definition when the name is %s', async (assistantName) => {
     if (assistantName !== undefined) await writeFile(path.join(directory, 'settings.json'), JSON.stringify({ assistantName }));
@@ -30,12 +44,20 @@ describe('default Assistant Commander', () => {
     expect(await readFile(path.join(first.agentContextPath, 'memory', '1-working-memory.md'), 'utf8')).toBe('');
   });
 
-  it('uses the configured name for the identity and definition heading', async () => {
-    await writeFile(path.join(directory, 'settings.json'), JSON.stringify({ assistantName: 'River' }));
+  it.each(['River Blue', '蓝蓝'])('uses the installed name %s unchanged for the identity and definition heading', async (name) => {
+    expect((await installAssistantName(name)).status).toBe(0);
+    expect(JSON.parse(await readFile(path.join(directory, 'settings.json'), 'utf8')).assistantName).toBe(name);
     const { ensureDefaultAssistantCommander } = await import('./defaultAssistant');
     const created = await ensureDefaultAssistantCommander();
-    expect(created).toMatchObject({ id: 'happyherd-assistant', name: 'River' });
-    expect(await readFile(created.commanderPath, 'utf8')).toContain('# River\n');
+    expect(created).toMatchObject({ id: 'happyherd-assistant', name });
+    expect(await readFile(created.commanderPath, 'utf8')).toContain(`# ${name}\n`);
+  });
+
+  it.each(['River "Blue"', 'River \\ Blue', 'River\nBlue'])('refuses the installer name %j before writing settings', async (name) => {
+    const result = await installAssistantName(name);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('--assistant-name must not contain double quotes, backslashes, or control characters');
+    expect(await readdir(directory)).toEqual([]);
   });
 
   it.each([

@@ -3,7 +3,7 @@
     {
       "title": "November 18 — Meet OldBlue",
       "summary": "",
-      "markdown": "- New installs start with OldBlue, a BigBoss assistant that routes work to project managers. Choose its name with `--assistant-name NAME` during installation. Existing Commanders keep their names and definitions.\n- The pinned assistant row shows its Commander name, with a readable label when no name is available."
+      "markdown": "- New installs start with OldBlue, a BigBoss assistant that routes work to project managers. Choose its name with `--assistant-name NAME` during installation. Names cannot contain double quotes, backslashes, or control characters. Existing Commanders keep their names and definitions.\n- The pinned assistant row shows its Commander name, with a readable label when no name is available."
     },
     {
       "title": "November 18 — Start a side chat with only its brief",

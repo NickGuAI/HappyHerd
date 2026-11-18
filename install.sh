@@ -21,6 +21,7 @@ Usage:
 Options:
   --server URL         Persist this HappyHerd server URL (default: http://127.0.0.1:3005).
   --assistant-name NAME  Name the default assistant (default: OldBlue).
+                         No double quotes, backslashes, or control characters.
   --version VERSION    Install a tagged release instead of the latest stable release.
   --asset FILE_OR_URL  Install a prepared platform asset directly.
   --no-start           Install and configure without starting the local server or daemon.
@@ -36,6 +37,12 @@ while [ "$#" -gt 0 ]; do
       ;;
     --assistant-name)
       [ "$#" -ge 2 ] || { echo 'error: --assistant-name requires a name' >&2; exit 1; }
+      case "$2" in
+        *\"*|*\\*|*[[:cntrl:]]*)
+          echo 'error: --assistant-name must not contain double quotes, backslashes, or control characters' >&2
+          exit 1
+          ;;
+      esac
       assistant_name="$2"
       assistant_name_set=1
       shift 2

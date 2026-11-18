@@ -1,6 +1,6 @@
 # November 18 — Meet OldBlue
 
-- New installs start with OldBlue, a BigBoss assistant that routes work to project managers. Choose its name with `--assistant-name NAME` during installation. Existing Commanders keep their names and definitions.
+- New installs start with OldBlue, a BigBoss assistant that routes work to project managers. Choose its name with `--assistant-name NAME` during installation. Names cannot contain double quotes, backslashes, or control characters. Existing Commanders keep their names and definitions.
 - The pinned assistant row shows its Commander name, with a readable label when no name is available.
 
 # November 18 — Start a side chat with only its brief
