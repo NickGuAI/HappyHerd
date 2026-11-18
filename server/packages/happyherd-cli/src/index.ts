@@ -43,6 +43,7 @@ import { handleAutomationCommand } from './commands/automation'
 import { handleCommanderCommand } from './commands/commander'
 import { handleMachineCommand, handleSessionCommand } from './commands/machine'
 import { handleProjectCommand } from './commands/project'
+import { handleContextFolderCommand } from './commands/contextFolder'
 import { configuration } from './configuration'
 import { activateCredentialAccount } from './credentialPool/activate'
 
@@ -171,6 +172,14 @@ Conversation history is preserved on the server, but in-flight tool calls are in
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
+    }
+    return;
+  } else if (subcommand === 'context-folder') {
+    try {
+      await handleContextFolderCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error');
+      process.exitCode = 1;
     }
     return;
   } else if (subcommand === 'machine' || subcommand === 'session' || subcommand === 'project') {
@@ -760,6 +769,7 @@ ${chalk.bold('Usage:')}
   happyherd auth              Manage authentication
   happyherd machine           Discover account machines
   happyherd project           List existing account Projects
+  happyherd context-folder    Show, find, create, or select the Drive context folder
   happyherd session           Create, inspect, send to, and manage sessions/side chats
   happyherd resume            Resume a previous HappyHerd session by HappyHerd session ID
   happyherd codex             Start Codex mode

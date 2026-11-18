@@ -73,6 +73,7 @@ happyherd session send --help
 happyherd session set-project --help
 happyherd session set-settings --help
 happyherd project --help
+happyherd context-folder --help
 happyherd session side-chat --help
 happyherd resume --help
 happyherd machine --help
@@ -95,6 +96,30 @@ these can launch real sessions. Use top-level help. Launch routes include the
 default Claude session, codex, agy, grok, dsh, and generic acp; gemini is
 deprecated in favor of agy. Provider model, effort, and permission catalogs
 belong to the selected machine/provider; do not invent or substitute values.
+
+## Google Drive context folder
+
+~~~sh
+happyherd context-folder show --json
+happyherd context-folder ensure --json
+happyherd context-folder set --id ID --json
+~~~
+
+The machine settings hold contextFolder with a name and, once known, an ID.
+An absent or blank name means MyContext. install.sh --context-folder NAME sets
+the name and runs ensure once at the end. Changing the name clears an old ID.
+show reads the saved name, ID and Drive link without a network call; an unset
+folder has null ID and link. ensure confirms a recorded ID, or searches the top
+of My Drive by name. One match is recorded, no match creates the folder, and
+several matches leave settings unchanged and ask you to choose with set --id.
+set checks that the account can open the ID as a folder, then saves its name
+and ID. Each action accepts --json.
+
+Google access uses your own gog on PATH; HappyHerd stores no Google token.
+Without gog or Google sign-in, ensure and set exit non-zero. Sign in to Google
+Workspace with gog, then run happyherd context-folder ensure. The installer
+still completes and prints that command if ensure fails. This setting stays
+on this machine and does not move or create documents.
 
 ## Sessions and resume
 
