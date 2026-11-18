@@ -1,3 +1,7 @@
+# November 18 — Keep Commander names current
+
+- Renaming a Commander now updates its sessions on that machine when the daemon starts again, including the pinned assistant row and `happyherd session inspect`. Session titles stay unchanged.
+
 # November 18 — Link a device from the web app
 
 - In Settings → Account, choose Link New Device and paste the link from `happyherd machine auth login`. You can now link a device from a desktop or mobile browser. Native apps still open the QR scanner.

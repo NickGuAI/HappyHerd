@@ -58,7 +58,7 @@ import {
   sanitizeSessionEnvironment,
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
-import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
+import { contextEnvironment, listCommanders, prepareCommanderContext } from '@/agentContext/commanderContext';
 import { HappyHerdAutomationService } from '@/automations/service';
 import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
 import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
@@ -2707,6 +2707,41 @@ export async function startDaemon(): Promise<void> {
     };
 
     logger.debug('[DAEMON RUN] Daemon started successfully, waiting for shutdown request');
+
+    // Refresh stored Commander labels without delaying daemon readiness.
+    void (async () => {
+      const { commanders } = await listCommanders();
+      const registry = new Map(commanders.map(commander => [commander.id, commander]));
+      for (const [sessionId, saved] of Object.entries(persisted)) {
+        if (saved.metadata.machineId !== machineId || !registry.has(saved.metadata.commanderId ?? '')) continue;
+        try {
+          const { session } = await api.inspectSessionAuthoritative(localSessionFromPersistence(sessionId));
+          const commander = registry.get(session.metadata.commanderId ?? '');
+          if (session.metadata.machineId !== machineId || !commander) continue;
+          const binding = {
+            commanderName: commander.name,
+            commanderPath: commander.commanderPath,
+            commanderWorkspace: commander.workspace,
+            commanderAgentContextPath: commander.agentContextPath,
+          };
+          if (Object.entries(binding).every(([key, value]) => session.metadata[key as keyof Metadata] === value)) continue;
+
+          const client = api.sessionSyncClient(session);
+          try {
+            await client.waitForConnected();
+            await client.updateMetadata(metadata => ({ ...metadata, ...binding }), 10_000);
+            const refreshed = await api.inspectSessionAuthoritative(session);
+            persistAuthoritativeSession(refreshed.session);
+          } finally {
+            await client.close();
+          }
+        } catch (error) {
+          logger.warn(`[DAEMON RUN] Failed to refresh Commander metadata for session ${sessionId}`, error);
+        }
+      }
+    })().catch(error => {
+      logger.warn('[DAEMON RUN] Failed to load Commanders for session metadata refresh', error);
+    });
 
     // Wait for shutdown request
     const shutdownRequest = await resolvesWhenShutdownRequested;

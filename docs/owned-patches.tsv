@@ -893,3 +893,4 @@ CREDENTIAL_RESET_RACE_COVERAGE	code-ready	test(credentials): cover cooldown rese
 CREDENTIAL_RESET_KILV_FIXTURES	code-ready	test(credentials): fix cooldown golden capture	scripts/kilv-capture/routes.mocks.mjs
 ISSUE_467_WEB_LINK	code-ready	fix(account): link new devices from the web app	server/packages/happyherd-app/sources/app/(app)/settings/account.tsx
 ISSUE_467_ACCOUNT_LINK_TEST	code-ready	test(account): verify web device linking and native scanner	server/packages/happyherd-app/sources/components/accountLink.browser.test.ts
+ISSUE_466_COMMANDER_REFRESH	code-ready	fix(daemon): refresh Commander names at startup	server/packages/happyherd-cli/src/daemon/run.ts

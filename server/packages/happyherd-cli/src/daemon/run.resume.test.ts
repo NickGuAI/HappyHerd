@@ -3,7 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Metadata } from '@/api/types';
+import type { Metadata, Session } from '@/api/types';
+import type { PersistedSession } from '@/persistence';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import type { ProviderLimitRotationDependencies } from '@/credentialPool/rotation';
 import type {
@@ -37,6 +38,8 @@ const mocks = vi.hoisted(() => ({
   })),
   hasProviderProcessExited: vi.fn((_pid: number) => false),
   inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
+  listCommanders: vi.fn(async (): Promise<any> => ({ commanders: [], globalAgentsPath: null })),
+  sessionSyncClient: vi.fn(),
   persistSession: vi.fn(() => true),
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
@@ -57,6 +60,7 @@ vi.mock('@/api/api', () => ({
     create: vi.fn(async () => ({
       deactivateSession: mocks.deactivateSession,
       inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
+      sessionSyncClient: mocks.sessionSyncClient,
       postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
       postSessionTask: mocks.postSessionTask,
@@ -233,6 +237,7 @@ vi.mock('@/resume/localHappyHerdAgentAuth', () => ({
 }));
 
 vi.mock('@/agentContext/commanderContext', () => ({
+  listCommanders: mocks.listCommanders,
   contextEnvironment: vi.fn(() => ({})),
   prepareCommanderContext: vi.fn(async () => ({
     commander: null,
@@ -286,6 +291,7 @@ import { prepareCommanderContext } from '@/agentContext/commanderContext';
 import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
 import { DefaultAssistantApi } from '@/api/defaultAssistant';
 import * as defaultAssistantCommander from '@/agentContext/defaultAssistant';
+import { logger } from '@/ui/logger';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
@@ -396,6 +402,8 @@ describe('daemon session continuity', () => {
     mocks.postSessionTask.mockResolvedValue({ seq: 9 });
     mocks.readRecentSessionMessages.mockResolvedValue([]);
     mocks.readPersistedSessions.mockReturnValue({});
+    mocks.listCommanders.mockResolvedValue({ commanders: [], globalAgentsPath: null });
+    mocks.sessionSyncClient.mockReset();
     mocks.isTmuxAvailable.mockResolvedValue(false);
     mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
       selection: { type: 'unconfigured' },
@@ -468,6 +476,108 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
   }
+
+  async function commanderRefreshFixture(overrides: Partial<Metadata>[]) {
+    const commander = {
+      id: 'commander-1', name: 'Renamed Commander', workspace: '/workspace/current',
+      commanderPath: '/context/current/COMMANDER.md', agentContextPath: '/context/current/agentcontext',
+    };
+    const binding = {
+      commanderName: commander.name, commanderPath: commander.commanderPath,
+      commanderWorkspace: commander.workspace, commanderAgentContextPath: commander.agentContextPath,
+    };
+    const sessions: Record<string, PersistedSession> = Object.fromEntries(overrides.map((override, index) => [
+      `refresh-${index}`, {
+        encryptionKey: Buffer.alloc(32, 5).toString('base64'), encryptionVariant: 'dataKey',
+        seq: 8, metadataVersion: 2, agentStateVersion: 3, savedAt: 1,
+        metadata: {
+          path: '/workspace/session', host: 'test-host', machineId: 'machine-1',
+          homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+          commanderId: commander.id, commanderName: 'Previous Commander',
+          commanderPath: '/context/old/COMMANDER.md', commanderWorkspace: '/workspace/old',
+          commanderAgentContextPath: '/context/old/agentcontext',
+          summary: { text: 'My session title', updatedAt: 1 }, ...override,
+        },
+      },
+    ]));
+    const serverSessions = new Map<string, Session>();
+    const updateMetadata = vi.fn(async () => undefined);
+    const close = vi.fn(async () => undefined);
+    mocks.readPersistedSessions.mockReturnValue(sessions);
+    mocks.listCommanders.mockResolvedValue({ commanders: [commander], globalAgentsPath: null });
+    mocks.inspectSessionAuthoritative.mockImplementation(async (input: unknown) => {
+      const session = input as Session;
+      return { session: serverSessions.get(session.id) ?? session, active: false };
+    });
+    mocks.sessionSyncClient.mockImplementation((session: Session) => ({
+      waitForConnected: vi.fn(async () => undefined),
+      updateMetadata: async (handler: (metadata: Metadata) => Metadata) => {
+        await updateMetadata();
+        serverSessions.set(session.id, {
+          ...session, metadata: handler(session.metadata), metadataVersion: session.metadataVersion + 1,
+        });
+      },
+      close,
+    }));
+    return { sessions, binding, updateMetadata, close };
+  }
+
+  it('refreshes renamed Commander fields at startup and exposes the name through local inspect without changing the title', async () => {
+    const fixture = await commanderRefreshFixture([{ isSuperSession: true }]);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(fixture.close).toHaveBeenCalledOnce());
+    expect(mocks.listCommanders).toHaveBeenCalledOnce();
+    expect(mocks.persistSession).toHaveBeenCalledWith('refresh-0', expect.objectContaining({
+      metadataVersion: 3,
+      metadata: expect.objectContaining({ ...fixture.binding, summary: { text: 'My session title', updatedAt: 1 } }),
+    }));
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const inspected = await control.inspectLocalSession({ sessionId: 'refresh-0', limit: 1 });
+    expect(inspected.session.metadata).toMatchObject({
+      commanderName: 'Renamed Commander', isSuperSession: true, title: 'My session title',
+    });
+  });
+
+  it('does not write session metadata or persistence when Commander fields already match', async () => {
+    const fixture = await commanderRefreshFixture([{}]);
+    Object.assign(fixture.sessions['refresh-0'].metadata, fixture.binding);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce());
+    expect(mocks.sessionSyncClient).not.toHaveBeenCalled();
+    expect(mocks.persistSession).not.toHaveBeenCalled();
+  });
+
+  it('leaves unknown Commanders and sessions of other machines unchanged', async () => {
+    const fixture = await commanderRefreshFixture([{ commanderId: 'unknown' }, { machineId: 'machine-2' }]);
+    const before = structuredClone(fixture.sessions);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.listCommanders).toHaveBeenCalledOnce());
+    expect(mocks.inspectSessionAuthoritative).not.toHaveBeenCalled();
+    expect(mocks.sessionSyncClient).not.toHaveBeenCalled();
+    expect(mocks.persistSession).not.toHaveBeenCalled();
+    expect(fixture.sessions).toEqual(before);
+  });
+
+  it('becomes ready while refresh is pending and continues after one session refresh fails', async () => {
+    const fixture = await commanderRefreshFixture([{}, {}]);
+    let rejectRefresh!: (error: Error) => void;
+    fixture.updateMetadata.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRefresh = reject; }));
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(fixture.updateMetadata).toHaveBeenCalledOnce());
+    expect(logger.debug).toHaveBeenCalledWith('[DAEMON RUN] Daemon started successfully, waiting for shutdown request');
+    expect(mocks.machineClient?.connect).toHaveBeenCalledOnce();
+    expect(process.exit).not.toHaveBeenCalled();
+    rejectRefresh(new Error('metadata update failed'));
+    await vi.waitFor(() => expect(fixture.close).toHaveBeenCalledTimes(2));
+    expect(logger.warn).toHaveBeenCalledWith(
+      '[DAEMON RUN] Failed to refresh Commander metadata for session refresh-0', expect.any(Error),
+    );
+    expect(mocks.persistSession).toHaveBeenCalledOnce();
+    expect(mocks.persistSession).toHaveBeenCalledWith('refresh-1', expect.objectContaining({
+      metadata: expect.objectContaining(fixture.binding),
+    }));
+    expect(process.exit).not.toHaveBeenCalled();
+  });
 
   it.each([true, undefined])('uses the reconnect registration designation for transport ownership (%s)', async (isSuperSession) => {
     const { sessionId, metadata, encryption, control } = await localMessagingFixture();
