@@ -47,7 +47,7 @@ interface Settings {
   serverUrl?: string
   webappUrl?: string
   assistantName?: string
-  contextFolder?: { name: string; id?: string }
+  contextFolder?: { name: string; id?: string; account?: string }
 }
 
 const defaultSettings: Settings = {

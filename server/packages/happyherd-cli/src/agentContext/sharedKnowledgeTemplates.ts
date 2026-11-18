@@ -103,22 +103,28 @@ belong to the selected machine/provider; do not invent or substitute values.
 happyherd context-folder show --json
 happyherd context-folder ensure --json
 happyherd context-folder set --id ID --json
+happyherd context-folder ensure --account EMAIL --json
+happyherd context-folder set --id ID --account EMAIL --json
 ~~~
 
-The machine settings hold contextFolder with a name and, once known, an ID.
+The machine settings hold contextFolder with a name and optional ID and account.
 An absent or blank name means MyContext. install.sh --context-folder NAME sets
-the name and runs ensure once at the end. Changing the name clears an old ID.
-show reads the saved name, ID and Drive link without a network call; an unset
-folder has null ID and link. ensure confirms a recorded ID, or searches the top
+the name and runs ensure once at the end. Changing the name clears an old ID
+and keeps the recorded account. show reads the saved name, ID, Drive link and
+account without a network call; unset values are null. ensure confirms a recorded ID, or searches the top
 of My Drive by name. One match is recorded, no match creates the folder, and
 several matches leave settings unchanged and ask you to choose with set --id.
 set checks that the account can open the ID as a folder, then saves its name
-and ID. Each action accepts --json.
+and ID. Each action accepts --json. ensure and set accept --account EMAIL,
+record it only on success, and pass the recorded account to every later gog
+call. Without a given or recorded account, gog chooses the account.
 
 Google access uses your own gog on PATH; HappyHerd stores no Google token.
 Without gog or Google sign-in, ensure and set exit non-zero. Sign in to Google
 Workspace with gog, then run happyherd context-folder ensure. The installer
-still completes and prints that command if ensure fails. This setting stays
+still completes if ensure fails. When gog needs an account choice among several
+sign-ins, its message is shown with happyherd context-folder ensure --account EMAIL.
+The installer has no account option. This setting stays
 on this machine and does not move or create documents.
 
 ## Sessions and resume

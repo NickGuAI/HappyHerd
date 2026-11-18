@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const cli = fileURLToPath(new URL('../../bin/happyherd.mjs', import.meta.url));
 const root = fileURLToPath(new URL('../../../../../', import.meta.url));
 const mimeType = 'application/vnd.google-apps.folder';
+const missingAccount = 'missing --account (or set GOG_ACCOUNT, set default via `gog auth manage`, or store exactly one token)';
 let directory: string;
 let settingsPath: string;
 let env: NodeJS.ProcessEnv;
@@ -40,13 +41,15 @@ const name = process.env.GOG_TEST_NAME;
 const folder = { id: 'fixture-folder', name, mimeType: '${mimeType}' };
 if (scenario === 'unsigned') { console.error('No Google account is signed in.'); process.exit(1); }
 if (scenario === 'denied') { console.error('Drive access denied.'); process.exit(1); }
-switch (args[3]) {
+if (scenario === 'multi' && !args.includes('--account')) { console.error(${JSON.stringify(missingAccount)}); process.exit(1); }
+const commandIndex = args.indexOf('drive') + 1;
+switch (args[commandIndex]) {
   case 'get':
-    console.log(JSON.stringify({ file: { ...folder, id: args[4], mimeType: scenario === 'file' ? 'text/plain' : folder.mimeType } }));
+    console.log(JSON.stringify({ file: { ...folder, id: args[commandIndex + 1], mimeType: scenario === 'file' ? 'text/plain' : folder.mimeType } }));
     break;
   case 'ls':
     console.log(JSON.stringify({
-      files: scenario === 'none' ? null : scenario === 'many'
+      files: scenario === 'none' || scenario === 'multi' ? null : scenario === 'many'
         ? [folder, { ...folder, id: 'fixture-other' }]
         : scenario === 'paged' && args.includes('--page') ? [{ ...folder, id: 'fixture-other' }] : [folder],
       nextPageToken: scenario === 'paged' && !args.includes('--page') ? 'fixture-page-2' : '',
@@ -106,20 +109,23 @@ describe('context-folder', () => {
     await rm(path.join(directory, 'bin/gog'));
     const result = await run(['show', '--json']);
     expect(result.status, result.stderr).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ name: 'MyContext', id: null, link: null });
+    expect(JSON.parse(result.stdout)).toEqual({ name: 'MyContext', id: null, link: null, account: null });
     expect((await run(['show'])).stdout).toContain('no folder is recorded yet');
     await expect(readFile(env.GOG_TEST_CALLS!)).rejects.toThrow();
   });
 
   it('confirms a recorded ID without searching, creating or rewriting settings', async () => {
-    const saved = JSON.stringify({ contextFolder: { name: 'Saved context', id: 'fixture-saved' }, assistantName: 'River' });
+    const account = 'saved@example.com';
+    env.GOG_TEST_SCENARIO = 'multi';
+    const saved = JSON.stringify({ contextFolder: { name: 'Saved context', id: 'fixture-saved', account }, assistantName: 'River' });
     await writeFile(settingsPath, saved);
     const result = await run(['ensure', '--json']);
     expect(result.status, result.stderr).toBe(0);
-    const receipt = { name: 'Saved context', id: 'fixture-saved', link: 'https://drive.google.com/drive/folders/fixture-saved' };
+    const receipt = { name: 'Saved context', id: 'fixture-saved', link: 'https://drive.google.com/drive/folders/fixture-saved', account };
     expect(JSON.parse(result.stdout)).toEqual(receipt);
     expect(JSON.parse((await run(['show', '--json'])).stdout)).toEqual(receipt);
-    expect(await calls()).toEqual([['--json', '--no-input', 'drive', 'get', 'fixture-saved', '--fields', 'id,name,mimeType']]);
+    expect((await run(['show'])).stdout).toContain(`Account: ${account}`);
+    expect(await calls()).toEqual([['--json', '--no-input', '--account', account, 'drive', 'get', 'fixture-saved', '--fields', 'id,name,mimeType']]);
     expect(await readFile(settingsPath, 'utf8')).toBe(saved);
   });
 
@@ -148,38 +154,81 @@ describe('context-folder', () => {
     expect(recorded[1]).toEqual(['--json', '--no-input', 'drive', 'mkdir', '--parent', 'root', '--', 'MyContext']);
   });
 
+  it.each(['multi', 'one'])('records an account when ensuring a folder and reuses it (%s)', async (scenario) => {
+    env.GOG_TEST_SCENARIO = scenario;
+    const account = 'selected@example.com';
+    expect((await run(['ensure', '--account', account, '--json'])).status).toBe(0);
+    expect((await settings()).contextFolder).toEqual({ name: 'MyContext', id: 'fixture-folder', account });
+    expect(JSON.parse((await run(['show', '--json'])).stdout).account).toBe(account);
+    expect((await run(['ensure', '--json'])).status).toBe(0);
+    const recorded = await calls();
+    expect(recorded.map((args) => args[5])).toEqual(scenario === 'multi' ? ['ls', 'mkdir', 'get'] : ['ls', 'get']);
+    for (const args of recorded) expect(args.slice(0, 5)).toEqual(['--json', '--no-input', '--account', account, 'drive']);
+  });
+
+  it('records an explicit account after confirming an already-saved folder', async () => {
+    env.GOG_TEST_SCENARIO = 'multi';
+    const saved = { name: 'Saved context', id: 'fixture-saved', account: 'previous@example.com' };
+    await writeFile(settingsPath, JSON.stringify({ contextFolder: saved }));
+    const account = 'selected@example.com';
+    expect((await run(['ensure', '--account', account, '--json'])).status).toBe(0);
+    expect((await settings()).contextFolder).toEqual({ ...saved, account });
+    expect(await calls()).toEqual([['--json', '--no-input', '--account', account, 'drive', 'get', saved.id, '--fields', 'id,name,mimeType']]);
+  });
+
   it.each(['many', 'paged'])('lists all matches and leaves settings unchanged (%s)', async (scenario) => {
     env.GOG_TEST_SCENARIO = scenario;
     const saved = JSON.stringify({ contextFolder: { name: 'MyContext' }, assistantName: 'River' });
     await writeFile(settingsPath, saved);
-    const result = await run(['ensure', '--json']);
+    const result = await run(['ensure', '--account', 'selected@example.com', '--json']);
     expect(result.status).toBe(1);
     const receipt = JSON.parse(result.stdout);
     expect(receipt.error).toContain('happyherd context-folder set --id ID');
     expect(receipt.matches.map((match: { id: string }) => match.id)).toEqual(['fixture-folder', 'fixture-other']);
     expect(await readFile(settingsPath, 'utf8')).toBe(saved);
-    expect((await calls()).every((args) => args[3] === 'ls')).toBe(true);
+    expect((await calls()).every((args) => args[5] === 'ls' && args[3] === 'selected@example.com')).toBe(true);
     if (scenario === 'paged') expect((await calls())[1].slice(-2)).toEqual(['--page', 'fixture-page-2']);
     else expect((await run(['ensure'])).stdout).toContain('fixture-other');
   });
 
   it('sets a folder only after confirming its type and readable metadata', async () => {
+    env.GOG_TEST_SCENARIO = 'multi';
     env.GOG_TEST_NAME = 'Selected context';
-    const result = await run(['set', '--id', 'fixture-selected', '--json']);
+    const account = 'selected@example.com';
+    const result = await run(['set', '--account', account, '--id', 'fixture-selected', '--json']);
     expect(result.status, result.stderr).toBe(0);
-    expect((await settings()).contextFolder).toEqual({ name: 'Selected context', id: 'fixture-selected' });
-    expect((await calls()).map((args) => args[3])).toEqual(['get']);
+    expect((await settings()).contextFolder).toEqual({ name: 'Selected context', id: 'fixture-selected', account });
+    expect(JSON.parse(result.stdout).account).toBe(account);
+    expect((await run(['set', '--id', 'fixture-replacement', '--json'])).status).toBe(0);
+    expect((await settings()).contextFolder).toEqual({ name: 'Selected context', id: 'fixture-replacement', account });
+    for (const args of await calls()) expect(args.slice(0, 6)).toEqual(['--json', '--no-input', '--account', account, 'drive', 'get']);
     expect(JSON.parse(result.stdout).link).toBe('https://drive.google.com/drive/folders/fixture-selected');
   });
 
   it.each(['file', 'denied'])('preserves a saved folder when the replacement is %s', async (scenario) => {
     env.GOG_TEST_SCENARIO = scenario;
-    const saved = JSON.stringify({ contextFolder: { name: 'Saved context', id: 'fixture-saved' } });
+    const saved = JSON.stringify({ contextFolder: { name: 'Saved context', id: 'fixture-saved', account: 'saved@example.com' } });
     await writeFile(settingsPath, saved);
-    const result = await run(['set', '--id', 'fixture-selected', '--json']);
+    const result = await run(['set', '--id', 'fixture-selected', '--account', 'replacement@example.com', '--json']);
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout).error).toContain(scenario === 'file' ? 'not a folder' : 'Drive access denied');
     expect(await readFile(settingsPath, 'utf8')).toBe(saved);
+  });
+
+  it('names account selection and preserves settings when gog has several sign-ins', async () => {
+    env.GOG_TEST_SCENARIO = 'multi';
+    const saved = JSON.stringify({ contextFolder: { name: 'MyContext' } });
+    await writeFile(settingsPath, saved);
+    for (const args of [['ensure'], ['set', '--id', 'fixture-selected']]) {
+      const result = await run([...args, '--json']);
+      expect(result.status).toBe(1);
+      const error = JSON.parse(result.stdout).error;
+      expect(error).toContain(missingAccount);
+      expect(error).toContain('Select a Google account, then run: happyherd context-folder ensure --account EMAIL');
+      expect(error).not.toContain('Sign in to Google Workspace');
+    }
+    expect(await readFile(settingsPath, 'utf8')).toBe(saved);
+    expect((await calls()).every((args) => !args.includes('--account'))).toBe(true);
   });
 
   it.each(['missing', 'unsigned'])('explains the Google sign-in step when gog is %s', async (scenario) => {
@@ -196,9 +245,10 @@ describe('context-folder', () => {
   it('documents all three actions in the built help and shared guide', async () => {
     const result = runBuilt(['--help']);
     expect(result.status, result.stderr).toBe(0);
-    for (const action of ['show [--json]', 'ensure [--json]', 'set --id ID [--json]']) expect(result.stdout).toContain(action);
+    for (const action of ['show [--json]', 'ensure [--account EMAIL] [--json]', 'set --id ID [--account EMAIL] [--json]']) expect(result.stdout).toContain(action);
     const guide = await readFile(new URL('../agentContext/sharedKnowledgeTemplates.ts', import.meta.url), 'utf8');
     for (const action of ['show', 'ensure', 'set --id ID']) expect(guide).toContain(`happyherd context-folder ${action}`);
+    expect(guide).toContain('happyherd context-folder ensure --account EMAIL');
   });
 });
 
@@ -243,22 +293,30 @@ describe('installer context folder', () => {
     expect((await settings()).contextFolder).toEqual({ name: 'MyContext', id: 'fixture-folder' });
     expect(install(asset).status).toBe(0);
     expect((await calls()).map((args) => args[3])).toEqual(['ls', 'mkdir', 'get']);
+    const account = 'selected@example.com';
+    expect((await run(['ensure', '--account', account, '--json'])).status).toBe(0);
+    env.GOG_TEST_SCENARIO = 'multi';
     const name = '--Team "context" \\ $(literal)';
     const named = install(asset, ['--context-folder', name, '--assistant-name', 'River']);
     expect(named.status, named.stderr).toBe(0);
-    expect((await settings()).contextFolder).toEqual({ name, id: 'fixture-folder' });
+    expect((await settings()).contextFolder).toEqual({ name, id: 'fixture-folder', account });
     expect((await settings()).assistantName).toBe('River');
     expect((await calls()).at(-1)?.slice(-2)).toEqual(['--', name]);
+    for (const args of (await calls()).slice(-2)) expect(args.slice(0, 5)).toEqual(['--json', '--no-input', '--account', account, 'drive']);
   }, 30_000);
 
-  it.each(['missing', 'unsigned'])('completes and prints the later command when gog is %s', async (scenario) => {
+  it.each(['missing', 'unsigned', 'multi'])('completes and prints the later command when gog is %s', async (scenario) => {
     if (scenario === 'missing') await rm(path.join(directory, 'bin/gog'));
     else env.GOG_TEST_SCENARIO = scenario;
     const result = install(await installerAsset(), ['--context-folder', 'Team context']);
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('HappyHerd installed.');
     expect(result.stdout).toContain('Next: happyherd context-folder ensure');
-    expect(result.stderr).toContain('Sign in to Google Workspace with gog');
+    if (scenario === 'multi') {
+      expect(result.stderr).toContain(missingAccount);
+      expect(result.stderr).toContain('happyherd context-folder ensure --account EMAIL');
+      expect(result.stderr).not.toContain('Sign in to Google Workspace');
+    } else expect(result.stderr).toContain('Sign in to Google Workspace with gog');
     expect((await settings()).contextFolder).toEqual({ name: 'Team context' });
     expect(runBuilt(['ensure']).status).toBe(1);
   }, 15_000);

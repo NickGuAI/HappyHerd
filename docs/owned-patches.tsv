@@ -875,3 +875,4 @@ ISSUE_457_MOBILE_LIGHT_GOLDEN	code-ready	test(changelog): use repeated mobile li
 ISSUE_458_CONTEXT_FOLDER	code-ready	feat(cli): manage the Google Drive context folder	server/packages/happyherd-cli/src/commands/contextFolder.test.ts
 ISSUE_458_CONTEXT_FOLDER_TESTS	code-ready	test(cli): focus context folder checks on the command handler	server/packages/happyherd-cli/src/commands/contextFolder.test.ts
 ISSUE_458_CONTEXT_FOLDER_COMMANDS	code-ready	docs(cli): list the context folder commands	server/packages/happyherd-cli/README.md
+ISSUE_458_CONTEXT_FOLDER_ACCOUNT	code-ready	fix(cli): remember the context folder Google account	server/packages/happyherd-cli/src/commands/contextFolder.test.ts

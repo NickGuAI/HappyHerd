@@ -368,7 +368,7 @@ if (process.argv[4] === '1') settings.assistantName = process.argv[5];
 if (process.argv[6] === '1') {
   const name = process.argv[7].trim() || 'MyContext';
   if (name !== (settings.contextFolder?.name?.trim() || 'MyContext')) {
-    settings.contextFolder = { name };
+    settings.contextFolder = { name, account: settings.contextFolder?.account };
   } else {
     settings.contextFolder = { ...settings.contextFolder, name };
   }

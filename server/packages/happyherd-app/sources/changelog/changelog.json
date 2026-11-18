@@ -3,7 +3,7 @@
     {
       "title": "November 18 — Choose a Google Drive context folder",
       "summary": "",
-      "markdown": "- Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.\n- Use `happyherd context-folder show`, `ensure`, or `set --id ID` to view, find, or select this machine's folder. HappyHerd stores its name and ID, without a Google token or any document changes."
+      "markdown": "- Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.\n- Use `happyherd context-folder show`, `ensure`, or `set --id ID` to view, find, or select this machine's folder. With several Google sign-ins, choose `--account EMAIL` on `ensure` or `set`; the saved account is shown and reused. HappyHerd stores the folder name, ID and selected account, without a Google token or any document changes."
     },
     {
       "title": "November 18 — Projects and machine capacity from the CLI",
