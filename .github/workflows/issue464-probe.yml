@@ -12,10 +12,6 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          ref: 05a2ee06b04fc4868f7062977214dd90202f4e78
-          path: .probe-source
       - uses: pnpm/action-setup@v4
         with:
           version: 10.11.0
@@ -23,20 +19,22 @@ jobs:
         with:
           node-version: 24
       - name: Install frozen dependencies
-        working-directory: .probe-source/server
+        working-directory: server
         run: pnpm install --frozen-lockfile
-      - name: Build reproduction content
-        working-directory: .probe-source/server
+      - name: Build production content
+        working-directory: server
         run: APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir dist-ci
       - name: Install pinned Chromium
-        working-directory: .probe-source/server
+        working-directory: server
         run: pnpm --filter happyherd-app exec playwright-core install --with-deps chromium
       - name: Record runner CPU
         run: |
           mkdir -p .artifacts/issue464
           lscpu --json > .artifacts/issue464/cpu.json
-      - name: Compare animation states on one runner
-        run: node scripts/kilv-capture/issue464-probe.mjs .probe-source
+      - name: Capture ten consecutive sets with the actual production script
+        env:
+          PROBE_ONE_PIXEL: ${{ github.event_name == 'push' && 'true' || 'false' }}
+        run: node scripts/kilv-capture/issue464-probe.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -881,3 +881,4 @@ ISSUE_464_PROBE	code-ready	test(golden): measure changelog animation capture sta
 ISSUE_464_FRESH_PROBE	code-ready	test(golden): isolate capture timing across browser launches	scripts/kilv-capture/issue464-probe.mjs
 ISSUE_464_FULL_PROBE	code-ready	test(golden): retain the complete production capture sequence	scripts/kilv-capture/issue464-probe.mjs
 ISSUE_464_LIFECYCLE_PROBE	code-ready	test(golden): isolate the finished entry animation effect	scripts/kilv-capture/issue464-probe.mjs
+ISSUE_464_GOLDEN_MOTION	code-ready	fix(golden): prevent changelog entry animation before capture	scripts/kilv-capture/production.mjs
