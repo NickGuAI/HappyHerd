@@ -106,7 +106,7 @@ const AccountSettingsScreen = React.memo(() => {
     const auth = useAuth();
     const router = useRouter();
     const [analyticsOptOut, setAnalyticsOptOut] = useSettingMutable('analyticsOptOut');
-    const { connectAccount, isLoading: isConnecting } = useConnectAccount();
+    const { connectAccount, connectWithUrl, isLoading: isConnecting } = useConnectAccount();
     const profile = useProfile();
     const currentPushDevice = useMemo(() => getCurrentPushDeviceMetadata(), []);
     const [pushTokens, setPushTokens] = useState<PushToken[]>([]);
@@ -123,6 +123,16 @@ const AccountSettingsScreen = React.memo(() => {
     // Profile display values
     const displayName = getDisplayName(profile);
     const githubUsername = profile.github?.login;
+
+    const handleLinkNewDevice = async () => {
+        const url = await Modal.prompt(
+            t('settingsAccount.linkNewDevice'),
+            t('settingsAccount.linkNewDevicePasteLink'),
+        );
+        if (url !== null) {
+            await connectWithUrl(url);
+        }
+    };
 
     const loadPushSettings = useCallback(async (showError = false) => {
         if (!auth.credentials) {
@@ -324,16 +334,16 @@ const AccountSettingsScreen = React.memo(() => {
                         showChevron={false}
                         copy={!!sync.serverID}
                     />
-                    {Platform.OS !== 'web' && (
-                        <Item
-                            title={t('settingsAccount.linkNewDevice')}
-                            subtitle={isConnecting ? t('common.scanning') : t('settingsAccount.linkNewDeviceSubtitle')}
-                            icon={<Ionicons name="qr-code-outline" size={29} color={theme.colors.textLink} />}
-                            onPress={connectAccount}
-                            disabled={isConnecting}
-                            showChevron={false}
-                        />
-                    )}
+                    <Item
+                        title={t('settingsAccount.linkNewDevice')}
+                        subtitle={Platform.OS === 'web'
+                            ? t('settingsAccount.linkNewDevicePasteLink')
+                            : isConnecting ? t('common.scanning') : t('settingsAccount.linkNewDeviceSubtitle')}
+                        icon={<Ionicons name="qr-code-outline" size={29} color={theme.colors.textLink} />}
+                        onPress={Platform.OS === 'web' ? handleLinkNewDevice : connectAccount}
+                        disabled={isConnecting}
+                        showChevron={false}
+                    />
                 </ItemGroup>
 
                 {/* Profile Section */}

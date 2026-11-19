@@ -50,7 +50,8 @@ interface LoopOptions {
     onAbort?: () => void
     onProviderResult?: (result: { status: 'completed' | 'failed'; message: string | null }) => void
     unattended?: boolean
-    /** Path to temporary settings file with SessionStart hook (required for session tracking) */
+    /** Session-owned temporary settings and the current SessionStart hook server port. */
+    hookSettingsPort: number
     hookSettingsPath: string
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     jsRuntime?: JsRuntime
@@ -76,6 +77,7 @@ export async function loop(opts: LoopOptions): Promise<number> {
         onModeChange: opts.onModeChange,
         onAbort: opts.onAbort,
         hookSettingsPath: opts.hookSettingsPath,
+        hookSettingsPort: opts.hookSettingsPort,
         jsRuntime: opts.jsRuntime
     });
 

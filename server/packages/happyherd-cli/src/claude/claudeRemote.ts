@@ -1,3 +1,4 @@
+import { ensureHookSettingsFile } from './utils/generateHookSettings';
 import { EnhancedMode } from "./loop";
 import { query, type CanCallToolOptions, type QueryOptions, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
 import type { MessageParam } from '@anthropic-ai/sdk/resources'
@@ -43,7 +44,8 @@ export async function claudeRemote(opts: {
     canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: CanCallToolOptions) => Promise<PermissionResult>,
     /** Called when the Query object is ready — allows permission handler to call setPermissionMode */
     onQueryReady?: (query: { setPermissionMode: (mode: string) => Promise<void> }) => void,
-    /** Path to temporary settings file with SessionStart hook (required for session tracking) */
+    /** Session-owned temporary settings and the current SessionStart hook server port. */
+    hookSettingsPort: number,
     hookSettingsPath: string,
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     jsRuntime?: JsRuntime,
@@ -218,6 +220,7 @@ export async function claudeRemote(opts: {
     // Start the loop
     let response: ReturnType<typeof query>;
     try {
+        ensureHookSettingsFile(opts.hookSettingsPath, opts.hookSettingsPort);
         response = query({ prompt: messages, options: sdkOptions });
     } catch (error) {
         unsubscribe();

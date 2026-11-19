@@ -29,7 +29,7 @@ function fixture() {
     const state: ClaudeSessionProtocolState = { currentTurnId: null };
     const envelopes: SessionEnvelope[] = [];
     const session = {
-        sessionId: 'fixture-session', path: '/fixture/project', hookSettingsPath: '/fixture/settings.json',
+        sessionId: 'fixture-session', path: '/fixture/project', hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
         queue: { size: () => 0, completeCurrentBatch: vi.fn(), isClosed: () => false },
         consumeOneTimeFlags: vi.fn(),
         api: { push: () => ({ sendSessionNotification: notification }) },

@@ -1261,6 +1261,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             claudeArgs: nativeClaudeArgs,
             sandboxConfig,
             hookSettingsPath,
+            hookSettingsPort: hookServer.port,
             jsRuntime: options.jsRuntime
         });
     } catch (error) {

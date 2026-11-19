@@ -885,3 +885,14 @@ ISSUE_464_GOLDEN_MOTION	code-ready	fix(golden): prevent changelog entry animatio
 ISSUE_464_PROBE_CLEANUP	code-ready	test(golden): remove temporary determinism probes	docs/acceptance/issue-287/golden/README.md
 ISSUE_464_CURRENT_MAIN_PROOF	code-ready	test(golden): verify current-main changelog capture stability	docs/acceptance/issue-287/golden/README.md
 ISSUE_464_CURRENT_MAIN_BASELINES	code-ready	test(golden): refresh changelog baselines and finish verification	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_453_HOOK_SETTINGS_LIFETIME	code-ready	fix(claude): recreate temporary hook settings before launch	server/packages/happyherd-cli/src/claude/hookSettingsLaunch.test.ts
+ISSUE_453_HOOK_SETTINGS_GOLDENS	code-ready	test(changelog): refresh hook settings recovery captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_453_NATIVE_RUNNER	code-ready	ci(installer): replace retired macOS ARM64 runner	.github/workflows/native-installer-release.yml
+CREDENTIAL_ACCOUNT_RESET_COOLDOWN	code-ready	feat(credentials): reset account cooldown	server/packages/happyherd-cli/src/credentialPool/manager.test.ts
+CREDENTIAL_RESET_RACE_COVERAGE	code-ready	test(credentials): cover cooldown reset machine races	server/packages/happyherd-cli/src/credentialPool/manager.test.ts
+CREDENTIAL_RESET_KILV_FIXTURES	code-ready	test(credentials): fix cooldown golden capture	scripts/kilv-capture/routes.mocks.mjs
+ISSUE_467_WEB_LINK	code-ready	fix(account): link new devices from the web app	server/packages/happyherd-app/sources/app/(app)/settings/account.tsx
+ISSUE_467_ACCOUNT_LINK_TEST	code-ready	test(account): verify web device linking and native scanner	server/packages/happyherd-app/sources/components/accountLink.browser.test.ts
+ISSUE_466_COMMANDER_REFRESH	code-ready	fix(daemon): refresh Commander names at startup	server/packages/happyherd-cli/src/daemon/run.ts
+ISSUE_466_CHANGELOG_GOLDENS	code-ready	test(golden): refresh Commander rename changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+INTEGRATION_20261118_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh November 18 integration baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png

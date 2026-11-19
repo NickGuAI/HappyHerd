@@ -39,6 +39,7 @@ import {
     getManagedCredentialLogin,
     listManagedCredentialAccounts,
     removeManagedCredentialAccount,
+    resetManagedCredentialAccountCooldown,
     renameManagedCredentialAccount,
     startManagedCredentialLogin,
     submitManagedCredentialLoginCode,
@@ -966,6 +967,20 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                                                                         disabled={accountActionsDisabled}
                                                                         onPress={() => void applyAccountMutation(key, () => (
                                                                             useManagedCredentialAccount(selectedMachine.id, {
+                                                                                id: account.id,
+                                                                                provider: account.provider,
+                                                                                name: account.name,
+                                                                                expectedCredentialVersion: account.credentialVersion,
+                                                                            })
+                                                                        ))}
+                                                                    />
+                                                                )}
+                                                                {account.limitedUntil !== null && (
+                                                                    <ActionButton
+                                                                        label={t('settingsCredentials.resetCooldown')}
+                                                                        disabled={accountActionsDisabled}
+                                                                        onPress={() => void applyAccountMutation(key, () => (
+                                                                            resetManagedCredentialAccountCooldown(selectedMachine.id, {
                                                                                 id: account.id,
                                                                                 provider: account.provider,
                                                                                 name: account.name,

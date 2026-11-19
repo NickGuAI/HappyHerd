@@ -1,6 +1,21 @@
 {
   "entries": [
     {
+      "title": "November 18 — Keep Commander names current",
+      "summary": "",
+      "markdown": "- Renaming a Commander now updates its sessions on that machine when the daemon starts again, including the pinned assistant row and `happyherd session inspect`. Session titles stay unchanged."
+    },
+    {
+      "title": "November 18 — Link a device from the web app",
+      "summary": "",
+      "markdown": "- In Settings → Account, choose Link New Device and paste the link from `happyherd machine auth login`. You can now link a device from a desktop or mobile browser. Native apps still open the QR scanner."
+    },
+    {
+      "title": "November 18 — Reset account cooldown",
+      "summary": "",
+      "markdown": "- Reset a provider account’s saved HappyHerd cooldown after restoring quota with the provider. This does not reset quota at the provider."
+    },
+    {
       "title": "November 18 — Choose a Google Drive context folder",
       "summary": "",
       "markdown": "- Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.\n- Use `happyherd context-folder show`, `ensure`, or `set --id ID` to view, find, or select this machine's folder. With several Google sign-ins, choose `--account EMAIL` on `ensure` or `set`; the saved account is shown and reused. HappyHerd stores the folder name, ID and selected account, without a Google token or any document changes."
@@ -19,6 +34,11 @@
       "title": "November 18 — Start a side chat with only its brief",
       "summary": "",
       "markdown": "- Use `happyherd session side-chat create --context fresh` to start a new provider conversation without the parent's transcript, while keeping the parent link and normal side-chat lifecycle. The default `inherit` keeps existing behavior, and the create receipt reports the context used."
+    },
+    {
+      "title": "November 17 — Keep long-running Claude sessions working",
+      "summary": "",
+      "markdown": "- Claude sessions can relaunch after the operating system removes their temporary hook settings. HappyHerd recreates the settings for the same session before each launch and removes them at shutdown."
     },
     {
       "title": "November 15 — Automatic log cleanup",
@@ -1071,5 +1091,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 18 — Choose a Google Drive context folder"
+  "latestTitle": "November 18 — Keep Commander names current"
 }

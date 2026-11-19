@@ -535,6 +535,25 @@ export async function useCredentialAccount(
   });
 }
 
+export async function resetCredentialAccountCooldown(
+  provider: CredentialProvider,
+  name: string,
+  paths: CredentialPoolPaths,
+  expected: CredentialAccountExpectation,
+): Promise<void> {
+  await serializeCredentialPoolState(paths, async () => {
+    const state = await readCredentialPoolStateUnlocked(paths);
+    const normalizedName = validateAccountName(name);
+    const account = state.accounts.find((candidate) => candidate.provider === provider && candidate.id === expected.id);
+    if (!account) throw new Error(`No ${provider} account named "${name}".`);
+    if (account.name !== normalizedName || account.credentialVersion !== expected.credentialVersion) {
+      throw new Error('This provider account changed. Refresh accounts and retry.');
+    }
+    account.limitedUntil = null;
+    await writeCredentialPoolStateUnlocked(state, paths);
+  });
+}
+
 export async function renameCredentialAccount(
   provider: CredentialProvider,
   name: string,

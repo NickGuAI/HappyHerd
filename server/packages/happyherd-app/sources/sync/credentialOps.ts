@@ -48,6 +48,10 @@ export const useManagedCredentialAccount = (machineId: string, input: Credential
     accountMutation(machineId, 'happyherd-credential-accounts-use', input)
 );
 
+export const resetManagedCredentialAccountCooldown = (machineId: string, input: CredentialAccountTarget) => (
+    accountMutation(machineId, 'happyherd-credential-accounts-reset-cooldown', input)
+);
+
 export const renameManagedCredentialAccount = (
     machineId: string,
     input: CredentialAccountRenameRequest,

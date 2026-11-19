@@ -274,6 +274,24 @@ const virtualModules: Record<string, string> = {
             else state().accounts = next;
             return safeAccounts(machineId);
         };
+        export const resetManagedCredentialAccountCooldown = async (machineId, target) => {
+            state().calls.push(['account-reset', machineId, target]);
+            if (state().scenario === 'reset-error' && !state().resetFailed) {
+                state().resetFailed = true;
+                throw new Error('Reset unavailable');
+            }
+            if (['reset-busy', 'deferred-reset', 'deferred-reset-error'].includes(state().scenario)) await state().mutationGate;
+            if (state().scenario === 'deferred-reset-error') {
+                state().resetSettled = true;
+                throw new Error('Late reset failure on original machine');
+            }
+            const next = safeAccounts(machineId).map((item) => item.id === target.id
+                ? { ...item, limitedUntil: null, status: 'stored' } : item);
+            if (state().accountsByMachine) state().accountsByMachine[machineId] = next;
+            else state().accounts = next;
+            state().resetSettled = true;
+            return safeAccounts(machineId);
+        };
         export const renameManagedCredentialAccount = async (machineId, target) => {
             state().calls.push(['account-rename', machineId, target]);
             if (state().scenario === 'deferred-rename' && machineId === 'machine-1') {
@@ -574,8 +592,8 @@ describe('CredentialsSettingsView browser journeys', () => {
                                 },
                                 {
                                     id: '22222222-2222-4222-8222-222222222222', credentialVersion: 1,
-                                    provider: 'codex', name: 'personal', status: 'stored', current: false,
-                                    limitedUntil: null, createdAt: 1, updatedAt: 2,
+                                    provider: 'codex', name: 'personal', status: scenario.includes('reset') ? 'limited' : 'stored', current: false,
+                                    limitedUntil: scenario.includes('reset') ? Date.now() + 60000 : null, createdAt: 1, updatedAt: 2,
                                 },
                             ];
                     const initialCredentials = scenario === 'empty' ? []
@@ -1412,6 +1430,80 @@ describe('CredentialsSettingsView browser journeys', () => {
             },
         ]);
         await page.getByRole('button', { name: 'Cancel Login', exact: true }).click();
+        await page.close();
+    });
+
+    it.each([
+        ['desktop', { width: 1440, height: 900 }],
+        ['phone', { width: 390, height: 844 }],
+    ] as const)('reset cooldown works on %s with busy state and persisted readback', async (label, viewport) => {
+        const page = await browser.newPage({ viewport });
+        const errors = recordErrors(page);
+        await page.goto(`${origin}/?scenario=reset-busy`);
+        await page.getByText('personal', { exact: true }).click();
+        const button = page.getByRole('button', { name: 'Reset cooldown', exact: true });
+        await button.waitFor();
+        const evidenceDir = process.env.HAPPYHERD_UI_EVIDENCE_DIR?.trim();
+        if (evidenceDir) {
+            await mkdir(evidenceDir, { recursive: true });
+            await page.screenshot({ path: resolve(evidenceDir, `reset-${label}-before.png`), fullPage: true });
+        }
+        expect(await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }))).toEqual({ width: viewport.width, scroll: viewport.width });
+        await button.click();
+        await expect.poll(() => button.isDisabled()).toBe(true);
+        await page.evaluate(() => (window as any).__FIXTURE_STATE__.releaseMutation());
+        await expect.poll(() => button.count()).toBe(0);
+        const state = await page.evaluate(() => (window as any).__FIXTURE_STATE__);
+        expect(state.calls).toContainEqual(['account-reset', 'machine-1', {
+            id: '22222222-2222-4222-8222-222222222222', provider: 'codex', name: 'personal', expectedCredentialVersion: 1,
+        }]);
+        expect(state.accounts.find((item: any) => item.name === 'personal')).toMatchObject({ limitedUntil: null, current: false, credentialVersion: 1 });
+        expect(state.accounts.find((item: any) => item.name === 'work')).toMatchObject({ current: true, credentialVersion: 1 });
+        if (evidenceDir) await page.screenshot({ path: resolve(evidenceDir, `reset-${label}-after.png`), fullPage: true });
+        await page.evaluate(() => (window as any).__REMOUNT__());
+        await page.getByText('personal', { exact: true }).click();
+        await expect(button.count()).resolves.toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    });
+
+    it.each(['deferred-reset', 'deferred-reset-error'])('reset cooldown ignores late %s after switching machines', async (scenario) => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.goto(`${origin}/?scenario=${scenario}`);
+        await page.getByText('personal', { exact: true }).click();
+        await page.getByRole('button', { name: 'Reset cooldown', exact: true }).click();
+        await expect.poll(async () => page.evaluate(() => (
+            (window as any).__FIXTURE_STATE__.calls.some((call: unknown[]) => call[0] === 'account-reset')
+        ))).toBe(true);
+        await page.getByText('Studio', { exact: true }).first().click();
+        await page.getByText('Laptop', { exact: true }).click();
+        await page.getByText('laptop-only', { exact: true }).waitFor();
+        const laptopBefore = await page.evaluate(() => JSON.stringify((window as any).__FIXTURE_STATE__.accountsByMachine['machine-2']));
+        const visibleBefore = await page.locator('body').innerText();
+        await page.evaluate(() => (window as any).__FIXTURE_STATE__.releaseMutation());
+        await expect.poll(() => page.evaluate(() => (window as any).__FIXTURE_STATE__.resetSettled)).toBe(true);
+        await page.waitForTimeout(100); // Let React process the settled promise before comparing the UI.
+        expect(await page.locator('body').innerText()).toBe(visibleBefore);
+        await expect.poll(() => page.getByText('laptop-only', { exact: true }).count()).toBe(1);
+        await expect(page.getByText('personal', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByText('Late reset failure on original machine', { exact: true }).count()).resolves.toBe(0);
+        expect(await page.evaluate(() => JSON.stringify((window as any).__FIXTURE_STATE__.accountsByMachine['machine-2']))).toBe(laptopBefore);
+        const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+        expect(calls.filter((call: unknown[]) => call[0] === 'account-reset')).toEqual([
+            ['account-reset', 'machine-1', { id: '22222222-2222-4222-8222-222222222222', provider: 'codex', name: 'personal', expectedCredentialVersion: 1 }],
+        ]);
+        await page.close();
+    });
+
+    it('reset cooldown shows an error and allows retry', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.goto(`${origin}/?scenario=reset-error`);
+        await page.getByText('personal', { exact: true }).click();
+        const button = page.getByRole('button', { name: 'Reset cooldown', exact: true });
+        await button.click();
+        await page.getByText('Reset unavailable', { exact: true }).waitFor();
+        await button.click();
+        await expect.poll(() => button.count()).toBe(0);
         await page.close();
     });
 

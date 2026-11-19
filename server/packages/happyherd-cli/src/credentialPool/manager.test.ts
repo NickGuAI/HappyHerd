@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CredentialAccountManager } from './manager';
-import { readCredentialPoolState, upsertCredentialAccount, type CredentialPoolPaths } from './store';
+import { readCredentialPoolState, upsertCredentialAccount, useCredentialAccount, type CredentialPoolPaths } from './store';
 
 function fakeLogin() {
   return {
@@ -55,6 +55,51 @@ describe('credential account manager', () => {
       expectedCredentialVersion: account.credentialVersion + 1,
     })).rejects.toThrow('changed');
     expect((await readCredentialPoolState(paths)).accounts[0].name).toBe('work');
+  });
+
+  it('resets only the targeted cooldown and rejects stale identities', async () => {
+    const first = await upsertCredentialAccount({
+      provider: 'claude', name: 'work', credential: { type: 'oauth-token', token: 'synthetic-work' },
+      limitedUntil: Date.now() + 60_000,
+    }, { paths, now: 1 });
+    await upsertCredentialAccount({
+      provider: 'claude', name: 'personal', credential: { type: 'oauth-token', token: 'synthetic-personal' },
+      limitedUntil: Date.now() + 120_000,
+    }, { paths, now: 2 });
+    const sameName = await upsertCredentialAccount({
+      provider: 'codex', name: 'work', credential: { type: 'auth-file', path: join(root, 'codex', 'auth.json') },
+      limitedUntil: Date.now() + 180_000,
+    }, { paths, now: 3 });
+    await useCredentialAccount('claude', 'personal', paths);
+    const manager = new CredentialAccountManager({ paths, login: fakeLogin() as any });
+    const target = { id: first.id, provider: 'claude' as const, name: 'work', expectedCredentialVersion: first.credentialVersion };
+    const before = await readCredentialPoolState(paths);
+    expect(before.current).toMatchObject({ claude: 'personal', codex: 'work' });
+    for (const stale of [
+      { ...target, expectedCredentialVersion: target.expectedCredentialVersion + 1 },
+      { ...target, name: 'personal' },
+      { ...target, id: '11111111-1111-4111-8111-111111111111' },
+      { ...target, provider: 'codex' as const },
+      { ...target, id: sameName.id },
+    ]) {
+      await expect(manager.resetCooldown(stale)).rejects.toThrow();
+      expect(await readCredentialPoolState(paths)).toEqual(before);
+    }
+    const summaries = await manager.resetCooldown(target);
+    const after = await readCredentialPoolState(paths);
+    expect(after).toEqual({ ...before, accounts: before.accounts.map((account) => (
+      account.id === first.id ? { ...account, limitedUntil: null } : account
+    )) });
+    expect(summaries.find((account) => account.id === first.id)).toMatchObject({ status: 'stored', limitedUntil: null });
+    expect(await manager.listAccounts()).toEqual(summaries);
+    expect(JSON.stringify(summaries)).not.toContain('synthetic-');
+    const codexSummaries = await manager.resetCooldown({
+      id: sameName.id, provider: 'codex', name: 'work', expectedCredentialVersion: sameName.credentialVersion,
+    });
+    expect(await readCredentialPoolState(paths)).toEqual({ ...after, accounts: after.accounts.map((account) => (
+      account.id === sameName.id ? { ...account, limitedUntil: null } : account
+    )) });
+    expect(codexSummaries.find((account) => account.id === sameName.id)).toMatchObject({ status: 'stored', limitedUntil: null, current: true });
   });
 
   it('blocks destructive changes for legacy live sessions while still allowing default selection', async () => {

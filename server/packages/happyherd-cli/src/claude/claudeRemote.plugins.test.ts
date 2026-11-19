@@ -1,3 +1,4 @@
+vi.mock('./utils/generateHookSettings', () => ({ ensureHookSettingsFile: vi.fn() }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolve } from 'node:path';
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
@@ -24,7 +25,7 @@ async function start(claudeArgs?: string[], resume: string | null = null) {
         sessionId: resume,
         claudeArgs,
         allowedTools: ['Read'],
-        hookSettingsPath: resolve(cwd, 'happyherd-settings.json'),
+        hookSettingsPath: resolve(cwd, 'happyherd-settings.json'), hookSettingsPort: 43219,
         nextMessage: async () => ({ message: 'fixture message', mode: { permissionMode: 'default' } }),
         canCallTool,
         isAborted: () => false,
@@ -90,7 +91,7 @@ describe('remote plugin forwarding to the Claude Agent SDK', () => {
             client: { keepAlive: vi.fn() } as unknown as Session['client'],
             messageQueue: {} as Session['queue'],
             mcpServers: {},
-            hookSettingsPath: '',
+            hookSettingsPath: '', hookSettingsPort: 43219,
             onModeChange: vi.fn(),
         });
         try {

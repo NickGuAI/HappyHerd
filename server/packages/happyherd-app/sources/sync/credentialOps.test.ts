@@ -6,6 +6,7 @@ vi.mock('./apiSocket', () => ({ apiSocket: { machineRPC } }));
 import {
     getManagedCredentialLogin,
     listManagedCredentialAccounts,
+    resetManagedCredentialAccountCooldown,
     startManagedCredentialLogin,
     useManagedCredentialAccount,
 } from './credentialOps';
@@ -61,6 +62,15 @@ describe('credential manager machine RPC', () => {
             'happyherd-credential-auth-status',
             { id: 'flow-1' },
         );
+    });
+
+    it('sends the exact cooldown target to the selected machine and returns its summary', async () => {
+        const target = { id: account.id, provider: 'codex' as const, name: 'work', expectedCredentialVersion: 1 };
+        machineRPC.mockResolvedValue({ accounts: [account] });
+        await expect(resetManagedCredentialAccountCooldown('machine-2', target)).resolves.toEqual([account]);
+        expect(machineRPC).toHaveBeenCalledExactlyOnceWith('machine-2', 'happyherd-credential-accounts-reset-cooldown', target);
+        machineRPC.mockResolvedValue({ error: 'Account changed' });
+        await expect(resetManagedCredentialAccountCooldown('machine-2', target)).rejects.toThrow('Account changed');
     });
 
     it('returns authoritative state from a default mutation', async () => {

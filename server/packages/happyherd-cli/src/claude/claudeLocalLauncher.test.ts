@@ -101,7 +101,7 @@ describe('claudeLocalLauncher', () => {
             claudeArgs: undefined,
             mcpServers: {},
             allowedTools: [],
-            hookSettingsPath: '/tmp/hook-settings.json',
+            hookSettingsPath: '/tmp/hook-settings.json', hookSettingsPort: 43219,
             sandboxConfig: undefined,
         };
 
@@ -172,7 +172,7 @@ describe('claudeLocalLauncher', () => {
             claudeArgs: undefined,
             mcpServers: {},
             allowedTools: [],
-            hookSettingsPath: '/tmp/hook-settings.json',
+            hookSettingsPath: '/tmp/hook-settings.json', hookSettingsPort: 43219,
             sandboxConfig: undefined,
         };
 
@@ -244,7 +244,7 @@ describe('claudeLocalLauncher', () => {
             claudeArgs: undefined,
             mcpServers: {},
             allowedTools: [],
-            hookSettingsPath: '/tmp/hook-settings.json',
+            hookSettingsPath: '/tmp/hook-settings.json', hookSettingsPort: 43219,
             sandboxConfig: undefined,
         };
 

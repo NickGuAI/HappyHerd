@@ -1,3 +1,4 @@
+vi.mock('./utils/generateHookSettings', () => ({ ensureHookSettingsFile: vi.fn() }));
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { claudeRemote } from './claudeRemote';
 import { query } from '@/claude/sdk';
@@ -64,7 +65,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: '/fixture/project',
             allowedTools: [],
-            hookSettingsPath: '/fixture/settings.json',
+            hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage, onReady, onCompletionEvent, onMessage,
             canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
             isAborted: () => false,
@@ -130,7 +131,7 @@ describe('claudeRemote', () => {
             .mockResolvedValueOnce({ message: 'User retry after login', mode })
             .mockResolvedValue(null);
         await claudeRemote({
-            sessionId: 'fixture-session', path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            sessionId: 'fixture-session', path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage, onReady, onCompletionEvent,
             canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
             isAborted: () => false, onSessionFound: vi.fn(), onMessage: vi.fn(),
@@ -181,7 +182,7 @@ describe('claudeRemote', () => {
             sessionId: 'requested-resume-id',
             path: '/fixture/project',
             allowedTools: [],
-            hookSettingsPath: '/fixture/settings.json',
+            hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage: async () => messageCount++ === 0 ? { message: 'Original prompt', mode } : null,
             onReady: vi.fn(),
             canCallTool: async () => ({ behavior: 'allow' }) as any,
@@ -212,7 +213,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: '/fixture/project',
             allowedTools: [],
-            hookSettingsPath: '/fixture/settings.json',
+            hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage: async () => messageCount++ === 0 ? { message: 'Fresh prompt', mode } : null,
             onReady: vi.fn(),
             canCallTool: async () => ({ behavior: 'allow' }) as any,
@@ -250,7 +251,7 @@ describe('claudeRemote', () => {
         const onReady = vi.fn();
         const onProviderHardLimit = vi.fn();
         await claudeRemote({
-            sessionId: 'fixture-session', path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            sessionId: 'fixture-session', path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage: vi.fn()
                 .mockResolvedValueOnce({ message: 'Original prompt', mode })
                 .mockResolvedValueOnce({ message: 'Separately queued prompt', mode })
@@ -278,7 +279,7 @@ describe('claudeRemote', () => {
         const onCompletionEvent = vi.fn();
         const onReady = vi.fn();
         await claudeRemote({
-            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage: vi.fn().mockResolvedValueOnce({ message: '/compact', mode }).mockResolvedValue(null),
             onReady, onCompletionEvent,
             canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
@@ -295,7 +296,7 @@ describe('claudeRemote', () => {
         const failure = new Error('Fixture ready callback failed');
         const nextMessage = vi.fn().mockResolvedValueOnce({ message: prompt, mode }).mockResolvedValue(null);
         await expect(claudeRemote({
-            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage,
             onReady: async () => { throw failure; },
             canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
@@ -313,7 +314,7 @@ describe('claudeRemote', () => {
         } as any);
         const onCompletionEvent = vi.fn();
         await claudeRemote({
-            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json', hookSettingsPort: 43219,
             nextMessage: vi.fn().mockResolvedValueOnce({ message: '/compact', mode }).mockResolvedValue(null),
             onReady: vi.fn(), onCompletionEvent,
             canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
@@ -339,7 +340,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => ({
                 message: '/clear',
                 mode,
@@ -386,7 +387,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1
@@ -425,7 +426,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1
@@ -476,7 +477,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1
@@ -513,7 +514,7 @@ describe('claudeRemote', () => {
             path: process.cwd(),
             claudeArgs: ['--resume', '11111111-2222-3333-4444-555555555555'],
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1
@@ -551,7 +552,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 if (messageCount === 1) {
@@ -590,7 +591,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1
@@ -639,7 +640,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1 ? { message: 'continue', mode } : null;
@@ -688,7 +689,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1 ? { message: 'continue', mode: { ...mode, model: 'sonnet' } } : null;
@@ -747,7 +748,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1 ? { message: 'continue', mode } : null;
@@ -792,7 +793,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1 ? { message: 'continue', mode } : null;
@@ -850,7 +851,7 @@ describe('claudeRemote', () => {
             sessionId: null,
             path: process.cwd(),
             allowedTools: [],
-            hookSettingsPath: '/tmp/happyherd-test-settings.json',
+            hookSettingsPath: '/tmp/happyherd-test-settings.json', hookSettingsPort: 43219,
             nextMessage: async () => {
                 messageCount += 1;
                 return messageCount === 1 ? { message: 'continue', mode } : null;

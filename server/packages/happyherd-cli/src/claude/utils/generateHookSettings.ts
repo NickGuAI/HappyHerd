@@ -5,7 +5,7 @@
  * to notify our HTTP server when sessions change (new session, resume, compact, etc.)
  */
 
-import { existsSync, mkdtempSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { logger } from '@/ui/logger';
@@ -23,6 +23,14 @@ export function generateHookSettingsFile(port: number, tempRoot: string = tmpdir
     // Unique filename per process to avoid conflicts
     const filename = `session-hook-${process.pid}.json`;
     const filepath = join(hooksDir, filename);
+
+    ensureHookSettingsFile(filepath, port);
+    return filepath;
+}
+
+/** Recreate session-owned temporary settings immediately before each Claude launch. */
+export function ensureHookSettingsFile(filepath: string, port: number): void {
+    mkdirSync(dirname(filepath), { recursive: true, mode: 0o700 });
 
     // Path to the hook forwarder script
     const forwarderScript = resolve(projectPath(), 'scripts', 'session_hook_forwarder.cjs');
@@ -46,8 +54,6 @@ export function generateHookSettingsFile(port: number, tempRoot: string = tmpdir
 
     writeFileSync(filepath, JSON.stringify(settings, null, 2), { mode: 0o600 });
     logger.debug(`[generateHookSettings] Created hook settings file: ${filepath}`);
-
-    return filepath;
 }
 
 /**
@@ -59,6 +65,8 @@ export function cleanupHookSettingsFile(filepath: string): void {
     try {
         if (existsSync(filepath)) {
             unlinkSync(filepath);
+        }
+        if (existsSync(dirname(filepath))) {
             rmdirSync(dirname(filepath));
             logger.debug(`[generateHookSettings] Cleaned up hook settings directory: ${dirname(filepath)}`);
         }

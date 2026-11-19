@@ -1,3 +1,15 @@
+# November 18 — Keep Commander names current
+
+- Renaming a Commander now updates its sessions on that machine when the daemon starts again, including the pinned assistant row and `happyherd session inspect`. Session titles stay unchanged.
+
+# November 18 — Link a device from the web app
+
+- In Settings → Account, choose Link New Device and paste the link from `happyherd machine auth login`. You can now link a device from a desktop or mobile browser. Native apps still open the QR scanner.
+
+# November 18 — Reset account cooldown
+
+- Reset a provider account’s saved HappyHerd cooldown after restoring quota with the provider. This does not reset quota at the provider.
+
 # November 18 — Choose a Google Drive context folder
 
 - Installation finds or creates a MyContext folder through your signed-in `gog`. Choose another name with `--context-folder NAME`. If Google access is unavailable, installation still completes and shows the command to run later.
@@ -16,6 +28,10 @@
 # November 18 — Start a side chat with only its brief
 
 - Use `happyherd session side-chat create --context fresh` to start a new provider conversation without the parent's transcript, while keeping the parent link and normal side-chat lifecycle. The default `inherit` keeps existing behavior, and the create receipt reports the context used.
+
+# November 17 — Keep long-running Claude sessions working
+
+- Claude sessions can relaunch after the operating system removes their temporary hook settings. HappyHerd recreates the settings for the same session before each launch and removes them at shutdown.
 
 # November 15 — Automatic log cleanup
 
