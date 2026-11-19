@@ -1,3 +1,7 @@
+# November 19 — Read voice overviews in chat
+
+- Voice overviews now appear above the reply body, including replies with only an overview. Playback stays the same.
+
 # November 18 — Start the Assistant over
 
 - Run `happyherd session ensure-assistant --fresh --json` on the Assistant's machine to start an empty conversation with the current default Commander. The new session is pinned; the old thread stays readable in the archive. The receipt includes both session IDs. Side chats and schedules stay with the old thread.

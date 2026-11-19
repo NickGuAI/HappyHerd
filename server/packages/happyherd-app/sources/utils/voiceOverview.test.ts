@@ -11,10 +11,13 @@ describe('voice reply parsing', () => {
     });
 
     it.each([
+        '<',
+        '<voice_',
         '<voice_overview',
         '<voice_overview ',
         '<voice_overview mode="short"',
         '<voice_overview>in progress',
+        '<voice_overview>in progress</voice_',
     ])('hides a streamed overview prefix: %s', (text) => {
         expect(parseVoiceOverview(text)).toEqual({ summary: null, body: '', pending: true });
     });
