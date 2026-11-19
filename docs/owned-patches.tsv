@@ -895,3 +895,4 @@ ISSUE_467_WEB_LINK	code-ready	fix(account): link new devices from the web app	se
 ISSUE_467_ACCOUNT_LINK_TEST	code-ready	test(account): verify web device linking and native scanner	server/packages/happyherd-app/sources/components/accountLink.browser.test.ts
 ISSUE_466_COMMANDER_REFRESH	code-ready	fix(daemon): refresh Commander names at startup	server/packages/happyherd-cli/src/daemon/run.ts
 ISSUE_466_CHANGELOG_GOLDENS	code-ready	test(golden): refresh Commander rename changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+INTEGRATION_20261118_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh November 18 integration baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
