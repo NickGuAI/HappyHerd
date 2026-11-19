@@ -20,8 +20,11 @@ account selection
 ```
 
 Rotation is reactive. It sends one literal `continue` after a successful switch
-to a different account, without replaying prior messages or retrying the
-interrupted request. It does not poll quota or own heartbeat scheduling. An accepted
+to a different account. When all accounts were limited, the daemon saves the wait
+and sends one `continue` when an account becomes usable, including after a reset
+or daemon restart. Recovery to another account posts the switch event first. A
+failed recovery is tried again after one minute; a pool with no accounts ends
+the wait. It does not replay prior messages, poll quota, or own heartbeat scheduling. An accepted
 limit notice means only that the daemon owns the incident; final switched,
 exhausted, unchanged, or failed outcomes are separate evidence.
 
@@ -60,8 +63,8 @@ content. Keep live provider smokes isolated and explicitly authorized.
 Start with the focused matrix in `.dev/VERIFY.md`. Include stale/duplicate limit
 notices, stable ID/version attribution, overlapping A/B auth activation and
 writeback, Codex reconnect ownership, nondefault Grok home restoration, the
-same provider-native conversation ID, one continuation per successful switch,
-and none on failed or unchanged resumes. Then run
+same provider-native conversation ID, one continuation per successful switch or
+recovered all-limited incident, and none on failed or unchanged immediate resumes. Then run
 the affected CLI/app checks and required exact-head CI. A separately initiated
 turn may additionally prove resumability.
 

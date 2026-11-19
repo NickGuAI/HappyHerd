@@ -96,13 +96,14 @@ describe('provider-limit daemon control route', () => {
         account: 'work',
         accountId: '00000000-0000-4000-8000-000000000005',
         credentialVersion: 1,
+        sourcePid: 123,
         limitedUntil: 1234,
       }),
     });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ status: 'ignored' });
-    expect(onProviderLimited).toHaveBeenCalledOnce();
+    expect(onProviderLimited).toHaveBeenCalledWith(expect.objectContaining({ sourcePid: 123 }));
   });
 
   it('delegates credential mutation checks and returns a bounded rejection', async () => {

@@ -7,6 +7,7 @@ export type ProviderLimitNotice = {
   account?: string;
   accountId?: string;
   credentialVersion?: number;
+  sourcePid?: number;
   limitedUntil: number;
 };
 
@@ -36,6 +37,7 @@ export async function reportProviderHardLimitOnce(
     try {
       const result = await notifyDaemonProviderLimited({
         ...input,
+        ...(account && input.provider !== 'dsh' ? { sourcePid: process.pid } : {}),
         ...(account ? { account } : {}),
         ...(accountId ? { accountId } : {}),
         ...(credentialVersion !== undefined ? { credentialVersion } : {}),

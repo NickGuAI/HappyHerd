@@ -98,7 +98,8 @@ import {
 } from './sideChatLifecycle';
 import { sampleHostResourceUsage } from './hostResourceUsage';
 import { SessionTransportRecovery } from './sessionTransport';
-import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
+import { resolveCredentialAccountEnvironment, selectCredentialAccount } from '@/credentialPool/store';
+import { ProviderAccountWaits, type ProviderAccountWait } from './providerAccountWaits';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import {
@@ -424,6 +425,12 @@ export async function startDaemon(): Promise<void> {
     // exits before the rotation's stop poll reaches resumeProvider.
     const activeRotationResumes = new Map<string, { milestone?: ResumeMilestone }>();
     const cancelledResumes = new Set<string>();
+    let recoverWaiting = async (_wait: ProviderAccountWait, _current: () => boolean): Promise<'accepted' | 'archived' | 'failed'> => 'failed';
+    const accountWaits = new ProviderAccountWaits(join(configuration.happyHomeDir, 'provider-account-waits.json'), {
+      select: (provider) => selectCredentialAccount(provider),
+      recover: (wait, current) => recoverWaiting(wait, current),
+      onError: (error) => logger.warn('[CREDENTIAL POOL] Failed to recover waiting session', error),
+    });
 
     const onChildExited = async (pid: number): Promise<void> => {
       if (!hasProviderProcessExited(pid)) {
@@ -1276,12 +1283,14 @@ export async function startDaemon(): Promise<void> {
       freshSideChatProvider?: FreshSideChatResumeProvider;
       /** Daemon-only receipt selected by the Grok permission transition RPC. */
       grokPermissionTransitionSettings?: HappyHerdMachineSessionSettings;
+      preserveAccountWait?: boolean;
     };
 
     const resumeSession = (
       happySessionId: string,
       options?: DaemonResumeSessionOptions,
     ): Promise<SpawnSessionResult> => {
+      if (!options?.preserveAccountWait) accountWaits.cancel(happySessionId);
       const waitForNative = (milestone: ResumeMilestone): Promise<SpawnSessionResult> =>
         milestone.registration!.then(async (registered) => {
           if (registered.type !== 'success') return registered;
@@ -1374,6 +1383,11 @@ export async function startDaemon(): Promise<void> {
           agentState: null,
           agentStateVersion: tracked.encryption.agentStateVersion,
         })).session;
+        if (options?.preserveAccountWait && (
+          authoritative.metadata.lifecycleState === 'archiveRequested' || authoritative.metadata.lifecycleState === 'archived'
+        )) {
+          return { type: 'error', errorMessage: `Session ${resolvedSessionId} was archived while waiting for an account.` };
+        }
         const refreshedEncryption: SessionEncryptionData = {
           encryptionKey: authoritative.encryptionKey,
           encryptionVariant: authoritative.encryptionVariant,
@@ -1510,6 +1524,14 @@ export async function startDaemon(): Promise<void> {
         const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);
         const agentRuntimeEnvironment = happyHerdAgentSessionRuntimeEnvironment(options?.agentRuntimeContext);
 
+        if (options?.preserveAccountWait) {
+          const latest = (await api.inspectSessionAuthoritative({
+            ...authoritative, metadata, metadataVersion: refreshedEncryption.metadataVersion,
+          })).session;
+          if (latest.metadata.lifecycleState === 'archiveRequested' || latest.metadata.lifecycleState === 'archived') {
+            return { type: 'error', errorMessage: `Session ${resolvedSessionId} was archived while waiting for an account.` };
+          }
+        }
         if (cancelledResumes.has(happySessionId)) {
           return { type: 'error', errorMessage: `Resume of session ${happySessionId} was cancelled by a stop request.` };
         }
@@ -1561,7 +1583,8 @@ export async function startDaemon(): Promise<void> {
     };
 
     // Stop a session by sessionId or PID fallback
-    const stopSession = (sessionId: string): boolean => {
+    const stopSession = (sessionId: string, internal = false): boolean => {
+      const cancelledWait = internal ? false : accountWaits.cancel(sessionId);
       const cancellingResume = resumesInFlight.has(sessionId);
       if (cancellingResume) cancelledResumes.add(sessionId);
       logger.debug(`[DAEMON RUN] Attempting to stop session ${sessionId}`);
@@ -1624,7 +1647,7 @@ export async function startDaemon(): Promise<void> {
       }
 
       logger.debug(`[DAEMON RUN] Session ${sessionId} not found`);
-      return cancellingResume;
+      return cancellingResume || cancelledWait;
     };
 
     const waitForProviderExit = async (pid: number, timeoutMs = 12_000): Promise<void> => {
@@ -1780,6 +1803,28 @@ export async function startDaemon(): Promise<void> {
     };
 
     const providerLimitRotations = new Map<string, Promise<void>>();
+    const postProviderAccountSwitched = async (
+      sessionId: string, provider: CredentialProvider, fromAccount: string, toAccount: string, incidentId: string,
+    ): Promise<void> => {
+      const resumed = findTrackedSessionById(sessionId);
+      if (!resumed?.happyherdSessionMetadataFromLocalWebhook || !resumed.encryption) {
+        throw new Error(`Resumed session ${sessionId} is missing encrypted event persistence state`);
+      }
+      try {
+        await api.postSessionEvent({
+          id: sessionId,
+          seq: resumed.encryption.seq,
+          encryptionKey: resumed.encryption.encryptionKey,
+          encryptionVariant: resumed.encryption.encryptionVariant,
+          metadata: resumed.happyherdSessionMetadataFromLocalWebhook,
+          metadataVersion: resumed.encryption.metadataVersion,
+          agentState: null,
+          agentStateVersion: resumed.encryption.agentStateVersion,
+        }, { type: 'provider-account-switched', provider, fromAccount, toAccount, incidentId }, incidentId);
+      } catch (error) {
+        logger.warn(`[CREDENTIAL POOL] Failed to persist account switch for ${sessionId}`, error);
+      }
+    };
     const postProviderQuotaExhausted = async (
       notice: ProviderLimitNotice,
       incidentId: string,
@@ -1804,6 +1849,9 @@ export async function startDaemon(): Promise<void> {
       }, incidentId);
     };
     const onProviderLimited = (notice: ProviderLimitNotice): boolean => {
+      if (notice.sourcePid !== undefined && findTrackedSessionById(notice.sessionId)?.pid !== notice.sourcePid) {
+        return false;
+      }
       if (notice.accountId) {
         const tracked = findTrackedSessionById(notice.sessionId);
         const metadata = tracked?.happyherdSessionMetadataFromLocalWebhook;
@@ -1821,6 +1869,11 @@ export async function startDaemon(): Promise<void> {
           return false;
         }
       }
+      if (accountWaits.has(notice.sessionId) && ![...pidToTrackedSession.values()].some((candidate) => (
+        candidate.happySessionId === notice.sessionId
+        && !stoppingPids.has(candidate.pid)
+        && !hasProviderProcessExited(candidate.pid)
+      ))) return true;
       const key = `${notice.sessionId}:${notice.provider}:${notice.accountId ?? notice.account ?? 'unmanaged'}:${notice.credentialVersion ?? 'legacy'}`;
       if (providerLimitRotations.has(key)) return true;
       const rotationIncidentId = randomUUID();
@@ -1851,7 +1904,7 @@ export async function startDaemon(): Promise<void> {
                 candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
               ));
               if (!live) return;
-              if (!stopSession(sessionId)) throw new Error(`Could not stop limited provider for ${sessionId}`);
+              if (!stopSession(sessionId, true)) throw new Error(`Could not stop limited provider for ${sessionId}`);
               const deadline = Date.now() + 15_000;
               while (!hasProviderProcessExited(live.pid)) {
                 if (Date.now() >= deadline) throw new Error(`Timed out stopping limited provider for ${sessionId}`);
@@ -1880,30 +1933,7 @@ export async function startDaemon(): Promise<void> {
               return providerAccount;
             },
             onAccountSwitched: async ({ sessionId, provider, fromAccount, toAccount }) => {
-              const resumed = findTrackedSessionById(sessionId);
-              if (!resumed?.happyherdSessionMetadataFromLocalWebhook || !resumed.encryption) {
-                throw new Error(`Resumed session ${sessionId} is missing encrypted event persistence state`);
-              }
-              try {
-                await api.postSessionEvent({
-                  id: sessionId,
-                  seq: resumed.encryption.seq,
-                  encryptionKey: resumed.encryption.encryptionKey,
-                  encryptionVariant: resumed.encryption.encryptionVariant,
-                  metadata: resumed.happyherdSessionMetadataFromLocalWebhook,
-                  metadataVersion: resumed.encryption.metadataVersion,
-                  agentState: null,
-                  agentStateVersion: resumed.encryption.agentStateVersion,
-                }, {
-                  type: 'provider-account-switched',
-                  provider,
-                  fromAccount,
-                  toAccount,
-                  incidentId: rotationIncidentId,
-                }, rotationIncidentId);
-              } catch (error) {
-                logger.warn(`[CREDENTIAL POOL] Failed to persist account switch for ${sessionId}`, error);
-              }
+              await postProviderAccountSwitched(sessionId, provider, fromAccount, toAccount, rotationIncidentId);
               const receipt = await sendLocalMessage({
                 sessionId,
                 messageId: `${rotationIncidentId}-continue`,
@@ -1913,9 +1943,23 @@ export async function startDaemon(): Promise<void> {
                 logger.warn(`[CREDENTIAL POOL] Failed to deliver continuation for ${sessionId}: ${receipt.error}`);
               }
             },
-            onNoUsableAccount: postQuotaOnce,
+            onNoUsableAccount: async () => {
+              accountWaits.add({
+                sessionId: notice.sessionId,
+                provider: managedNotice.provider,
+                account: managedNotice.account,
+                ...(notice.accountId ? { accountId: notice.accountId } : {}),
+                incidentId: rotationIncidentId,
+                limitedUntil: notice.limitedUntil,
+              });
+              await postQuotaOnce();
+            },
+            onWaitForAccount: async () => {
+              accountWaits.stopped(notice.sessionId);
+            },
           });
         } catch (error) {
+          accountWaits.cancel(notice.sessionId);
           logger.warn(`[CREDENTIAL POOL] Failed to rotate ${notice.provider} account for ${notice.sessionId}`, error);
           await postQuotaOnce();
           return;
@@ -1942,7 +1986,7 @@ export async function startDaemon(): Promise<void> {
     let createLocalSession = async (_request: LocalSessionCreationRequest): Promise<LocalSessionCreationReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry local session creation.');
     };
-    let sendLocalMessage = async (_request: LocalSessionSendRequest): Promise<LocalSessionSendReceipt> => {
+    let sendLocalMessage = async (_request: LocalSessionSendRequest, _current?: () => boolean): Promise<LocalSessionSendReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry local session messaging.');
     };
     let inspectLocalSession = async (_request: LocalSessionInspectRequest): Promise<LocalSessionInspectReceipt> => {
@@ -2030,6 +2074,7 @@ export async function startDaemon(): Promise<void> {
       configuration.serverUrl,
     );
     const activeCredentialAccounts = new CredentialAccountManager({
+      onCooldownReset: (provider) => accountWaits.changed(provider),
       isLegacyAccountInUse: (target) => [...pidToTrackedSession.values()].some((session) => {
         if (hasProviderProcessExited(session.pid)) return false;
         const metadata = session.happyherdSessionMetadataFromLocalWebhook;
@@ -2466,7 +2511,8 @@ export async function startDaemon(): Promise<void> {
       const tracked = [...pidToTrackedSession.values()].find(item => item.happySessionId === sessionId);
       return Boolean(tracked && !hasProviderProcessExited(tracked.pid));
     };
-    sendLocalMessage = async (request) => {
+    sendLocalMessage = async (request, current) => {
+      if (!current) accountWaits.cancel(request.sessionId);
       const identity = {
         schemaVersion: 1 as const, type: 'session-message' as const,
         sessionId: request.sessionId, messageId: request.messageId,
@@ -2474,14 +2520,20 @@ export async function startDaemon(): Promise<void> {
       let seq: number | undefined;
       try {
         const { session } = await readOwnedLocalSession(request.sessionId);
+        if (current && (!current() || session.metadata.lifecycleState === 'archiveRequested' || session.metadata.lifecycleState === 'archived')) {
+          throw new Error('Waiting session was stopped or archived');
+        }
         ({ seq } = await api.postSessionTask(session, { localId: request.messageId, text: request.text }));
+        if (current && !current()) throw new Error('Waiting session was stopped');
         if (!isLocalProviderRunning(request.sessionId)) {
           const pending = queueMessageIdsForResume(session.agentState?.messageQueue).includes(request.messageId);
           if (seq <= session.seq && !pending) {
             throw new Error('Message is persisted, but prior execution is unknown while the provider is stopped. Inspect the session before submitting a new message ID.');
           }
-          const resumed = await resumeSession(request.sessionId,
-            seq > session.seq ? { replayQueueMessageId: request.messageId } : undefined);
+          const resumed = await resumeSession(request.sessionId, {
+            ...(seq > session.seq ? { replayQueueMessageId: request.messageId } : {}),
+            preserveAccountWait: Boolean(current),
+          });
           if (resumed.type !== 'success') {
             throw new Error(resumed.type === 'error' ? resumed.errorMessage : 'Session workspace is unavailable');
           }
@@ -2495,6 +2547,29 @@ export async function startDaemon(): Promise<void> {
         };
       }
     };
+    recoverWaiting = async (wait, current) => {
+      const { session } = await readOwnedLocalSession(wait.sessionId);
+      if (!current()) return 'failed';
+      if (session.metadata.lifecycleState === 'archiveRequested' || session.metadata.lifecycleState === 'archived') return 'archived';
+      if (!isLocalProviderRunning(wait.sessionId)) {
+        const resumed = await resumeSession(wait.sessionId, { preserveAccountWait: true });
+        if (resumed.type !== 'success' || !current()) return 'failed';
+      }
+      const metadata = findTrackedSessionById(wait.sessionId)?.happyherdSessionMetadataFromLocalWebhook;
+      if (!metadata?.providerAccount) return 'failed';
+      const switched = wait.accountId && metadata.providerAccountId
+        ? wait.accountId !== metadata.providerAccountId
+        : wait.account !== metadata.providerAccount;
+      if (switched) await postProviderAccountSwitched(wait.sessionId, wait.provider, wait.account, metadata.providerAccount, wait.incidentId);
+      if (!current()) return 'failed';
+      const receipt = await sendLocalMessage({
+        sessionId: wait.sessionId,
+        messageId: `${wait.incidentId}-continue`,
+        text: 'continue',
+      }, current);
+      return receipt.success ? 'accepted' : 'failed';
+    };
+    accountWaits.start();
     inspectLocalSession = async (request) => {
       const { session, active } = await readOwnedLocalSession(request.sessionId);
       const messages = await api.readRecentSessionMessages(session, request.limit);
@@ -2652,6 +2727,7 @@ export async function startDaemon(): Promise<void> {
         // isDaemonRunningCurrentlyInstalledHappyHerdVersion() === true, and exits —
         // leaving nothing running once we also exit.
         await automations.stop();
+        accountWaits.dispose();
         await activeCredentialAccounts.dispose();
         await apiMachine.shutdown();
         await stopControlServer();
@@ -2724,6 +2800,7 @@ export async function startDaemon(): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await automations.stop();
+      accountWaits.dispose();
       await activeCredentialAccounts.dispose();
       await apiMachine.shutdown();
       await stopControlServer();

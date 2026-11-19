@@ -20,6 +20,7 @@ import { CredentialLoginManager } from './loginManager';
 export class CredentialAccountManager {
   readonly login: CredentialLoginManager;
   private readonly paths: CredentialPoolPaths;
+  private readonly onCooldownReset: (provider: CredentialAccountTarget['provider']) => void;
   private readonly isLegacyAccountInUse: (target: {
     provider: CredentialAccountTarget['provider'];
     name: string;
@@ -28,6 +29,7 @@ export class CredentialAccountManager {
 
   constructor(options: {
     paths?: CredentialPoolPaths;
+    onCooldownReset?: (provider: CredentialAccountTarget['provider']) => void;
     login?: CredentialLoginManager;
     isLegacyAccountInUse?: (target: {
       provider: CredentialAccountTarget['provider'];
@@ -36,6 +38,7 @@ export class CredentialAccountManager {
     }) => boolean;
   } = {}) {
     this.paths = options.paths ?? defaultCredentialPoolPaths();
+    this.onCooldownReset = options.onCooldownReset ?? (() => {});
     this.login = options.login ?? new CredentialLoginManager({ paths: this.paths });
     this.isLegacyAccountInUse = options.isLegacyAccountInUse ?? (() => false);
   }
@@ -72,6 +75,7 @@ export class CredentialAccountManager {
         id: target.id,
         credentialVersion: target.expectedCredentialVersion,
       });
+      this.onCooldownReset(target.provider);
       return this.listAccounts();
     });
   }

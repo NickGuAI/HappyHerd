@@ -55,41 +55,20 @@ describe('quota-triggered same-session rotation', () => {
     expect(calls).toEqual(['resume', 'announce']);
   });
 
-  it('surfaces the limit, waits for the first reset, then resumes when all accounts are limited', async () => {
-    const stopProvider = vi.fn(async () => {});
-    const resumeProvider = vi.fn()
-      .mockResolvedValueOnce('two')
-      .mockResolvedValueOnce('one');
-    const onAccountSwitched = vi.fn(async () => {});
-    const onNoUsableAccount = vi.fn(async () => {});
-    await rotateProviderSessionAfterLimit({
-      sessionId: 'happyherd-session-2', provider: 'codex', account: 'one', limitedUntil: 500,
-    }, { paths, now: () => now, stopProvider, resumeProvider });
-    const waitUntil = vi.fn(async (timestamp: number) => { now = timestamp; });
-
+  it('records an all-limited incident before stopping and hands recovery to the daemon', async () => {
+    await markCredentialAccountLimited('codex', 'two', 700, { paths, now });
+    const calls: string[] = [];
     const result = await rotateProviderSessionAfterLimit({
-      sessionId: 'happyherd-session-2', provider: 'codex', account: 'two', limitedUntil: 700,
+      sessionId: 'session-wait', provider: 'codex', account: 'one', limitedUntil: 500,
     }, {
-      paths,
-      now: () => now,
-      stopProvider,
-      resumeProvider,
-      onAccountSwitched,
-      onNoUsableAccount,
-      waitUntil,
+      paths, now: () => now,
+      onNoUsableAccount: async () => { calls.push('save'); },
+      stopProvider: async () => { calls.push('stop'); },
+      onWaitForAccount: async (until) => { calls.push(`wait:${until}`); },
+      resumeProvider: async () => { throw new Error('must not resume here'); },
     });
-
-    expect(onNoUsableAccount).toHaveBeenCalledOnce();
-    expect(waitUntil).toHaveBeenCalledWith(500);
-    expect(result).toEqual({ type: 'waited-and-rotated', account: 'one' });
-    expect(stopProvider).toHaveBeenLastCalledWith('happyherd-session-2');
-    expect(resumeProvider).toHaveBeenLastCalledWith('happyherd-session-2');
-    expect(onAccountSwitched).toHaveBeenCalledWith({
-      sessionId: 'happyherd-session-2',
-      provider: 'codex',
-      fromAccount: 'two',
-      toAccount: 'one',
-    });
+    expect(result).toEqual({ type: 'waiting' });
+    expect(calls).toEqual(['save', 'stop', 'wait:500']);
   });
 
   it('does not announce an ignored limit notice', async () => {
@@ -134,31 +113,6 @@ describe('quota-triggered same-session rotation', () => {
       resumeProvider: vi.fn(async () => { throw new Error('resume failed'); }),
       onAccountSwitched,
     })).rejects.toThrow('resume failed');
-    expect(onAccountSwitched).not.toHaveBeenCalled();
-  });
-
-  it('surfaces the limit but does not announce when waiting resumes the same account', async () => {
-    await markCredentialAccountLimited('codex', 'two', 700, { paths, now });
-    const waitUntil = vi.fn(async (timestamp: number) => { now = timestamp; });
-    const onAccountSwitched = vi.fn(async () => {});
-    const onNoUsableAccount = vi.fn(async () => {});
-    const stopProvider = vi.fn(async () => {});
-    const resumeProvider = vi.fn(async () => 'one');
-    const sameAccount = await rotateProviderSessionAfterLimit({
-      sessionId: 'happyherd-session-same', provider: 'codex', account: 'one', limitedUntil: 500,
-    }, {
-      paths,
-      now: () => now,
-      stopProvider,
-      resumeProvider,
-      onAccountSwitched,
-      onNoUsableAccount,
-      waitUntil,
-    });
-    expect(sameAccount).toEqual({ type: 'unchanged', account: 'one' });
-    expect(onNoUsableAccount).toHaveBeenCalledOnce();
-    expect(stopProvider).toHaveBeenCalledOnce();
-    expect(resumeProvider).toHaveBeenCalledOnce();
     expect(onAccountSwitched).not.toHaveBeenCalled();
   });
 
