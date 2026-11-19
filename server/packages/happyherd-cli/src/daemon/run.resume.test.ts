@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os';
 import { renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { configuration } from '@/configuration';
+import axios from 'axios';
+import { loadSessionRecords } from '@/api/sessionLookup';
+import { encrypt, decrypt, encodeBase64, decodeBase64 } from '@/api/encryption';
 
 import type { Metadata, Session } from '@/api/types';
 import type { PersistedSession } from '@/persistence';
@@ -600,31 +603,93 @@ describe('daemon session continuity', () => {
       },
     ]));
     const serverSessions = new Map<string, Session>();
+    const missing = new Set<string>();
+    const listRequests = vi.spyOn(axios, 'get').mockImplementation(async (_url, config) => {
+      const entries = Object.entries(sessions).filter(([id]) => !missing.has(id));
+      const start = Number(config?.params?.cursor ?? 0);
+      const page = entries.slice(start, start + 200).map(([id, saved]) => {
+        const current = serverSessions.get(id);
+        return {
+          id, active: false, seq: current?.seq ?? saved.seq,
+          metadata: encodeBase64(encrypt(Buffer.from(saved.encryptionKey, 'base64'), saved.encryptionVariant, current?.metadata ?? saved.metadata)),
+          metadataVersion: current?.metadataVersion ?? saved.metadataVersion,
+          agentState: null, agentStateVersion: current?.agentStateVersion ?? saved.agentStateVersion,
+          dataEncryptionKey: null,
+        };
+      });
+      return { data: { sessions: page, nextCursor: start + 200 < entries.length ? String(start + 200) : null } };
+    });
     const updateMetadata = vi.fn(async () => undefined);
     const close = vi.fn(async () => undefined);
     mocks.readPersistedSessions.mockReturnValue(sessions);
     mocks.listCommanders.mockResolvedValue({ commanders: [commander], globalAgentsPath: null });
     mocks.inspectSessionAuthoritative.mockImplementation(async (input: unknown) => {
       const session = input as Session;
-      return { session: serverSessions.get(session.id) ?? session, active: false };
+      const [raw] = await loadSessionRecords('test-token', { exactId: session.id });
+      if (!raw) throw new Error('Session missing');
+      return { session: { ...session, seq: raw.seq, metadata: decrypt(session.encryptionKey, session.encryptionVariant, decodeBase64(raw.metadata)) as Metadata, metadataVersion: raw.metadataVersion }, active: false };
     });
-    mocks.sessionSyncClient.mockImplementation((session: Session) => ({
-      waitForConnected: vi.fn(async () => undefined),
-      updateMetadata: async (handler: (metadata: Metadata) => Metadata) => {
-        await updateMetadata();
-        serverSessions.set(session.id, {
-          ...session, metadata: handler(session.metadata), metadataVersion: session.metadataVersion + 1,
-        });
-      },
-      close,
-    }));
-    return { sessions, binding, updateMetadata, close };
+    mocks.sessionSyncClient.mockImplementation((session: Session) => {
+      let current = session;
+      return {
+        waitForConnected: vi.fn(async () => undefined),
+        getMetadata: () => current.metadata,
+        updateMetadata: async (handler: (metadata: Metadata) => Metadata) => {
+          const nextMetadata = handler(current.metadata);
+          await updateMetadata();
+          if (missing.has(session.id)) throw new Error('Session missing');
+          const server = serverSessions.get(session.id);
+          if (server && server.metadataVersion > current.metadataVersion) {
+            current = server;
+            throw new Error('Metadata version mismatch');
+          }
+          current = { ...current, metadata: nextMetadata, metadataVersion: current.metadataVersion + 1 };
+          serverSessions.set(session.id, current);
+        },
+        close,
+      };
+    });
+    return { sessions, binding, updateMetadata, close, listRequests, missing, serverSessions };
   }
+
+  it('makes no session-list requests when many saved labels already match', async () => {
+    const fixture = await commanderRefreshFixture(Array.from({ length: 205 }, () => ({})));
+    for (const saved of Object.values(fixture.sessions)) Object.assign(saved.metadata, fixture.binding);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.listCommanders).toHaveBeenCalledOnce());
+    await new Promise(resolve => setTimeout(resolve, 400));
+    console.log('matching labels: session-list requests =', fixture.listRequests.mock.calls.length);
+    expect(fixture.listRequests).not.toHaveBeenCalled();
+  });
+
+  it('refreshes several renamed sessions with one paginated list pass', async () => {
+    const fixture = await commanderRefreshFixture(Array.from({ length: 205 }, () => ({})));
+    for (let i = 0; i < 202; i++) Object.assign(fixture.sessions[`refresh-${i}`].metadata, fixture.binding);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.persistSession).toHaveBeenCalledTimes(3), { timeout: 15000 });
+    console.log('renamed labels: session-list requests =', fixture.listRequests.mock.calls.length);
+    expect(fixture.listRequests).toHaveBeenCalledTimes(2);
+    for (let i = 202; i < 205; i++) {
+      expect(mocks.persistSession).toHaveBeenCalledWith(`refresh-${i}`, expect.objectContaining({ metadata: expect.objectContaining(fixture.binding) }));
+    }
+  });
+
+  it('skips a missing saved session and refreshes the others in one pass', async () => {
+    const fixture = await commanderRefreshFixture(Array.from({ length: 205 }, () => ({})));
+    for (let i = 1; i < 203; i++) Object.assign(fixture.sessions[`refresh-${i}`].metadata, fixture.binding);
+    fixture.missing.add('refresh-0');
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.persistSession).toHaveBeenCalledTimes(2), { timeout: 15000 });
+    console.log('missing session: session-list requests =', fixture.listRequests.mock.calls.length);
+    expect(fixture.listRequests).toHaveBeenCalledTimes(2);
+    expect(mocks.persistSession).toHaveBeenCalledWith('refresh-204', expect.objectContaining({ metadata: expect.objectContaining(fixture.binding) }));
+  });
 
   it('refreshes renamed Commander fields at startup and exposes the name through local inspect without changing the title', async () => {
     const fixture = await commanderRefreshFixture([{ isSuperSession: true }]);
     daemonRun = startDaemon();
-    await vi.waitFor(() => expect(fixture.close).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.persistSession).toHaveBeenCalledOnce());
+    expect(fixture.close).toHaveBeenCalledOnce();
     expect(mocks.listCommanders).toHaveBeenCalledOnce();
     expect(mocks.persistSession).toHaveBeenCalledWith('refresh-0', expect.objectContaining({
       metadataVersion: 3,
@@ -637,11 +702,47 @@ describe('daemon session continuity', () => {
     });
   });
 
+  it('retries a stale saved version using server metadata without losing other fields', async () => {
+    const fixture = await commanderRefreshFixture([{}]);
+    const saved = fixture.sessions['refresh-0'];
+    fixture.serverSessions.set('refresh-0', {
+      id: 'refresh-0', encryptionKey: Buffer.from(saved.encryptionKey, 'base64'),
+      encryptionVariant: saved.encryptionVariant, seq: saved.seq, agentState: null,
+      agentStateVersion: saved.agentStateVersion, metadataVersion: saved.metadataVersion + 3,
+      metadata: { ...saved.metadata, gitBranch: 'server-change' },
+    });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.persistSession).toHaveBeenCalledOnce());
+    expect(fixture.updateMetadata).toHaveBeenCalledTimes(2);
+    expect(fixture.listRequests).toHaveBeenCalledTimes(1);
+    expect(mocks.persistSession).toHaveBeenCalledWith('refresh-0', expect.objectContaining({
+      metadataVersion: 6, metadata: expect.objectContaining({ ...fixture.binding, gitBranch: 'server-change' }),
+    }));
+  });
+
+  it('does not rewrite server metadata when a stale saved label is already current on the server', async () => {
+    const fixture = await commanderRefreshFixture([{}]);
+    const saved = fixture.sessions['refresh-0'];
+    fixture.serverSessions.set('refresh-0', {
+      id: 'refresh-0', encryptionKey: Buffer.from(saved.encryptionKey, 'base64'),
+      encryptionVariant: saved.encryptionVariant, seq: saved.seq, agentState: null,
+      agentStateVersion: saved.agentStateVersion, metadataVersion: saved.metadataVersion + 1,
+      metadata: { ...saved.metadata, ...fixture.binding },
+    });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.persistSession).toHaveBeenCalledOnce());
+    expect(fixture.updateMetadata).toHaveBeenCalledOnce();
+    expect(mocks.persistSession).toHaveBeenCalledWith('refresh-0', expect.objectContaining({
+      metadataVersion: 3, metadata: expect.objectContaining(fixture.binding),
+    }));
+  });
+
   it('does not write session metadata or persistence when Commander fields already match', async () => {
     const fixture = await commanderRefreshFixture([{}]);
     Object.assign(fixture.sessions['refresh-0'].metadata, fixture.binding);
     daemonRun = startDaemon();
-    await vi.waitFor(() => expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.listCommanders).toHaveBeenCalledOnce());
+    expect(fixture.listRequests).not.toHaveBeenCalled();
     expect(mocks.sessionSyncClient).not.toHaveBeenCalled();
     expect(mocks.persistSession).not.toHaveBeenCalled();
   });
@@ -662,12 +763,13 @@ describe('daemon session continuity', () => {
     let rejectRefresh!: (error: Error) => void;
     fixture.updateMetadata.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRefresh = reject; }));
     daemonRun = startDaemon();
-    await vi.waitFor(() => expect(fixture.updateMetadata).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(fixture.updateMetadata).toHaveBeenCalledTimes(2));
     expect(logger.debug).toHaveBeenCalledWith('[DAEMON RUN] Daemon started successfully, waiting for shutdown request');
     expect(mocks.machineClient?.connect).toHaveBeenCalledOnce();
     expect(process.exit).not.toHaveBeenCalled();
     rejectRefresh(new Error('metadata update failed'));
-    await vi.waitFor(() => expect(fixture.close).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mocks.persistSession).toHaveBeenCalledOnce());
+    expect(fixture.close).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledWith(
       '[DAEMON RUN] Failed to refresh Commander metadata for session refresh-0', expect.any(Error),
     );

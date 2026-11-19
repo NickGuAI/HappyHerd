@@ -906,3 +906,4 @@ INTEGRATION_20261119_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh Novem
 ISSUE_478_CLAUDE_LOGIN_CAPTURE	code-ready	fix(credentials): read Claude login from the terminal screen	server/packages/happyherd-cli/src/credentialPool/loginManager.ts
 ISSUE_478_TERMINAL_BUNDLE	code-ready	build(cli): bundle the headless terminal library	server/packages/happyherd-cli/package.json
 ISSUE_478_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh Claude login capture baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_481_DAEMON_LABEL_REFRESH	code-ready	fix(daemon): avoid repeated session lists on startup	server/packages/happyherd-cli/src/daemon/run.ts

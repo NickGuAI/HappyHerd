@@ -2741,31 +2741,75 @@ export async function startDaemon(): Promise<void> {
     void (async () => {
       const { commanders } = await listCommanders();
       const registry = new Map(commanders.map(commander => [commander.id, commander]));
-      for (const [sessionId, saved] of Object.entries(persisted)) {
-        if (saved.metadata.machineId !== machineId || !registry.has(saved.metadata.commanderId ?? '')) continue;
+      const updated = new Map<string, Session>();
+      const refresh = async ([sessionId, saved]: [string, PersistedSession]) => {
+        const commander = registry.get(saved.metadata.commanderId ?? '');
+        if (saved.metadata.machineId !== machineId || !commander) return;
+        const binding = {
+          commanderName: commander.name,
+          commanderPath: commander.commanderPath,
+          commanderWorkspace: commander.workspace,
+          commanderAgentContextPath: commander.agentContextPath,
+        };
+        if (Object.entries(binding).every(([key, value]) => saved.metadata[key as keyof Metadata] === value)) return;
         try {
-          const { session } = await api.inspectSessionAuthoritative(localSessionFromPersistence(sessionId));
-          const commander = registry.get(session.metadata.commanderId ?? '');
-          if (session.metadata.machineId !== machineId || !commander) continue;
-          const binding = {
-            commanderName: commander.name,
-            commanderPath: commander.commanderPath,
-            commanderWorkspace: commander.workspace,
-            commanderAgentContextPath: commander.agentContextPath,
-          };
-          if (Object.entries(binding).every(([key, value]) => session.metadata[key as keyof Metadata] === value)) continue;
-
+          const session = localSessionFromPersistence(sessionId);
           const client = api.sessionSyncClient(session);
           try {
             await client.waitForConnected();
-            await client.updateMetadata(metadata => ({ ...metadata, ...binding }), 10_000);
-            const refreshed = await api.inspectSessionAuthoritative(session);
-            persistAuthoritativeSession(refreshed.session);
+            const alreadyCurrent = Symbol('Commander metadata already current');
+            const applyBinding = (metadata: Metadata): Metadata => {
+              const current = registry.get(metadata.commanderId ?? '');
+              if (metadata.machineId !== machineId || !current) throw new Error('Session Commander changed');
+              const currentBinding = {
+                commanderName: current.name,
+                commanderPath: current.commanderPath,
+                commanderWorkspace: current.workspace,
+                commanderAgentContextPath: current.agentContextPath,
+              };
+              if (Object.entries(currentBinding).every(([key, value]) => metadata[key as keyof Metadata] === value)) throw alreadyCurrent;
+              return { ...metadata, ...currentBinding };
+            };
+            for (let attempt = 0; ; attempt++) {
+              try {
+                await client.updateMetadata(applyBinding, 10_000);
+                break;
+              } catch (error) {
+                if (error === alreadyCurrent) break;
+                if (!(error instanceof Error) || error.message !== 'Metadata version mismatch' || attempt === 2) throw error;
+              }
+            }
+            updated.set(sessionId, session);
           } finally {
             await client.close();
           }
         } catch (error) {
           logger.warn(`[DAEMON RUN] Failed to refresh Commander metadata for session ${sessionId}`, error);
+        }
+      };
+      const entries = Object.entries(persisted);
+      for (let i = 0; i < entries.length; i += 10) {
+        await Promise.all(entries.slice(i, i + 10).map(refresh));
+      }
+      if (updated.size === 0) return;
+      const records = await loadSessionRecords(credentials.token, { timeout: 60_000 });
+      for (const raw of records) {
+        const session = updated.get(raw.id);
+        if (!session) continue;
+        try {
+          persistAuthoritativeSession({
+            ...session,
+            ...(raw.projectId === undefined ? {} : { projectId: raw.projectId }),
+            seq: raw.seq,
+            metadata: decrypt(session.encryptionKey, session.encryptionVariant, decodeBase64(raw.metadata)) as Metadata,
+            metadataVersion: raw.metadataVersion,
+            agentState: raw.agentState
+              ? decrypt(session.encryptionKey, session.encryptionVariant, decodeBase64(raw.agentState)) as Session['agentState']
+              : null,
+            agentStateVersion: raw.agentStateVersion,
+          });
+        } catch (error) {
+          logger.warn(`[DAEMON RUN] Failed to refresh Commander metadata for session ${raw.id}`, error);
         }
       }
     })().catch(error => {
