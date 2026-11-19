@@ -423,7 +423,7 @@ export async function startDaemon(): Promise<void> {
     const nativeResumes = new Map<string, ResumeMilestone>();
     // Keep a replacement attempt attached to its rotation even if that child
     // exits before the rotation's stop poll reaches resumeProvider.
-    const activeRotationResumes = new Map<string, { milestone?: ResumeMilestone }>();
+    const activeRotationResumes = new Map<string, { milestone?: ResumeMilestone; cancelWait?: boolean }>();
     const cancelledResumes = new Set<string>();
     let recoverWaiting = async (_wait: ProviderAccountWait, _current: () => boolean): Promise<'accepted' | 'archived' | 'failed'> => 'failed';
     const accountWaits = new ProviderAccountWaits(join(configuration.happyHomeDir, 'provider-account-waits.json'), {
@@ -503,6 +503,16 @@ export async function startDaemon(): Promise<void> {
         candidate.pid !== pid && candidate.happySessionId === sessionId
         && !hasProviderProcessExited(candidate.pid))) return;
       if (stoppingPids.has(pid)) return;
+
+      const currentMetadata = reserved?.happyherdSessionMetadataFromLocalWebhook;
+      if (reserved?.happySessionId === sessionId
+        && currentMetadata?.providerAccountId
+        && currentMetadata.providerAccountId === sessionMetadata.providerAccountId
+        && typeof currentMetadata.providerAccountCredentialVersion === 'number'
+        && typeof sessionMetadata.providerAccountCredentialVersion === 'number'
+        && currentMetadata.providerAccountCredentialVersion > sessionMetadata.providerAccountCredentialVersion) {
+        sessionMetadata = { ...sessionMetadata, providerAccountCredentialVersion: currentMetadata.providerAccountCredentialVersion };
+      }
 
       const nativeMilestone = nativeResumes.get(sessionId);
       if (nativeMilestone?.pid === pid && nativeResumeId === nativeMilestone.nativeId) {
@@ -1284,13 +1294,20 @@ export async function startDaemon(): Promise<void> {
       /** Daemon-only receipt selected by the Grok permission transition RPC. */
       grokPermissionTransitionSettings?: HappyHerdMachineSessionSettings;
       preserveAccountWait?: boolean;
+      rotationResume?: boolean;
     };
 
     const resumeSession = (
       happySessionId: string,
       options?: DaemonResumeSessionOptions,
     ): Promise<SpawnSessionResult> => {
-      if (!options?.preserveAccountWait) accountWaits.cancel(happySessionId);
+      if (!options?.preserveAccountWait) {
+        accountWaits.cancel(happySessionId);
+        if (!options?.rotationResume) {
+          const rotation = activeRotationResumes.get(happySessionId);
+          if (rotation) rotation.cancelWait = true;
+        }
+      }
       const waitForNative = (milestone: ResumeMilestone): Promise<SpawnSessionResult> =>
         milestone.registration!.then(async (registered) => {
           if (registered.type !== 'success') return registered;
@@ -1585,6 +1602,10 @@ export async function startDaemon(): Promise<void> {
     // Stop a session by sessionId or PID fallback
     const stopSession = (sessionId: string, internal = false): boolean => {
       const cancelledWait = internal ? false : accountWaits.cancel(sessionId);
+      if (!internal) {
+        const rotation = activeRotationResumes.get(sessionId);
+        if (rotation) rotation.cancelWait = true;
+      }
       const cancellingResume = resumesInFlight.has(sessionId);
       if (cancellingResume) cancelledResumes.add(sessionId);
       logger.debug(`[DAEMON RUN] Attempting to stop session ${sessionId}`);
@@ -1593,6 +1614,10 @@ export async function startDaemon(): Promise<void> {
       for (const [pid, session] of pidToTrackedSession.entries()) {
         if (session.happySessionId === sessionId ||
           (sessionId.startsWith('PID-') && pid === parseInt(sessionId.replace('PID-', '')))) {
+          if (!internal && session.happySessionId) {
+            const rotation = activeRotationResumes.get(session.happySessionId);
+            if (rotation) rotation.cancelWait = true;
+          }
           stoppingPids.add(pid);
 
           if (session.startedBy === 'daemon' && session.childProcess) {
@@ -1855,6 +1880,14 @@ export async function startDaemon(): Promise<void> {
       if (notice.accountId) {
         const tracked = findTrackedSessionById(notice.sessionId);
         const metadata = tracked?.happyherdSessionMetadataFromLocalWebhook;
+        if (metadata?.providerAccountId === notice.accountId
+          && notice.sourcePid !== undefined
+          && pidToTrackedSession.get(notice.sourcePid) === tracked
+          && typeof notice.credentialVersion === 'number'
+          && typeof metadata.providerAccountCredentialVersion === 'number'
+          && notice.credentialVersion > metadata.providerAccountCredentialVersion) {
+          metadata.providerAccountCredentialVersion = notice.credentialVersion;
+        }
         if (
           metadata?.providerAccountId !== notice.accountId
           || metadata.providerAccountCredentialVersion !== notice.credentialVersion
@@ -1878,7 +1911,7 @@ export async function startDaemon(): Promise<void> {
       if (providerLimitRotations.has(key)) return true;
       const rotationIncidentId = randomUUID();
       const quotaIncidentId = randomUUID();
-      const rotationResume: { milestone?: ResumeMilestone } = {};
+      const rotationResume: { milestone?: ResumeMilestone; cancelWait?: boolean } = {};
       activeRotationResumes.set(notice.sessionId, rotationResume);
       let quotaMessagePosted = false;
       const postQuotaOnce = async (): Promise<void> => {
@@ -1913,9 +1946,11 @@ export async function startDaemon(): Promise<void> {
               await onChildExited(live.pid);
             },
             resumeProvider: async (sessionId) => {
+              if (rotationResume.cancelWait) throw new Error(`Rotation was cancelled for ${sessionId}`);
               const result = await resumeSession(sessionId, {
                 waitForNativeResume: true,
                 coalescedResume: rotationResume.milestone,
+                rotationResume: true,
               });
               if (result.type !== 'success') {
                 throw new Error(result.type === 'error'
@@ -1938,20 +1973,23 @@ export async function startDaemon(): Promise<void> {
                 sessionId,
                 messageId: `${rotationIncidentId}-continue`,
                 text: 'continue',
-              });
+              }, () => !rotationResume.cancelWait);
               if (!receipt.success) {
                 logger.warn(`[CREDENTIAL POOL] Failed to deliver continuation for ${sessionId}: ${receipt.error}`);
               }
             },
             onNoUsableAccount: async () => {
-              accountWaits.add({
-                sessionId: notice.sessionId,
-                provider: managedNotice.provider,
-                account: managedNotice.account,
-                ...(notice.accountId ? { accountId: notice.accountId } : {}),
-                incidentId: rotationIncidentId,
-                limitedUntil: notice.limitedUntil,
-              });
+              const tracked = findTrackedSessionById(notice.sessionId);
+              if (!rotationResume.cancelWait && (!tracked || !trackedSessionWithAutomationProvenance(tracked).automationRunId)) {
+                accountWaits.add({
+                  sessionId: notice.sessionId,
+                  provider: managedNotice.provider,
+                  account: managedNotice.account,
+                  ...(notice.accountId ? { accountId: notice.accountId } : {}),
+                  incidentId: rotationIncidentId,
+                  limitedUntil: notice.limitedUntil,
+                });
+              }
               await postQuotaOnce();
             },
             onWaitForAccount: async () => {
@@ -2512,7 +2550,11 @@ export async function startDaemon(): Promise<void> {
       return Boolean(tracked && !hasProviderProcessExited(tracked.pid));
     };
     sendLocalMessage = async (request, current) => {
-      if (!current) accountWaits.cancel(request.sessionId);
+      if (!current) {
+        accountWaits.cancel(request.sessionId);
+        const rotation = activeRotationResumes.get(request.sessionId);
+        if (rotation) rotation.cancelWait = true;
+      }
       const identity = {
         schemaVersion: 1 as const, type: 'session-message' as const,
         sessionId: request.sessionId, messageId: request.messageId,
