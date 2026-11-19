@@ -4,11 +4,12 @@ import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Fastify } from '../types';
 
-const { sessionDb, emitUpdate, buildNewSessionUpdate, allocateUserSeq, resumeSessionUpdates } = vi.hoisted(() => ({
+const { sessionDb, executeRaw, emitUpdate, buildNewSessionUpdate, allocateUserSeq, resumeSessionUpdates } = vi.hoisted(() => ({
     sessionDb: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+    executeRaw: vi.fn(),
     emitUpdate: vi.fn(), buildNewSessionUpdate: vi.fn(), allocateUserSeq: vi.fn(), resumeSessionUpdates: vi.fn(),
 }));
-vi.mock('@/storage/db', () => ({ db: { session: sessionDb } }));
+vi.mock('@/storage/db', () => ({ db: { session: sessionDb, $executeRaw: executeRaw } }));
 vi.mock('@/app/events/eventRouter', () => ({ eventRouter: { emitUpdate }, buildNewSessionUpdate }));
 vi.mock('@/storage/seq', () => ({ allocateUserSeq }));
 vi.mock('@/app/presence/sessionCache', () => ({ activityCache: { resumeSessionUpdates } }));
@@ -54,24 +55,28 @@ async function createApp() {
 describe('account default Assistant session', () => {
     let app: Fastify;
     const post = (body = requestBody) => app.inject({ method: 'POST', url: '/v1/sessions/default-assistant', headers: { 'x-user-id': 'account-a' }, payload: body });
+    const retire = (sessionId = requestBody.sessionId) => app.inject({ method: 'POST', url: '/v1/sessions/default-assistant/retire', headers: { 'x-user-id': 'account-a' }, payload: { sessionId } });
     const get = (url = '/v1/sessions/default-assistant') => app.inject({ method: 'GET', url, headers: { 'x-user-id': 'account-a' } });
 
     beforeEach(async () => {
         vi.resetAllMocks();
         sessionDb.findUnique.mockResolvedValue(null);
         sessionDb.findMany.mockResolvedValue([]);
+        executeRaw.mockResolvedValue(0);
         allocateUserSeq.mockResolvedValue(12);
         buildNewSessionUpdate.mockReturnValue({ t: 'new-session' });
         app = await createApp();
     });
     afterEach(async () => { await app.close(); });
 
-    it('requires the existing authentication handler for both default-session routes', async () => {
+    it('requires the existing authentication handler for all default-session routes', async () => {
         for (const method of ['GET', 'POST'] as const) {
             const response = await app.inject({ method, url: '/v1/sessions/default-assistant', ...(method === 'POST' ? { payload: requestBody } : {}) });
             expect(response.statusCode).toBe(401);
         }
+        expect((await app.inject({ method: 'POST', url: '/v1/sessions/default-assistant/retire', payload: { sessionId: requestBody.sessionId } })).statusCode).toBe(401);
         expect(sessionDb.findUnique).not.toHaveBeenCalled();
+        expect(executeRaw).not.toHaveBeenCalled();
     });
 
     it('reads only the account reserved tag and returns null before first creation', async () => {
@@ -181,6 +186,38 @@ describe('account default Assistant session', () => {
         const response = await post();
         expect(response.statusCode).toBe(409);
         expect(response.json()).not.toHaveProperty('session');
+        expect(sessionDb.update).not.toHaveBeenCalled();
+        expect(emitUpdate).not.toHaveBeenCalled();
+    });
+
+    it('retires only the requested account holder without updating any other fields', async () => {
+        executeRaw.mockResolvedValue(1);
+        const response = await retire();
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual({ retired: true, session: null });
+        const [query, ...values] = executeRaw.mock.calls[0];
+        expect(query.join('?').replace(/\s+/g, ' ').trim()).toBe('UPDATE "Session" SET "tag" = ? WHERE "id" = ? AND "accountId" = ? AND "tag" = ?');
+        expect(values).toEqual(['happyherd-retired-assistant-event-id', requestBody.sessionId, 'account-a', tag]);
+        expect(sessionDb.findUnique).not.toHaveBeenCalled();
+        expect(sessionDb.create).not.toHaveBeenCalled();
+        expect(sessionDb.update).not.toHaveBeenCalled();
+        expect(emitUpdate).not.toHaveBeenCalled();
+    });
+
+    it('leaves a different holder untouched and returns that account session', async () => {
+        sessionDb.findUnique.mockResolvedValue(session('other-assistant'));
+        const response = await retire();
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toMatchObject({ retired: false, session: { id: 'other-assistant', metadata: 'stored-metadata', metadataVersion: 7, agentState: 'stored-state', agentStateVersion: 9, dataEncryptionKey: 'BAUG', seq: 23, updatedAt: 200 } });
+        expect(sessionDb.findUnique).toHaveBeenCalledWith({ where: accountTag });
+        expect(sessionDb.update).not.toHaveBeenCalled();
+        expect(emitUpdate).not.toHaveBeenCalled();
+    });
+
+    it('returns no holder when the reserved tag is absent, including a retirement retry', async () => {
+        expect((await retire()).json()).toEqual({ retired: false, session: null });
+        expect(sessionDb.findUnique).toHaveBeenCalledWith({ where: accountTag });
+        expect(sessionDb.create).not.toHaveBeenCalled();
         expect(sessionDb.update).not.toHaveBeenCalled();
         expect(emitUpdate).not.toHaveBeenCalled();
     });

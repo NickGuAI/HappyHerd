@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ApiClient } from './api';
 import axios from 'axios';
 import { connectionState } from '@/utils/serverConnectionErrors';
+import type { Session } from './types';
 
 // Use vi.hoisted to ensure mock functions are available when vi.mock factory runs
 const { mockGet, mockPost, mockIsAxiosError, mockDecrypt } = vi.hoisted(() => ({
@@ -366,8 +367,23 @@ describe('Api server error handling', () => {
         });
     });
 
-    describe('inspectSessionAuthoritative', () => {
-        it('returns the server-owned Project ID with canonical session metadata', async () => {
+    describe('authoritative session reads', () => {
+        const savedSession: Session = {
+            id: 'session-project',
+            seq: 2,
+            encryptionKey: new Uint8Array(32),
+            encryptionVariant: 'legacy',
+            metadata: {
+                path: '/stale', host: 'stale', homeDir: '/tmp',
+                happyHomeDir: '/tmp/happyherd', happyLibDir: '/tmp/lib', happyToolsDir: '/tmp/tools',
+                isSuperSession: true,
+            },
+            metadataVersion: 1,
+            agentState: null,
+            agentStateVersion: 0,
+        };
+
+        it.each(['findSessionAuthoritative', 'inspectSessionAuthoritative'] as const)('%s returns the server-owned Project ID and metadata without stale local fields', async (method) => {
             const metadata = { path: '/srv/project', commanderId: 'athena', commanderName: 'Athena' };
             mockGet.mockResolvedValueOnce({
                 data: {
@@ -385,19 +401,7 @@ describe('Api server error handling', () => {
                 },
             });
 
-            const inspected = await api.inspectSessionAuthoritative({
-                id: 'session-project',
-                seq: 2,
-                encryptionKey: new Uint8Array(32),
-                encryptionVariant: 'legacy',
-                metadata: {
-                    path: '/stale', host: 'stale', homeDir: '/tmp',
-                    happyHomeDir: '/tmp/happyherd', happyLibDir: '/tmp/lib', happyToolsDir: '/tmp/tools',
-                },
-                metadataVersion: 1,
-                agentState: null,
-                agentStateVersion: 0,
-            });
+            const inspected = await api[method](savedSession);
 
             expect(inspected).toMatchObject({
                 active: true,
@@ -409,10 +413,34 @@ describe('Api server error handling', () => {
                     metadataVersion: 4,
                 },
             });
+            expect(inspected?.session.metadata).toEqual(metadata);
             expect(mockGet).toHaveBeenCalledWith(
                 'https://api.example.com/v2/sessions',
                 expect.objectContaining({ params: expect.objectContaining({ limit: 200 }) }),
             );
+        });
+
+        it('returns null only for an absent row while the strict read keeps its existing error', async () => {
+            mockGet.mockResolvedValue({ data: { sessions: [] } });
+            await expect(api.findSessionAuthoritative(savedSession)).resolves.toBeNull();
+            await expect(api.inspectSessionAuthoritative(savedSession)).rejects.toThrow('Cannot refresh HappyHerd session session-project for reconnect');
+            expect(mockDecrypt).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            Object.assign(new Error('Network unavailable'), { code: 'ECONNREFUSED' }),
+            Object.assign(new Error('Unauthorized'), { response: { status: 401 } }),
+        ])('propagates read failure instead of treating it as a missing row: %s', async (error) => {
+            mockGet.mockRejectedValueOnce(error);
+            await expect(api.findSessionAuthoritative(savedSession)).rejects.toBe(error);
+            expect(mockDecrypt).not.toHaveBeenCalled();
+        });
+
+        it('propagates a decryption error instead of treating the row as missing', async () => {
+            mockGet.mockResolvedValueOnce({ data: { sessions: [{ id: savedSession.id, metadata: 'encrypted-metadata' }] } });
+            const error = new Error('Cannot decrypt metadata');
+            mockDecrypt.mockImplementationOnce(() => { throw error; });
+            await expect(api.findSessionAuthoritative(savedSession)).rejects.toBe(error);
         });
     });
 

@@ -88,7 +88,7 @@ export function startDaemonControlServer({
   requestShutdown: () => void;
   onHappyHerdSessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string, nativeResumeFailed?: boolean) => void;
   automations: HappyHerdAutomationService;
-  ensureDefaultAssistant?: () => Promise<DefaultAssistantReceipt>;
+  ensureDefaultAssistant?: (fresh?: boolean) => Promise<DefaultAssistantReceipt>;
   createLocalSession?: (request: LocalSessionCreationRequest) => Promise<LocalSessionCreationReceipt>;
   sendLocalMessage?: (request: LocalSessionSendRequest) => Promise<LocalSessionSendReceipt>;
   inspectLocalSession?: (request: LocalSessionInspectRequest) => Promise<LocalSessionInspectReceipt>;
@@ -129,9 +129,11 @@ export function startDaemonControlServer({
       return DevicePairingCancelResponseSchema.parse(pairing.cancel());
     });
 
-    typed.post('/ensure-assistant', async (_request, reply) => {
+    typed.post('/ensure-assistant', {
+      schema: { body: z.object({ fresh: z.boolean().optional() }) },
+    }, async (request, reply) => {
       if (!ensureDefaultAssistant) return reply.code(503).send({ error: 'Default Assistant setup is unavailable' });
-      return ensureDefaultAssistant();
+      return ensureDefaultAssistant(request.body.fresh);
     });
 
     typed.post('/create-session', {

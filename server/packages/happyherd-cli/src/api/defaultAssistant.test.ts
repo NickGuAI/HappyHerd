@@ -14,6 +14,17 @@ const metadata: Metadata = {
 beforeEach(() => vi.clearAllMocks());
 
 describe('ordinary-auth default Assistant API', () => {
+  it('retires only the named session using ordinary authentication', async () => {
+    const api = new DefaultAssistantApi({ token: 'fixture-token', encryption: { type: 'legacy', secret: new Uint8Array(32).fill(1) } });
+    http.post.mockResolvedValue({ data: { retired: true, session: null } });
+    await expect(api.retire('old-assistant')).resolves.toEqual({ retired: true, session: null });
+    expect(http.post).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining('/v1/sessions/default-assistant/retire'),
+      { sessionId: 'old-assistant' },
+      expect.objectContaining({ headers: { Authorization: 'Bearer fixture-token' } }),
+    );
+  });
+
   it.each(['legacy', 'dataKey'] as const)('retains %s original encryption through repeated publication and hydration', async (variant) => {
     const encryption: Credentials['encryption'] = variant === 'legacy'
       ? { type: 'legacy', secret: new Uint8Array(32).fill(1) }

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Metadata, MachineMetadata, Session } from '@/api/types';
 import { DefaultAssistantBootstrap, defaultAssistantSettings, hasAssistantProviderIdentity } from './defaultAssistant';
+import { DefaultAssistantApi } from '@/api/defaultAssistant';
+import { encodeBase64, encrypt } from '@/api/encryption';
 
 const commander = {
   id: 'custom-assistant', name: 'HappyHerd Assistant', workspace: '/home/test',
@@ -36,15 +38,20 @@ function fixture() {
     machineId: 'machine-one',
     api: {
       get: vi.fn(async () => winner),
-      prepare: vi.fn(() => prepared),
+      prepare: vi.fn((_metadata: Metadata) => prepared),
       publish: vi.fn(async (session: Session) => {
         expect(sessions.find(item => item.id === session.id)?.encryptionKey).toEqual(session.encryptionKey);
         winner = { id: session.id };
         return { session: winner, isRequestedSession: true };
       }),
       hydrate: vi.fn((_record: any, saved: Session) => saved),
+      retire: vi.fn(async (_sessionId: string) => {
+        winner = null;
+        return { retired: true, session: null };
+      }),
     },
     sessions: () => sessions,
+    readAuthoritative: vi.fn(async (session: Session): Promise<Session | null> => session),
     persist: vi.fn((session: Session) => {
       const index = sessions.findIndex(item => item.id === session.id);
       if (index < 0) sessions.push(session);
@@ -55,11 +62,157 @@ function fixture() {
     createMetadata: vi.fn(() => metadata),
     isRunning: vi.fn(() => running),
     start: vi.fn(async () => { running = true; }),
+    stop: vi.fn(async (_session: Session) => { running = false; }),
+    archive: vi.fn(async (session: Session): Promise<Session> => ({
+      ...session, metadata: { ...session.metadata, isSuperSession: false, lifecycleState: 'archived' },
+    })),
   };
   return { dependencies, sessions, prepared, machine, setWinner: (value: any) => { winner = value; } };
 }
 
 describe('default Assistant bootstrap', () => {
+  it('retires in order, keeps the old conversation, and creates then reuses a fresh Assistant', async () => {
+    const { dependencies: d, sessions, prepared, setWinner } = fixture();
+    const old: Session = {
+      ...prepared, id: 'old-assistant', seq: 900,
+      metadata: { ...metadata, codexThreadId: 'old-thread', commanderName: 'Earlier name' },
+    };
+    sessions.push(old);
+    setWinner({ id: old.id });
+    const currentCommander = { ...commander, name: 'Current Assistant' };
+    d.ensureCommander.mockResolvedValue(currentCommander);
+    d.createMetadata.mockReturnValue({ ...metadata, commanderName: currentCommander.name });
+    d.api.prepare.mockImplementation(value => ({ ...prepared, metadata: value }));
+
+    const bootstrap = new DefaultAssistantBootstrap(d);
+    await expect(bootstrap.ensure(true)).resolves.toEqual({
+      schemaVersion: 1, type: 'default-assistant', status: 'created', sessionId: prepared.id,
+      retiredSessionId: old.id, commanderId: commander.id, machineId: 'machine-one',
+    });
+    const calls = [d.api.get, d.stop, d.api.retire, d.archive, d.ensureCommander, d.api.prepare, d.api.publish, d.start];
+    const order = calls.map(call => call.mock.invocationCallOrder[0]);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(d.api.retire).toHaveBeenCalledExactlyOnceWith(old.id);
+    expect(d.createMetadata).toHaveBeenCalledWith(currentCommander, expect.anything());
+    expect(d.start).toHaveBeenCalledWith(expect.objectContaining({
+      id: prepared.id, seq: 0, metadata: { ...metadata, commanderName: currentCommander.name },
+    }));
+    expect(sessions.find(session => session.id === old.id)).toEqual({
+      ...old, metadata: { ...old.metadata, isSuperSession: false, lifecycleState: 'archived' },
+    });
+    expect(sessions.filter(session => session.metadata.isSuperSession).map(session => session.id)).toEqual([prepared.id]);
+    await expect(bootstrap.ensure()).resolves.toMatchObject({ status: 'existing', sessionId: prepared.id });
+    expect(d.api.prepare).toHaveBeenCalledOnce();
+    expect(d.start).toHaveBeenCalledOnce();
+  });
+
+  it('changes nothing when the Assistant lives on another machine', async () => {
+    const { dependencies: d, setWinner } = fixture();
+    setWinner({ id: 'remote-assistant' });
+    await expect(new DefaultAssistantBootstrap(d).ensure(true)).rejects.toThrow('Assistant session remote-assistant lives on another machine');
+    for (const call of [d.stop, d.api.retire, d.archive, d.persist, d.api.prepare, d.api.publish, d.start]) {
+      expect(call).not.toHaveBeenCalled();
+    }
+  });
+
+  it('normal ensure adopts the old session after a failure between retirement and clearing its marker', async () => {
+    const { dependencies: d, sessions, prepared, setWinner } = fixture();
+    const old = { ...prepared, id: 'old-assistant', seq: 900, metadata: { ...metadata, codexThreadId: 'old-thread' } };
+    sessions.push(old);
+    setWinner({ id: old.id });
+    d.archive.mockRejectedValueOnce(new Error('metadata unavailable'));
+    await expect(new DefaultAssistantBootstrap(d).ensure(true)).rejects.toThrow('metadata unavailable');
+    expect(await d.api.get()).toBeNull();
+    expect(sessions).toEqual([old]);
+
+    await expect(new DefaultAssistantBootstrap(d).ensure()).resolves.toMatchObject({ sessionId: old.id, status: 'existing' });
+    expect(await d.api.get()).toEqual({ id: old.id });
+    expect(sessions.filter(session => session.metadata.isSuperSession)).toEqual([old]);
+    expect(d.api.publish).toHaveBeenCalledExactlyOnceWith(old);
+    expect(d.api.prepare).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+  });
+
+  it.each(['read-back', 'local save'] as const)('creates one startable Assistant after archive commits and %s fails', async (failure) => {
+    const { dependencies: d, sessions, prepared } = fixture();
+    const old: Session = {
+      ...prepared, id: 'old-assistant', seq: 900,
+      metadata: { ...metadata, codexThreadId: 'old-thread' },
+    };
+    sessions.push(old);
+    const remote = new Map<string, Session>([[old.id, old]]);
+    let tagged: string | null = old.id;
+    const record = (session: Session) => ({
+      id: session.id, seq: session.seq,
+      metadata: encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, session.metadata)),
+      metadataVersion: session.metadataVersion, agentState: null, agentStateVersion: 0,
+    });
+    const realApi = new DefaultAssistantApi({
+      token: 'test-token', encryption: { type: 'legacy', secret: new Uint8Array(32).fill(1) },
+    });
+    d.api.hydrate.mockImplementation(realApi.hydrate.bind(realApi));
+    d.api.get.mockImplementation(async () => tagged ? record(remote.get(tagged)!) : null);
+    d.api.retire.mockImplementation(async () => {
+      tagged = null;
+      return { retired: true, session: null };
+    });
+    d.api.publish.mockImplementation(async session => {
+      // Server adoption changes only the tag of an existing row.
+      if (!remote.has(session.id)) remote.set(session.id, session);
+      tagged = session.id;
+      return { session: record(remote.get(session.id)!), isRequestedSession: true };
+    });
+    d.readAuthoritative.mockImplementation(async session => remote.get(session.id) ?? null);
+    d.archive.mockImplementation(async session => {
+      const archived: Session = {
+        ...session, metadataVersion: session.metadataVersion + 1,
+        metadata: { ...session.metadata, isSuperSession: false, lifecycleState: 'archived' },
+      };
+      remote.set(session.id, archived);
+      if (failure === 'read-back') throw new Error('archive read-back failed');
+      return archived;
+    });
+    const persist = d.persist.getMockImplementation()!;
+    d.persist.mockImplementationOnce(session => {
+      if (failure === 'local save') throw new Error('archive local save failed');
+      persist(session);
+    });
+
+    await expect(new DefaultAssistantBootstrap(d).ensure(true)).rejects.toThrow(`archive ${failure} failed`);
+    expect(tagged).toBeNull();
+    expect(sessions).toEqual([old]);
+    expect(remote.get(old.id)?.metadata).toMatchObject({ isSuperSession: false, lifecycleState: 'archived' });
+
+    const bootstrap = new DefaultAssistantBootstrap(d);
+    await expect(bootstrap.ensure()).resolves.toMatchObject({ sessionId: prepared.id, status: 'created' });
+    expect(d.readAuthoritative).toHaveBeenCalledExactlyOnceWith(old);
+    expect(d.api.publish).toHaveBeenCalledExactlyOnceWith(prepared);
+    expect(d.start).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      id: prepared.id, seq: 0, metadata: { ...metadata },
+    }));
+    expect(tagged).toBe(prepared.id);
+    expect([...remote.values()].filter(session => session.metadata.isSuperSession).map(session => session.id)).toEqual([prepared.id]);
+    expect(sessions.filter(session => session.metadata.isSuperSession).map(session => session.id)).toEqual([prepared.id]);
+    expect(sessions.find(session => session.id === old.id)).toEqual(remote.get(old.id));
+    expect(remote.get(old.id)).toMatchObject({
+      seq: 900, encryptionKey: old.encryptionKey,
+      metadata: { isSuperSession: false, lifecycleState: 'archived', codexThreadId: 'old-thread' },
+    });
+    await expect(bootstrap.ensure()).resolves.toMatchObject({ sessionId: prepared.id, status: 'existing' });
+    expect(d.readAuthoritative).toHaveBeenCalledOnce();
+    expect(d.api.prepare).toHaveBeenCalledOnce();
+    expect(d.start).toHaveBeenCalledOnce();
+  });
+
+  it('publishes nothing when the authoritative candidate read fails', async () => {
+    const { dependencies: d, sessions, prepared } = fixture();
+    sessions.push(prepared);
+    d.readAuthoritative.mockRejectedValueOnce(new Error('server read unavailable'));
+    await expect(new DefaultAssistantBootstrap(d).ensure()).rejects.toThrow('server read unavailable');
+    expect(sessions).toEqual([prepared]);
+    for (const call of [d.persist, d.api.prepare, d.api.publish, d.start]) expect(call).not.toHaveBeenCalled();
+  });
+
   it('persists first, creates once, and reuses its identity across repeated calls and a daemon restart', async () => {
     const { dependencies: d } = fixture();
     const bootstrap = new DefaultAssistantBootstrap(d);
@@ -71,6 +224,7 @@ describe('default Assistant bootstrap', () => {
     expect(d.api.prepare).toHaveBeenCalledOnce();
     expect(d.api.publish).toHaveBeenCalledOnce();
     expect(d.start).toHaveBeenCalledOnce();
+    expect(d.readAuthoritative).not.toHaveBeenCalled();
   });
 
   it('reuses a manually created Assistant and its custom Commander without replacing history', async () => {
@@ -87,9 +241,11 @@ describe('default Assistant bootstrap', () => {
   it('recovers a lost publish response from the prepared ID and original key', async () => {
     const { dependencies: d } = fixture();
     d.api.publish.mockRejectedValueOnce(new Error('connection dropped'));
+    d.readAuthoritative.mockResolvedValueOnce(null);
     await expect(new DefaultAssistantBootstrap(d).ensure()).rejects.toThrow('connection dropped');
     await expect(new DefaultAssistantBootstrap(d).ensure()).resolves.toMatchObject({ sessionId: 'prepared-id' });
     expect(d.api.prepare).toHaveBeenCalledOnce();
+    expect(d.readAuthoritative).toHaveBeenCalledExactlyOnceWith(d.api.publish.mock.calls[0][0]);
     expect(d.api.publish.mock.calls[0][0].encryptionKey).toEqual(d.api.publish.mock.calls[1][0].encryptionKey);
     expect(d.start).toHaveBeenCalledOnce();
   });

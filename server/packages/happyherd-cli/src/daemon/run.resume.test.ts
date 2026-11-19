@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
   inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
   listCommanders: vi.fn(async (): Promise<any> => ({ commanders: [], globalAgentsPath: null })),
   sessionSyncClient: vi.fn(),
+  findSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
   persistSession: vi.fn(() => true),
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
@@ -61,6 +62,7 @@ vi.mock('@/api/api', () => ({
       deactivateSession: mocks.deactivateSession,
       inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
       sessionSyncClient: mocks.sessionSyncClient,
+      findSessionAuthoritative: mocks.findSessionAuthoritative,
       postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
       postSessionTask: mocks.postSessionTask,
@@ -323,7 +325,7 @@ type CapturedControlHandlers = {
   stopSession: (sessionId: string) => boolean;
   sendLocalMessage: (request: import('./localSessionClient').LocalSessionSendRequest) => Promise<import('./localSessionClient').LocalSessionSendReceipt>;
   inspectLocalSession: (request: import('./localSessionClient').LocalSessionInspectRequest) => Promise<import('./localSessionClient').LocalSessionInspectReceipt>;
-  ensureDefaultAssistant: () => Promise<import('./defaultAssistant').DefaultAssistantReceipt>;
+  ensureDefaultAssistant: (fresh?: boolean) => Promise<import('./defaultAssistant').DefaultAssistantReceipt>;
   createLocalSession: (request: import('./controlServer').LocalSessionCreationRequest) => Promise<import('./controlServer').LocalSessionCreationReceipt>;
   onHappyHerdSessionWebhook: (
     sessionId: string,
@@ -808,6 +810,78 @@ describe('daemon session continuity', () => {
       ...prepared!.metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings,
     }, encryption);
     await expect(ensure).resolves.toMatchObject({ status: 'created', sessionId, commanderId: commander.id });
+  });
+
+  it('starts a new provider conversation and keeps the retired Assistant readable through the daemon', async () => {
+    const oldId = 'old-assistant';
+    const newId = 'fresh-assistant';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 40, metadataVersion: 2, agentStateVersion: 0,
+    };
+    let oldMetadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', isSuperSession: true, codexThreadId: 'old-provider-thread', commanderName: 'Earlier name',
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [oldId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata: oldMetadata, savedAt: 1,
+    } });
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: session.id === oldId ? { ...session, metadata: oldMetadata, metadataVersion: oldMetadata.isSuperSession ? 2 : 3 } : session,
+      active: false,
+    }));
+    const archive = vi.fn(async (update: (metadata: Metadata) => Metadata) => { oldMetadata = update(oldMetadata); });
+    mocks.sessionSyncClient.mockReturnValue({
+      waitForConnected: vi.fn(), suppressNextArchiveSignal: vi.fn(), updateMetadata: archive, close: vi.fn(),
+    });
+    const messages = [{ id: 'retained-message', seq: 40, content: 'earlier conversation' }];
+    mocks.readRecentSessionMessages.mockImplementation(async (...args: unknown[]) => (args[0] as { id: string }).id === oldId ? messages : []);
+    const commander = {
+      id: 'default-commander', name: 'Current Assistant', workspace: process.cwd(),
+      commanderPath: '/context/COMMANDER.md', agentContextPath: '/context/agentcontext',
+    };
+    vi.spyOn(defaultAssistantCommander, 'ensureDefaultAssistantCommander').mockResolvedValue(commander);
+    let winner: { id: string } | null = { id: oldId };
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockImplementation(async () => winner as any);
+    const retire = vi.spyOn(DefaultAssistantApi.prototype, 'retire').mockImplementation(async () => {
+      expect(mocks.exitedPids.has(8765)).toBe(true);
+      expect(archive).not.toHaveBeenCalled();
+      winner = null;
+      return { retired: true, session: null };
+    });
+    let prepared: import('@/api/types').Session;
+    vi.spyOn(DefaultAssistantApi.prototype, 'prepare').mockImplementation(metadata => {
+      prepared = { ...encryption, id: newId, seq: 0, metadataVersion: 0, metadata, agentState: null };
+      return prepared;
+    });
+    vi.spyOn(DefaultAssistantApi.prototype, 'publish').mockImplementation(async () => {
+      expect(oldMetadata).toMatchObject({ isSuperSession: false, lifecycleState: 'archived' });
+      winner = { id: newId };
+      return { session: winner as any, isRequestedSession: true };
+    });
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    vi.spyOn(process, 'kill').mockImplementation(pid => { mocks.exitedPids.add(Math.abs(pid)); return true; });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappyHerdSessionWebhook(oldId, { ...oldMetadata, hostPid: 8765 }, encryption);
+    const fresh = control.ensureDefaultAssistant(true);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const [args, launch] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(args).not.toContain('--resume');
+    expect(launch.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(newId);
+    expect(prepared!.metadata).toMatchObject({ commanderName: commander.name, isSuperSession: true });
+    expect(prepared!.metadata.codexThreadId).toBeUndefined();
+    expect(prepared!.seq).toBe(0);
+    control.onHappyHerdSessionWebhook(newId, { ...prepared!.metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, { ...encryption, seq: 0, metadataVersion: 0 });
+    await expect(fresh).resolves.toMatchObject({ sessionId: newId, retiredSessionId: oldId, status: 'created' });
+    expect(retire).toHaveBeenCalledExactlyOnceWith(oldId);
+    const archived = await control.inspectLocalSession({ sessionId: oldId, limit: 20 });
+    expect(archived.session.metadata).toMatchObject({ isSuperSession: false, lifecycleState: 'archived' });
+    expect(archived.messages).toEqual(messages);
+    expect((await control.inspectLocalSession({ sessionId: newId, limit: 20 })).messages).toEqual([]);
+    await expect(control.ensureDefaultAssistant()).resolves.toMatchObject({ sessionId: newId, status: 'existing' });
   });
 
   it('initializes an Assistant with a reused untracked metadata PID instead of treating that process as its provider', async () => {

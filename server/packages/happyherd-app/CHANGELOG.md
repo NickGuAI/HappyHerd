@@ -1,3 +1,7 @@
+# November 18 — Start the Assistant over
+
+- Run `happyherd session ensure-assistant --fresh --json` on the Assistant's machine to start an empty conversation with the current default Commander. The new session is pinned; the old thread stays readable in the archive. The receipt includes both session IDs. Side chats and schedules stay with the old thread.
+
 # November 18 — Keep Commander names current
 
 - Renaming a Commander now updates its sessions on that machine when the daemon starts again, including the pinned assistant row and `happyherd session inspect`. Session titles stay unchanged.
