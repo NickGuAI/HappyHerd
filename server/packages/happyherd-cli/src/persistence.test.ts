@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     acquireDaemonLock,
     persistSession,
+    persistSessionRegistration,
     readPersistedSessions,
     releaseDaemonLock,
     SandboxConfigSchema,
@@ -188,5 +189,54 @@ describe('session persistence', () => {
             historical,
             'registered-after-update': registeredAfterUpdate,
         });
+    });
+
+    it('keeps pending registrations visible and lets a later direct save win', async () => {
+        const first = sessionRecord(200, 'first');
+        const second = sessionRecord(200, 'second');
+        const authoritative = sessionRecord(201, 'authoritative');
+        const saves = [persistSessionRegistration('one', first, 100), persistSessionRegistration('two', second, 100)];
+        expect(readPersistedSessions()).toEqual({ one: first, two: second });
+        expect(persistSession('one', authoritative)).toBe(true);
+        await Promise.all(saves);
+        expect(JSON.parse(readFileSync(mockConfiguration.sessionsFile, 'utf-8')).sessions)
+            .toEqual({ one: authoritative, two: second });
+        // A cancelled batch timer must not later replace the authoritative save.
+        await new Promise(resolve => setTimeout(resolve, 40));
+        expect(readPersistedSessions()).toEqual({ one: authoritative, two: second });
+    });
+
+    it('merges another writer before flushing and notices its later changes', async () => {
+        const first = sessionRecord(200, 'first');
+        const second = sessionRecord(200, 'second');
+        const save = persistSessionRegistration('one', first, 100);
+        writeFileSync(mockConfiguration.sessionsFile, JSON.stringify({ sessions: { two: second } }));
+        await save;
+        expect(readPersistedSessions()).toEqual({ one: first, two: second });
+        writeFileSync(mockConfiguration.sessionsFile, JSON.stringify({ sessions: { one: second, two: second } }));
+        await persistSessionRegistration('one', first, 100);
+        expect(readPersistedSessions()).toEqual({ one: first, two: second });
+    });
+
+    it('dates an identical pre-boot record again without changing current-boot conflict decisions', async () => {
+        const old = sessionRecord(90, 'same');
+        persistSession('one', old);
+        await persistSessionRegistration('one', { ...old, savedAt: 110 }, 100);
+        expect(readPersistedSessions().one.savedAt).toBe(110);
+        const reordered = { ...old, savedAt: 120, metadata: Object.fromEntries(Object.entries(old.metadata).reverse()) as typeof old.metadata };
+        await persistSessionRegistration('one', reordered, 100);
+        expect(readPersistedSessions().one.savedAt).toBe(110);
+    });
+
+    it('rejects failed saves and lets an identical repeat save the record', async () => {
+        const record = sessionRecord(200, 'retry');
+        // A directory at the temporary-file path makes the real write fail.
+        const temporaryPath = mockConfiguration.sessionsFile + '.tmp';
+        mkdirSync(temporaryPath);
+        await expect(persistSessionRegistration('one', record, 100)).rejects.toThrow('Failed to persist');
+        expect(readPersistedSessions()).toEqual({});
+        rmSync(temporaryPath, { recursive: true });
+        await persistSessionRegistration('one', record, 100);
+        expect(readPersistedSessions()).toEqual({ one: record });
     });
 });

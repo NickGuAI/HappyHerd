@@ -86,7 +86,7 @@ export function startDaemonControlServer({
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
   onProviderLimited: (notice: ProviderLimitNotice) => boolean;
   requestShutdown: () => void;
-  onHappyHerdSessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string, nativeResumeFailed?: boolean) => void;
+  onHappyHerdSessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData, nativeResumeId?: string, nativeResumeFailed?: boolean) => void | Promise<void>;
   automations: HappyHerdAutomationService;
   ensureDefaultAssistant?: (fresh?: boolean) => Promise<DefaultAssistantReceipt>;
   createLocalSession?: (request: LocalSessionCreationRequest) => Promise<LocalSessionCreationReceipt>;
@@ -201,7 +201,7 @@ export function startDaemonControlServer({
         };
       }
 
-      onHappyHerdSessionWebhook(sessionId, metadata, encryptionData, nativeResumeId, nativeResumeFailed);
+      await onHappyHerdSessionWebhook(sessionId, metadata, encryptionData, nativeResumeId, nativeResumeFailed);
 
       return { status: 'ok' as const };
     });

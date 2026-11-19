@@ -1,3 +1,7 @@
+# November 19 — Faster daemon restarts
+
+- Sessions reconnect promptly after a daemon restart, even with a large saved session history. Repeated registrations no longer rewrite unchanged reconnect data.
+
 # November 19 — Read voice overviews in chat
 
 - Voice overviews now appear above the reply body, including replies with only an overview. Playback stays the same.

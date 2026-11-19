@@ -55,6 +55,7 @@ vi.mock('@/persistence', () => ({
   readDaemonState: vi.fn(async () => null),
   readPersistedSessions: vi.fn(() => ({})),
   persistSession: vi.fn(() => true),
+  persistSessionRegistration: vi.fn(async () => undefined),
   writeDaemonState: vi.fn(),
 }));
 vi.mock('@/daemon/controlClient', () => ({

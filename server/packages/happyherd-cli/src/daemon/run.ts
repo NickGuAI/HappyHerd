@@ -28,7 +28,7 @@ import { configuration } from '@/configuration';
 import { startCaffeinate, stopCaffeinate } from '@/utils/caffeinate';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { spawnHappyHerdCLI } from '@/utils/spawnHappyHerdCLI';
-import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readPersistedSessions, persistSession } from '@/persistence';
+import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readPersistedSessions, persistSession, persistSessionRegistration } from '@/persistence';
 import type { PersistedSession } from '@/persistence';
 
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyHerdVersion, listDaemonSessions, stopDaemon } from './controlClient';
@@ -508,7 +508,8 @@ export async function startDaemon(): Promise<void> {
       logger.debug(`[DAEMON RUN] Session webhook: ${sessionId}, PID: ${pid}, started by: ${sessionMetadata.startedBy || 'unknown'}, hasEncryption: ${!!encryption}`);
       logger.debug(`[DAEMON RUN] Current tracked sessions before webhook: ${Array.from(pidToTrackedSession.keys()).join(', ')}`);
 
-      // Persist encryption data to disk so it survives daemon restarts
+      // Track immediately, but HTTP success waits for the shared durable save.
+      let registrationSaved: Promise<void> | undefined;
       if (encryption) {
         const savedSession: PersistedSession = {
           encryptionKey: encodeBase64(encryption.encryptionKey),
@@ -519,7 +520,7 @@ export async function startDaemon(): Promise<void> {
           metadata: sessionMetadata,
           savedAt: Date.now(),
         };
-        persistSession(sessionId, savedSession);
+        registrationSaved = persistSessionRegistration(sessionId, savedSession, bootTimeMs);
         persisted[sessionId] = savedSession;
       }
 
@@ -579,6 +580,7 @@ export async function startDaemon(): Promise<void> {
           logger.warn('[AUTOMATIONS] Failed to reconcile after session registration', error);
         });
       }, 0).unref?.();
+      return registrationSaved;
     };
 
     // Spawn a new session (sessionId reserved for future --resume functionality)

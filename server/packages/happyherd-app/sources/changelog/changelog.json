@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "November 19 — Faster daemon restarts",
+      "summary": "",
+      "markdown": "- Sessions reconnect promptly after a daemon restart, even with a large saved session history. Repeated registrations no longer rewrite unchanged reconnect data."
+    },
+    {
       "title": "November 19 — Read voice overviews in chat",
       "summary": "",
       "markdown": "- Voice overviews now appear above the reply body, including replies with only an overview. Playback stays the same."
@@ -1101,5 +1106,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "November 19 — Read voice overviews in chat"
+  "latestTitle": "November 19 — Faster daemon restarts"
 }
