@@ -59,11 +59,12 @@ describe('Claude credential code submission', () => {
     const child = fakeChild();
     const manager = createManager({ spawnPty: () => child as unknown as ChildProcess });
     const started = await manager.start('claude', 'work');
-    child.stdout.write(`${AUTH_URL}\nPaste code here > `);
+    child.stdout.write(`${AUTH_URL}\r\nPaste code here > `);
+    await vi.waitFor(() => expect(manager.status(started.id).state).toBe('waiting-user'));
     const writes: string[] = [];
     child.stdin.on('data', (chunk) => {
       writes.push(String(chunk));
-      child.stdout.write(`\u001b[2K${AUTH_URL}\nChecking...`);
+      child.stdout.write(`\r\u001b[2K${AUTH_URL}\r\nChecking...`);
     });
 
     expect(await manager.submitCode(started.id, 'fixture-code')).toMatchObject({ state: 'starting' });
@@ -79,7 +80,8 @@ describe('Claude credential code submission', () => {
     const child = fakeChild();
     const manager = createManager({ spawnPty: () => child as unknown as ChildProcess });
     const started = await manager.start('claude', 'canceled');
-    child.stdout.write(`${AUTH_URL}\n`);
+    child.stdout.write(`${AUTH_URL}\r\n`);
+    await vi.waitFor(() => expect(manager.status(started.id).state).toBe('waiting-user'));
     const writes: string[] = [];
     child.stdin.on('data', (chunk) => writes.push(String(chunk)));
     const submission = manager.submitCode(started.id, 'fixture-code');
@@ -95,7 +97,8 @@ describe('Claude credential code submission', () => {
     }));
     const manager = createManager({ spawnPty: () => child as unknown as ChildProcess });
     const started = await manager.start('claude', 'broken');
-    child.stdout.write(`${AUTH_URL}\n`);
+    child.stdout.write(`${AUTH_URL}\r\n`);
+    await vi.waitFor(() => expect(manager.status(started.id).state).toBe('waiting-user'));
     await expect(manager.submitCode(started.id, 'fixture-code')).rejects.toThrow('did not accept the code');
     expect(manager.status(started.id).state).toBe('failed');
     expect(JSON.stringify(manager.status(started.id))).not.toContain('private-input-detail');
@@ -109,15 +112,16 @@ describe('Claude credential code submission', () => {
     const retry = children[1];
     const manager = createManager({ spawnPty: () => children.shift()! as unknown as ChildProcess });
     const started = await manager.start('claude', 'retry');
-    failed.stdout.write(`${AUTH_URL}\n`);
+    failed.stdout.write(`${AUTH_URL}\r\n`);
+    await vi.waitFor(() => expect(manager.status(started.id).state).toBe('waiting-user'));
     await manager.submitCode(started.id, 'fixture-code');
     failed.exitCode = 7;
     failed.emit('close', 7);
     await vi.waitFor(() => expect(manager.status(started.id).state).toBe('failed'));
     const restarted = await manager.start('claude', 'retry');
-    retry.stdout.write(`${AUTH_URL}\n`);
+    retry.stdout.write(`${AUTH_URL}\r\n`);
     expect(restarted.id).not.toBe(started.id);
-    expect(manager.status(restarted.id).state).toBe('waiting-user');
+    await vi.waitFor(() => expect(manager.status(restarted.id).state).toBe('waiting-user'));
     expect((await readCredentialPoolState(paths)).accounts).toEqual([]);
   });
 

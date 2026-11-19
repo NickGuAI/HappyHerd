@@ -23,6 +23,7 @@ import {
   type CredentialPoolPaths,
 } from './store';
 import { spawnPtyLoginProcess, type PtyLoginSpawnOptions } from './ptyLoginProcess';
+import { LoginTerminal } from './loginTerminal';
 
 const LOGIN_TTL_MS = 15 * 60 * 1_000;
 const CLAUDE_STARTUP_TTL_MS = 60 * 1_000;
@@ -38,6 +39,7 @@ type LoginAttempt = {
   public: CredentialLoginFlow;
   child: ChildProcess;
   output: string;
+  terminal?: LoginTerminal;
   settled: boolean;
   targetKey: string;
   stagingHome: string;
@@ -232,6 +234,7 @@ export class CredentialLoginManager {
         };
         attempt.child = child;
         attempt.output = '';
+        if (provider === 'claude') attempt.terminal = new LoginTerminal();
         attempt.settled = false;
         attempt.targetKey = key;
         attempt.stagingHome = stagingHome;
@@ -251,7 +254,7 @@ export class CredentialLoginManager {
         }
         this.attempts.set(id, attempt);
 
-        const capture = (chunk: Buffer | string) => this.capture(attempt, String(chunk));
+        const capture = (chunk: Buffer | string) => this.capture(attempt, chunk);
         child.stdout?.on('data', capture);
         child.stderr?.on('data', capture);
         child.stdin?.on('error', () => {
@@ -346,6 +349,8 @@ export class CredentialLoginManager {
           await this.terminate(attempt);
           await rm(attempt.stagingHome, { recursive: true, force: true }).catch(() => {});
         } finally {
+          await attempt.terminal?.dispose();
+          attempt.terminal = undefined;
           this.releaseTarget(attempt);
         }
       });
@@ -355,10 +360,20 @@ export class CredentialLoginManager {
     this.activeTargets.clear();
   }
 
-  private capture(attempt: LoginAttempt, chunk: string): void {
+  private capture(attempt: LoginAttempt, chunk: Buffer | string): void {
     if (attempt.settled) return;
+    if (attempt.terminal) {
+      void attempt.terminal.write(chunk);
+      void attempt.terminal.read().then((output) => {
+        if (!attempt.settled) this.capturePrompt(attempt, output);
+      });
+      return;
+    }
     attempt.output = `${attempt.output}${chunk}`.slice(-MAX_CAPTURE_CHARS);
-    const output = sanitizedOutput(attempt.output);
+    this.capturePrompt(attempt, sanitizedOutput(attempt.output));
+  }
+
+  private capturePrompt(attempt: LoginAttempt, output: string): void {
     const verificationUrl = providerUrl(attempt.public.provider, output);
     const userCode = attempt.public.provider === 'claude'
       ? undefined
@@ -397,7 +412,8 @@ export class CredentialLoginManager {
   private async commit(attempt: LoginAttempt): Promise<void> {
     const { provider, name } = attempt.public;
     if (provider === 'claude') {
-      const token = sanitizedOutput(attempt.output).match(/sk-ant-[A-Za-z0-9_-]+/)?.[0];
+      const output = await attempt.terminal!.read();
+      const token = output.match(/sk-ant-[A-Za-z0-9_-]+/)?.[0];
       if (!token) throw new Error('missing token');
       await this.commitLogin({
         provider,
@@ -494,6 +510,8 @@ export class CredentialLoginManager {
 
   private finish(attempt: LoginAttempt, flow: CredentialLoginFlow): void {
     attempt.output = '';
+    void attempt.terminal?.dispose();
+    attempt.terminal = undefined;
     attempt.public = flow;
     this.releaseTarget(attempt);
     this.scheduleRemoval(attempt);

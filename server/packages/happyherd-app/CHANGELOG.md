@@ -1,3 +1,7 @@
+# November 19 — Complete Claude sign-in tokens
+
+- Signing in to a Claude account in Credentials & Accounts now saves the complete token when Claude updates its terminal screen.
+
 # November 19 — Faster daemon restarts
 
 - Sessions reconnect promptly after a daemon restart, even with a large saved session history. Repeated registrations no longer rewrite unchanged reconnect data.

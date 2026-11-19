@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough, Writable } from 'node:stream';
 
 import { spawn as spawnPty } from '@lydell/node-pty';
+import { LOGIN_TERMINAL_SIZE } from './loginTerminal';
 
 export type PtyLoginSpawnOptions = {
   cwd: string;
@@ -21,8 +22,7 @@ export function spawnPtyLoginProcess(
 ): ChildProcess {
   const terminal = spawnPty(command, args, {
     name: 'xterm-256color',
-    cols: 4_096,
-    rows: 24,
+    ...LOGIN_TERMINAL_SIZE,
     cwd: options.cwd,
     env: options.env,
   });

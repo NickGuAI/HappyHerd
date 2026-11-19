@@ -903,3 +903,4 @@ ISSUE_468_FINAL_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh fresh Assi
 ISSUE_473_VISIBLE_VOICE_OVERVIEW	code-ready	fix(chat): show voice overview text in agent replies	server/packages/happyherd-app/sources/components/MessageView.tsx
 ISSUE_474_REGISTRATION_PERSISTENCE	code-ready	fix(daemon): batch reconnect registration saves	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 INTEGRATION_20261119_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh November 19 integration baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_478_CLAUDE_LOGIN_CAPTURE	code-ready	fix(credentials): read Claude login from the terminal screen	server/packages/happyherd-cli/src/credentialPool/loginManager.ts
