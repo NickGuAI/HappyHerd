@@ -909,3 +909,4 @@ ISSUE_478_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh Claude login cap
 ISSUE_481_DAEMON_LABEL_REFRESH	code-ready	fix(daemon): avoid repeated session lists on startup	server/packages/happyherd-cli/src/daemon/run.ts
 ISSUE_480_WAITING_SESSIONS	code-ready	fix(credentials): resume sessions after account recovery	server/packages/happyherd-cli/src/daemon/providerAccountWaits.ts
 ISSUE_480_CLAUDE_RELOGIN	code-ready	fix(credentials): refresh Claude credentials between turns	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts
+ISSUE_480_RECOVERY_GOLDENS	code-ready	test(changelog): refresh account recovery baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
