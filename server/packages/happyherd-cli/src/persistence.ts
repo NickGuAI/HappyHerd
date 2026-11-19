@@ -6,8 +6,9 @@
 
 import { FileHandle } from 'node:fs/promises'
 import { readFile, writeFile, mkdir, open, unlink, rename, stat } from 'node:fs/promises'
-import { existsSync, writeFileSync, readFileSync, unlinkSync, renameSync, linkSync } from 'node:fs'
+import { existsSync, writeFileSync, readFileSync, unlinkSync, renameSync, linkSync, statSync } from 'node:fs'
 import { constants } from 'node:fs'
+import { isDeepStrictEqual } from 'node:util'
 import { configuration } from '@/configuration'
 import * as z from 'zod';
 import { encodeBase64, decodeBase64 } from '@/api/encryption';
@@ -433,28 +434,79 @@ type SessionsFile = {
   sessions: Record<string, PersistedSession>;
 };
 
-export function readPersistedSessions(): Record<string, PersistedSession> {
-  try {
-    if (!existsSync(configuration.sessionsFile)) return {};
-    const data = JSON.parse(readFileSync(configuration.sessionsFile, 'utf-8')) as SessionsFile;
-    if (!data?.sessions || typeof data.sessions !== 'object') return {};
+// Registration requests share one save. Direct writers join the same pending
+// updates, so a later authoritative save cannot be overwritten by a timer.
+const pendingRegistrations = new Map<string, PersistedSession>();
+let registrationWaiters: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
+let registrationTimer: ReturnType<typeof setTimeout> | undefined;
+let registrationSnapshot: { revision: string; sessions: Record<string, PersistedSession> } | undefined;
 
-    return data.sessions;
-  } catch {
-    return {};
-  }
+export function readPersistedSessions(): Record<string, PersistedSession> {
+  let sessions: Record<string, PersistedSession> = {};
+  try {
+    const data = JSON.parse(readFileSync(configuration.sessionsFile, 'utf-8')) as SessionsFile;
+    if (data?.sessions && typeof data.sessions === 'object') sessions = data.sessions;
+  } catch { }
+  // Resume and other direct writers must see registrations awaiting their save.
+  return Object.assign(sessions, Object.fromEntries(pendingRegistrations));
 }
 
-export function persistSession(sessionId: string, session: PersistedSession): boolean {
+function saveSessionUpdates(sessionId?: string, session?: PersistedSession): boolean {
+  if (registrationTimer) clearTimeout(registrationTimer);
+  registrationTimer = undefined;
+  let failure: Error | undefined;
   try {
+    // Re-read at commit time, rather than writing an old cached file snapshot.
+    // There is no await between this read and rename, including for direct saves.
     const existing = readPersistedSessions();
-    existing[sessionId] = session;
+    if (sessionId && session) existing[sessionId] = session;
     const tmpFile = configuration.sessionsFile + '.tmp';
     writeFileSync(tmpFile, JSON.stringify({ sessions: existing }, null, 2), 'utf-8');
     renameSync(tmpFile, configuration.sessionsFile);
-    return true;
   } catch (error) {
-    logger.debug(`[PERSISTENCE] Failed to persist session ${sessionId}:`, error);
-    return false;
+    logger.debug('[PERSISTENCE] Failed to persist session updates:', error);
+    failure = new Error('Failed to persist session reconnect data');
   }
+  registrationSnapshot = undefined;
+  pendingRegistrations.clear();
+  const waiters = registrationWaiters;
+  registrationWaiters = [];
+  for (const waiter of waiters) {
+    if (failure) waiter.reject(failure);
+    else waiter.resolve();
+  }
+  return !failure;
+}
+
+export function persistSession(sessionId: string, session: PersistedSession): boolean {
+  return saveSessionUpdates(sessionId, session);
+}
+
+/** Coalesce local registrations, acknowledging them only after their save. */
+export async function persistSessionRegistration(
+  sessionId: string, session: PersistedSession, bootTimeMs: number,
+): Promise<void> {
+  let revision: string;
+  try {
+    const info = statSync(configuration.sessionsFile, { bigint: true });
+    revision = `${configuration.sessionsFile}:${info.ino}:${info.size}:${info.mtimeNs}:${info.ctimeNs}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    revision = `${configuration.sessionsFile}:missing`;
+  }
+  if (registrationSnapshot?.revision !== revision) {
+    registrationSnapshot = { revision, sessions: readPersistedSessions() };
+  }
+  const pending = pendingRegistrations.get(sessionId);
+  const previous = pending ?? registrationSnapshot.sessions[sessionId];
+  // savedAt is process provenance relative to MACHINE boot, not daemon start.
+  // Repeated registrations during that boot do not change resume conflicts.
+  const unchanged = previous && previous.savedAt >= bootTimeMs
+    && isDeepStrictEqual({ ...previous, savedAt: 0 }, { ...session, savedAt: 0 });
+  if (unchanged && !pending) return;
+  if (!unchanged) pendingRegistrations.set(sessionId, session);
+  const saved = new Promise<void>((resolve, reject) => { registrationWaiters.push({ resolve, reject }); });
+  // A fixed window (not a debounce) also flushes under a continuous stream.
+  registrationTimer ??= setTimeout(() => saveSessionUpdates(), 25);
+  return saved;
 }

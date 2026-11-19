@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { renameSync } from 'node:fs';
 import { join } from 'node:path';
+import { configuration } from '@/configuration';
 
 import type { Metadata, Session } from '@/api/types';
 import type { PersistedSession } from '@/persistence';
@@ -41,7 +43,8 @@ const mocks = vi.hoisted(() => ({
   listCommanders: vi.fn(async (): Promise<any> => ({ commanders: [], globalAgentsPath: null })),
   sessionSyncClient: vi.fn(),
   findSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
-  persistSession: vi.fn(() => true),
+  persistSession: vi.fn<(id: string, session: PersistedSession) => boolean>(() => true),
+  realSessionPersistence: false,
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
   postSessionTask: vi.fn(async (): Promise<{ seq: number }> => ({ seq: 9 })),
@@ -85,14 +88,26 @@ vi.mock('@/api/api', () => ({
   },
 }));
 
-vi.mock('@/persistence', () => ({
-  acquireDaemonLock: vi.fn(async () => ({})),
-  persistSession: mocks.persistSession,
-  readDaemonState: vi.fn(async () => null),
-  readPersistedSessions: mocks.readPersistedSessions,
-  releaseDaemonLock: vi.fn(async () => undefined),
-  writeDaemonState: vi.fn(),
-}));
+vi.mock('node:fs', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs')>();
+  return { ...original, renameSync: vi.fn(original.renameSync) };
+});
+
+vi.mock('@/persistence', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/persistence')>();
+  return {
+    ...original,
+    persistSessionRegistration: (id: string, session: PersistedSession, bootTimeMs: number) => mocks.realSessionPersistence
+      ? original.persistSessionRegistration(id, session, bootTimeMs)
+      : Promise.resolve(mocks.persistSession(id, session)).then(() => undefined),
+    acquireDaemonLock: vi.fn(async () => ({})),
+    persistSession: mocks.persistSession,
+    readDaemonState: vi.fn(async () => null),
+    readPersistedSessions: mocks.readPersistedSessions,
+    releaseDaemonLock: vi.fn(async () => undefined),
+    writeDaemonState: vi.fn(),
+  };
+});
 
 vi.mock('@/daemon/controlClient', () => ({
   cleanupDaemonState: vi.fn(async () => undefined),
@@ -333,11 +348,12 @@ type CapturedControlHandlers = {
     encryption?: SessionEncryptionData,
     nativeResumeId?: string,
     nativeResumeFailed?: boolean,
-  ) => void;
+  ) => void | Promise<void>;
   onProviderLimited: (notice: ProviderLimitNotice) => boolean;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 };
 
+const originalSessionsFile = configuration.sessionsFile;
 let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
 const temporaryDirectories: string[] = [];
@@ -401,6 +417,7 @@ describe('daemon session continuity', () => {
       active: mocks.authoritativeActive,
     }));
     mocks.persistSession.mockReturnValue(true);
+    mocks.realSessionPersistence = false;
     mocks.postSessionTask.mockResolvedValue({ seq: 9 });
     mocks.readRecentSessionMessages.mockResolvedValue([]);
     mocks.readPersistedSessions.mockReturnValue({});
@@ -453,9 +470,89 @@ describe('daemon session continuity', () => {
     for (const directory of temporaryDirectories.splice(0)) {
       await rm(directory, { recursive: true, force: true });
     }
+    Object.defineProperty(configuration, 'sessionsFile', { value: originalSessionsFile });
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
+
+  it.each([
+    { changed: false, http: false }, { changed: true, http: false },
+    { changed: false, http: true }, { changed: true, http: true },
+  ])('answers a large registration burst (changed: $changed, HTTP: $http)', async ({ changed, http }) => {
+    const actual = await vi.importActual<typeof import('@/persistence')>('@/persistence');
+    const directory = await mkdtemp(join(tmpdir(), 'registration-burst-'));
+    temporaryDirectories.push(directory);
+    Object.defineProperty(configuration, 'sessionsFile', { value: join(directory, 'sessions.json') });
+    mocks.realSessionPersistence = true;
+    const records: Record<string, PersistedSession> = Object.fromEntries(Array.from({ length: 2000 }, (_, index) => [
+      `burst-${index}`, {
+        encryptionKey: Buffer.alloc(32, 5).toString('base64'), encryptionVariant: 'dataKey',
+        seq: 8, metadataVersion: 2, agentStateVersion: 3, savedAt: Date.now(),
+        metadata: {
+          path: '/workspace/session', host: 'test-host', machineId: 'machine-1', hostPid: 20000 + index,
+          homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+          summary: { text: 'x'.repeat(11000), updatedAt: 1 },
+        },
+      },
+    ]));
+    const serialized = JSON.stringify({ sessions: records }, null, 2);
+    expect(Buffer.byteLength(serialized)).toBeGreaterThan(20_000_000);
+    await writeFile(configuration.sessionsFile, serialized);
+    mocks.readPersistedSessions.mockImplementation(actual.readPersistedSessions);
+    mocks.persistSession.mockImplementation(actual.persistSession);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    vi.mocked(renameSync).mockClear();
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const requests = Object.entries(records).slice(0, 120).map(([id, saved]) => ({
+      sessionId: id, metadata: { ...saved.metadata, ...(changed ? { path: '/workspace/changed' } : {}) },
+      encryption: {
+        encryptionKey: Buffer.alloc(32, changed ? 6 : 5), encryptionVariant: changed ? 'legacy' as const : 'dataKey' as const,
+        seq: changed ? 9 : 8, metadataVersion: changed ? 3 : 2, agentStateVersion: changed ? 4 : 3,
+      },
+    }));
+    if (http) {
+      const realControl = await vi.importActual<typeof import('./controlServer')>('./controlServer');
+      const server = await realControl.startDaemonControlServer(
+        mocks.controlHandlers as Parameters<typeof realControl.startDaemonControlServer>[0],
+      );
+      try {
+        const durations = await Promise.all(requests.map(async (request) => {
+          const start = performance.now();
+          const response = await fetch(`http://127.0.0.1:${server.port}/session-started`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(5000),
+            body: JSON.stringify({ ...request, encryption: {
+              ...request.encryption, encryptionKey: request.encryption.encryptionKey.toString('base64'),
+            } }),
+          });
+          expect(response.status).toBe(200);
+          expect(await response.json()).toEqual({ status: 'ok' });
+          return performance.now() - start;
+        }));
+        expect(Math.max(...durations)).toBeLessThan(5000);
+        console.log(JSON.stringify({ registrations: requests.length, bytes: Buffer.byteLength(serialized), changed,
+          maximumResponseMs: Math.round(Math.max(...durations)) }));
+      } finally {
+        await server.stop();
+      }
+    } else {
+      await Promise.all(requests.map(({ sessionId, metadata, encryption }) => (
+        control.onHappyHerdSessionWebhook(sessionId, metadata, encryption)
+      )));
+    }
+    const rewrites = vi.mocked(renameSync).mock.calls.filter(([, target]) => target === configuration.sessionsFile);
+    // The handler burst gives a deterministic work count; real HTTP above also
+    // proves that clients receive the response well inside their 10s deadline.
+    if (!http || !changed) expect(rewrites).toHaveLength(changed ? 1 : 0);
+    const reloaded = actual.readPersistedSessions();
+    expect(Object.keys(reloaded)).toHaveLength(2000);
+    for (const [id, saved] of Object.entries(records).slice(0, 120)) {
+      expect(reloaded[id]).toMatchObject(changed ? {
+        encryptionKey: Buffer.alloc(32, 6).toString('base64'), encryptionVariant: 'legacy',
+        seq: 9, metadataVersion: 3, agentStateVersion: 4, metadata: { path: '/workspace/changed' },
+      } : saved);
+    }
+  }, 90_000);
 
   async function localMessagingFixture(machineId = 'machine-1', provider: 'codex' | 'claude' = 'codex') {
     const sessionId = 'local-command-session';

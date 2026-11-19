@@ -47,10 +47,12 @@ Reply body
 <options>...</options> [when needed; last]
 ```
 
-The leading overview is removed before safeguard and Markdown rendering,
-including incomplete prefixes during streaming. A literal example in a code
-block remains an example. The summary and body are spoken separately, without
-duplicating the overview in full-reply playback.
+The leading overview appears as ordinary reply text above the safeguard reminder
+and body, even when playback is off or there is no body. Its tags are hidden.
+Incomplete overviews, including partial tags, stay hidden during streaming until
+the closing tag arrives. A literal example in a code block remains an example.
+The summary and body are spoken separately, without duplicating the overview
+in full-reply playback.
 
 Installation and inference return operation IDs immediately. Recordings upload
 in bounded chunks; playback reads ordered WAV chunks by cursor. Repeating a

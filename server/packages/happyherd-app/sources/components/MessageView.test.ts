@@ -321,18 +321,41 @@ describe('MessageView safeguard shared native renderer', () => {
         act(() => renderer.unmount());
     });
 
-    it('extracts a leading spoken overview before the safeguard card and leaves options at the end', () => {
+    it('shows the overview before the safeguard card and leaves body options at the end', () => {
         platform.os = 'web';
         voiceTtsEnabled.value = true;
         const source = `<voice_overview>Short spoken summary.</voice_overview>\n${ready}\n\n**Reply body**\n\n${body.slice(body.indexOf('<options>'))}`;
         const renderer = render(source);
         expect(renderer.root.findByProps({ testID: 'safeguard-reminder-ready' })).toBeDefined();
-        expect(renderer.root.findByType('MarkdownView' as any).props.markdown).toContain('**Reply body**');
-        expect(renderer.root.findByType('MarkdownView' as any).props.markdown).not.toContain('voice_overview');
+        const markdown = renderer.root.findAllByType('MarkdownView' as any);
+        expect(markdown.map((node: any) => node.props.markdown)).toEqual([
+            'Short spoken summary.',
+            `\n\n**Reply body**\n\n${body.slice(body.indexOf('<options>'))}`,
+        ]);
+        expect(markdown[0].props.tone).toBe(markdown[1].props.tone);
+        const order = renderer.root.findAll((node: any) => node.type === 'MarkdownView'
+            || (node.type === 'View' && node.props.testID === 'safeguard-reminder-ready'));
+        expect(order.map((node: any) => node.props.markdown ?? node.props.testID)).toEqual([
+            'Short spoken summary.', 'safeguard-reminder-ready', markdown[1].props.markdown,
+        ]);
         expect(renderer.root.findByType('LocalVoicePlayback' as any).props).toMatchObject({
             summary: 'Short spoken summary.',
             body: 'Reply body',
         });
+        act(() => renderer.unmount());
+        voiceTtsEnabled.value = false;
+    });
+
+    it.each([false, true])('shows an overview-only reply with playback enabled: %s', (enabled) => {
+        voiceTtsEnabled.value = enabled;
+        const source = '<voice_overview>Short answer.</voice_overview>';
+        const renderer = render(source);
+        expect(renderer.root.findAllByType('MarkdownView' as any).map((node: any) => node.props.markdown).filter(Boolean)).toEqual(['Short answer.']);
+        if (enabled) {
+            expect(renderer.root.findByType('LocalVoicePlayback' as any).props).toMatchObject({ summary: 'Short answer.', body: '' });
+        } else {
+            expect(renderer.root.findAllByType('LocalVoicePlayback' as any)).toHaveLength(0);
+        }
         act(() => renderer.unmount());
         voiceTtsEnabled.value = false;
     });
@@ -355,10 +378,12 @@ describe('MessageView safeguard shared native renderer', () => {
         voiceTtsEnabled.value = false;
     });
 
-    it('hides saved overview protocol text even after local playback is turned off', () => {
+    it('shows saved overview text even after local playback is turned off', () => {
         voiceTtsEnabled.value = false;
         const renderer = render('<voice_overview>Saved spoken summary.</voice_overview>\nVisible reply body.');
-        expect(renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('Visible reply body.');
+        expect(renderer.root.findAllByType('MarkdownView' as any).map((node: any) => node.props.markdown)).toEqual([
+            'Saved spoken summary.', 'Visible reply body.',
+        ]);
         expect(renderer.root.findAllByType('LocalVoicePlayback' as any)).toHaveLength(0);
         act(() => renderer.unmount());
 

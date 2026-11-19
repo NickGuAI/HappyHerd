@@ -297,6 +297,7 @@ function AgentTextBlock(props: {
 
   return (
     <View style={styles.agentMessageContainer}>
+      {voice.summary ? <MarkdownView tone={Platform.OS === 'web' ? 'reply' : 'island'} markdown={voice.summary} sessionId={props.sessionId} enableWorkspaceLinks /> : null}
       {parsed.reminder ? <SafeguardReminderCard reminder={parsed.reminder} /> : null}
       {!voice.pending ? <MarkdownView tone={Platform.OS === 'web' ? 'reply' : 'island'} markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} /> : null}
       {!voice.pending && voiceEnabled ? (
