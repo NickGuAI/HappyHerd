@@ -9,6 +9,7 @@ import { readCredentialPoolState, upsertCredentialAccount, type CredentialPoolPa
 import { CredentialLoginManager } from './loginManager';
 import { spawnPtyLoginProcess } from './ptyLoginProcess';
 import { activateGrokCredential } from './grokAuth';
+import claudeScreen from './fixtures/claudeSetupToken.json';
 
 const CLAUDE_AUTH_URL = 'https://claude.com/cai/oauth/authorize?client_id=fixture&code=true&response_type=code&redirect_uri=https%3A%2F%2Fexample.test%2Fcallback&scope=user%3Ainference&code_challenge=fixture&code_challenge_method=S256&state=fixture';
 
@@ -86,20 +87,58 @@ describe('credential provider login manager', () => {
     const spawn = vi.fn(() => child);
     const manager = new CredentialLoginManager({ paths, spawnPty: spawn as any });
     const started = await manager.start('claude', 'work');
-    child.stdout.write(`Sign in at ${CLAUDE_AUTH_URL}\nPaste code here if prompted > `);
-    expect(manager.status(started.id)).toMatchObject({ state: 'waiting-user', requiresCodeEntry: true });
+    child.stdout.write(`Sign in at ${CLAUDE_AUTH_URL}\r\nPaste code here if prompted > `);
+    await vi.waitFor(() => expect(manager.status(started.id)).toMatchObject({ state: 'waiting-user', requiresCodeEntry: true }));
 
     const input: string[] = [];
     child.stdin.on('data', (chunk) => input.push(String(chunk)));
     await manager.submitCode(started.id, 'one-time-code');
     expect(input.join('')).toBe('one-time-code\r');
-    child.stdout.write('\nLong-lived authentication token created\nsk-ant-private-token\n');
+    child.stdout.write('\r\nLong-lived authentication token created\r\nsk-ant-private-token\r\n');
     child.emit('close', 0);
     await vi.waitFor(() => expect(manager.status(started.id).state).toBe('succeeded'));
 
     const account = (await readCredentialPoolState(paths)).accounts[0];
     expect(account).toMatchObject({ provider: 'claude', name: 'work' });
     expect(JSON.stringify(manager.status(started.id))).not.toContain('sk-ant-private-token');
+  });
+
+  it('saves the displayed token when a redraw skips shared prompt cells across chunks', async () => {
+    const child = fakeChild();
+    const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any });
+    const started = await manager.start('claude', 'fixture');
+    const token = ['sk-ant-oat01', 'FIXTURE', 'om', 'FIXTURE'].join('-');
+    // At indentation 2 the prompt and token share "o" (column 10) and "m"
+    // (column 25). Ink moves past these cells instead of writing them again.
+    child.stdout.write('  Paste code here if prompted > \r\n');
+    for (const chunk of [
+      '\u001b[1A\r\u001b[3Gsk-ant-\u001b[',
+      '11Gat01-FIXTURE-o\u001b[26',
+      'G-FIXTURE\u001b[K\r\n',
+    ]) child.stdout.write(chunk);
+    child.emit('close', 0);
+    await vi.waitFor(() => expect(manager.status(started.id).state).toBe('succeeded'));
+    const account = (await readCredentialPoolState(paths)).accounts[0];
+    expect(account.provider === 'claude' && account.credential.token).toBe(token);
+    expect(JSON.stringify(manager.status(started.id))).not.toContain('sk-ant-');
+    await manager.dispose();
+  });
+
+  it('publishes the screen link and rejects a successful exit with no displayed token', async () => {
+    const child = fakeChild();
+    const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any });
+    const started = await manager.start('claude', 'fixture');
+    for (const byte of Buffer.from(claudeScreen.prompt)) child.stdout.write(Buffer.from([byte]));
+    await vi.waitFor(() => expect(manager.status(started.id)).toMatchObject({
+      state: 'waiting-user', verificationUrl: claudeScreen.url,
+    }));
+    child.stdout.write(claudeScreen.invalidCode);
+    child.emit('close', 0);
+    await vi.waitFor(() => expect(manager.status(started.id)).toMatchObject({
+      state: 'failed', error: 'The provider login completed without a usable credential.',
+    }));
+    expect((await readCredentialPoolState(paths)).accounts).toEqual([]);
+    await manager.dispose();
   });
 
   it('runs a terminal-dependent Claude login through a real PTY', async () => {
@@ -163,10 +202,10 @@ describe('credential provider login manager', () => {
     });
     const readyFlow = await readyManager.start('claude', 'ready');
     ready.stdout.write(CLAUDE_AUTH_URL);
-    expect(readyManager.status(readyFlow.id)).toMatchObject({
+    await vi.waitFor(() => expect(readyManager.status(readyFlow.id)).toMatchObject({
       state: 'waiting-user',
       verificationUrl: CLAUDE_AUTH_URL,
-    });
+    }));
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(readyManager.status(readyFlow.id).state).toBe('waiting-user');
     await readyManager.cancel(readyFlow.id);
@@ -322,7 +361,8 @@ describe('credential provider login manager', () => {
     const claudeChild = fakeChild();
     const claude = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => claudeChild) as any });
     const claudeStarted = await claude.start('claude', 'code');
-    claudeChild.stdout.write(`${CLAUDE_AUTH_URL}\nPaste code here if prompted > `);
+    claudeChild.stdout.write(`${CLAUDE_AUTH_URL}\r\nPaste code here if prompted > `);
+    await vi.waitFor(() => expect(claude.status(claudeStarted.id).state).toBe('waiting-user'));
     await expect(claude.submitCode(claudeStarted.id, 'first\nsecond')).rejects.toThrow('one-time code');
     await claude.cancel(claudeStarted.id);
   });
