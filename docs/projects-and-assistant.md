@@ -5,8 +5,8 @@ exists in released versions, but later setup and reconnection changes are not
 necessarily in the [1.2.4 release](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4).
 Start with the [quickstart](first-run.md); see the
 [product guide](product-guide.md) for release and native-client availability.
-The remote account-linking flow below requires a suitable native client; it is
-not a verified first-run path for the public CLI/server/Web archive alone.
+The remote account-linking flow below supports native QR scanning or a pasted
+link through **Link New Device** in the web app.
 
 This guide details managing encrypted projects, setting up Super Sessions, and configuring automated assistant orchestration via the HappyHerd CLI.
 
@@ -63,7 +63,7 @@ account holder's tag and preserves the session and its keys.
 
 ## Commander & Machine Management
 
-Local Assistant setup and delegation use the daemon’s existing machine login. List account machines with `happyherd machine list --json`; this separate remote-control path requires `happyherd machine auth login`. Account linking currently uses the native app’s QR scanner. Safari has no account-link approval interface; its Connect Terminal page handles a different protocol.
+Local Assistant setup and delegation use the daemon’s existing machine login. List account machines with `happyherd machine list --json`; this separate remote-control path requires `happyherd machine auth login`. Account linking supports the native app’s QR scanner and a pasted link through **Settings → Account → Link New Device** in the web app. Connect Terminal handles a different protocol.
 
 To list and register Commanders on the target machine's local registry:
 ```bash
