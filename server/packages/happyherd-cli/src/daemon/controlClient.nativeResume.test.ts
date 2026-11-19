@@ -13,7 +13,7 @@ vi.mock('./sessionRegistration', () => ({
   maintainDaemonSessionRegistration: mocks.maintain,
 }));
 
-import { notifyDaemonSessionStarted } from './controlClient';
+import { notifyDaemonSessionStarted, setDaemonSessionRegistrationSnapshot } from './controlClient';
 
 describe('native resume cancellation receipt', () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -30,5 +30,25 @@ describe('native resume cancellation receipt', () => {
     expect(JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string)).toEqual({
       sessionId: 'session', metadata, nativeResumeId: 'retained-native-id', nativeResumeFailed: true,
     });
+  });
+
+  it('sends current metadata and its receipt on the existing re-registration', async () => {
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ status: 'ok' }) }));
+    vi.stubGlobal('fetch', fetch);
+    vi.spyOn(process, 'kill').mockReturnValue(true);
+    const initial = { hostPid: 123, providerAccountCredentialVersion: 1 } as Metadata;
+    let current = initial;
+    let version = 2;
+    const encryption = { encryptionKey: 'synthetic', encryptionVariant: 'dataKey' as const, seq: 1, metadataVersion: version, agentStateVersion: 1 };
+    await notifyDaemonSessionStarted('refresh-session', initial, encryption);
+    setDaemonSessionRegistrationSnapshot('refresh-session', () => ({ metadata: current, metadataVersion: version }));
+    current = { ...initial, providerAccountCredentialVersion: 2 };
+    version = 3;
+    const watcher = (mocks.maintain.mock.calls.at(-1) as unknown as [{ register: () => Promise<boolean> }])[0];
+    expect(await watcher.register()).toBe(true);
+    expect(JSON.parse((fetch.mock.calls.at(-1) as unknown as [string, RequestInit])[1].body as string)).toMatchObject({
+      sessionId: 'refresh-session', metadata: { providerAccountCredentialVersion: 2 }, encryption: { metadataVersion: 3 },
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

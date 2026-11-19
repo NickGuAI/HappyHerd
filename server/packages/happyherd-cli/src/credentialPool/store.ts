@@ -40,6 +40,7 @@ const STALE_LOCK_TIMEOUT_MS = 10_000;
 async function withCredentialPoolFileLock<T>(
   paths: CredentialPoolPaths,
   operation: () => Promise<T>,
+  tryOnce = false,
 ): Promise<T> {
   await mkdir(dirname(paths.stateFile), { recursive: true });
   const lockFile = `${paths.stateFile}.lock`;
@@ -51,6 +52,7 @@ async function withCredentialPoolFileLock<T>(
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      if (tryOnce) throw new Error('Credential pool lock is busy');
       await new Promise((resolveDelay) => setTimeout(resolveDelay, LOCK_RETRY_INTERVAL_MS));
       try {
         const lockStats = await stat(lockFile);
@@ -78,8 +80,10 @@ async function withCredentialPoolFileLock<T>(
 export async function serializeCredentialPoolState<T>(
   paths: CredentialPoolPaths,
   operation: () => Promise<T>,
+  options?: { tryOnce?: boolean },
 ): Promise<T> {
   const key = resolve(paths.stateFile);
+  if (options?.tryOnce && stateOperationTails.has(key)) throw new Error('Credential pool is busy');
   const previous = stateOperationTails.get(key) ?? Promise.resolve();
   let release!: () => void;
   const gate = new Promise<void>((resolveGate) => {
@@ -89,7 +93,7 @@ export async function serializeCredentialPoolState<T>(
   stateOperationTails.set(key, tail);
   await previous;
   try {
-    return await withCredentialPoolFileLock(paths, operation);
+    return await withCredentialPoolFileLock(paths, operation, options?.tryOnce);
   } finally {
     release();
     if (stateOperationTails.get(key) === tail) stateOperationTails.delete(key);
@@ -153,8 +157,9 @@ async function readCredentialPoolStateUnlocked(
 
 export async function readCredentialPoolState(
   paths: CredentialPoolPaths = defaultCredentialPoolPaths(),
+  options?: { tryOnce?: boolean },
 ): Promise<CredentialPoolState> {
-  return serializeCredentialPoolState(paths, () => readCredentialPoolStateUnlocked(paths));
+  return serializeCredentialPoolState(paths, () => readCredentialPoolStateUnlocked(paths), options);
 }
 
 async function writeCredentialPoolStateUnlocked(

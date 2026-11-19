@@ -459,6 +459,24 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await client.close();
     });
 
+    it('requires a successful credential metadata receipt before updating the local version', async () => {
+        let attempts = 0;
+        mockSocket.emitWithAck.mockImplementation(async (_event: string, payload: any) => {
+            attempts += 1;
+            if (attempts === 1) return { result: 'error' };
+            return { result: 'success', version: payload.expectedVersion + 1, metadata: payload.metadata };
+        });
+        const client = new ApiSessionClient('fake-token', session);
+        try {
+            await client.updateMetadata((metadata) => ({ ...metadata, providerAccountCredentialVersion: 2 }), undefined, true);
+            expect(attempts).toBe(2);
+            expect(client.getMetadata()?.providerAccountCredentialVersion).toBe(2);
+            expect(client.getMetadataVersion()).toBe(session.metadataVersion + 1);
+        } finally {
+            await client.close();
+        }
+    });
+
     it.each(['replace', 'clear', 'reassign', 'detach'] as const)('persists the resumed Commander receipt through a metadata conflict: %s', async (operation) => {
         const historicalFiles = [{ kind: 'commander' as const, path: '/old/COMMANDER.md' }];
         const currentFiles = operation === 'clear'

@@ -3,7 +3,7 @@
     {
       "title": "November 19 — Continue after an account recovers",
       "summary": "",
-      "markdown": "- Sessions waiting for an account to become available continue automatically, including after a cooldown reset or daemon restart."
+      "markdown": "- Sessions waiting for an account to become available continue automatically, including after a cooldown reset or daemon restart.\n- Claude sessions use the updated credential on the next message after you log in again."
     },
     {
       "title": "November 19 — Complete Claude sign-in tokens",

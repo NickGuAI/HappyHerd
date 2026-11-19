@@ -1,6 +1,7 @@
 # November 19 — Continue after an account recovers
 
 - Sessions waiting for an account to become available continue automatically, including after a cooldown reset or daemon restart.
+- Claude sessions use the updated credential on the next message after you log in again.
 
 # November 19 — Complete Claude sign-in tokens
 

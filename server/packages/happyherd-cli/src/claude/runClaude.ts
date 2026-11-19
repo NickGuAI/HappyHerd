@@ -13,7 +13,7 @@ import { hashObject } from '@/utils/deterministicJson';
 import { parseSpecialCommand } from '@/parsers/specialCommands';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { configuration } from '@/configuration';
-import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
+import { notifyDaemonSessionStarted, setDaemonSessionRegistrationSnapshot } from '@/daemon/controlClient';
 import { initialMachineMetadata } from '@/daemon/run';
 import { startHappyHerdServer } from '@/claude/utils/startHappyHerdServer';
 import { startHookServer } from '@/claude/utils/startHookServer';
@@ -445,6 +445,22 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             throughSeq: response.seq,
         },
     } : undefined);
+    const currentRegistrationMetadata = (): Metadata => {
+        const current = session.getMetadata();
+        const activeAccount = process.env.HAPPYHERD_PROVIDER_ACCOUNT?.trim() || undefined;
+        const activeAccountId = process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID?.trim() || undefined;
+        const activeVersion = Number(process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION);
+        return {
+            ...current, ...metadata,
+            providerAccount: activeAccount ?? metadata.providerAccount,
+            providerAccountId: activeAccountId ?? metadata.providerAccountId,
+            providerAccountCredentialVersion: Number.isInteger(activeVersion) && activeVersion > 0
+                ? activeVersion : metadata.providerAccountCredentialVersion,
+        };
+    };
+    setDaemonSessionRegistrationSnapshot(response.id, () => {
+        return { metadata: currentRegistrationMetadata(), metadataVersion: session.getMetadataVersion() };
+    });
     if (reconnectSessionId) session.suppressNextArchiveSignal();
     if (
         providerAccount
@@ -1214,17 +1230,17 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 },
                 onAborted: async () => {
                     const result = await notifyDaemonSessionStarted(
-                        response.id, { ...session.getMetadata(), ...metadata }, undefined,
+                        response.id, currentRegistrationMetadata(), undefined,
                         process.env.HAPPYHERD_ROTATION_RESUME_ID, true,
                     );
                     if (result.error) throw new Error(`Claude native resume cancellation failed: ${result.error}`);
                 },
                 onRestored: async () => {
-                    const result = await notifyDaemonSessionStarted(response.id, { ...session.getMetadata(), ...metadata }, {
+                    const result = await notifyDaemonSessionStarted(response.id, currentRegistrationMetadata(), {
                         encryptionKey: encodeBase64(response.encryptionKey),
                         encryptionVariant: response.encryptionVariant,
                         seq: response.seq,
-                        metadataVersion: response.metadataVersion,
+                        metadataVersion: session.getMetadataVersion(),
                         agentStateVersion: response.agentStateVersion,
                     }, process.env.HAPPYHERD_ROTATION_RESUME_ID);
                     if (result.error) throw new Error(`Claude native resume registration failed: ${result.error}`);

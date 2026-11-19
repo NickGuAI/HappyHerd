@@ -1469,6 +1469,10 @@ export class ApiSessionClient extends EventEmitter {
         return this.metadata;
     }
 
+    getMetadataVersion(): number {
+        return this.metadataVersion;
+    }
+
     getAgentState(): AgentState | null {
         return this.agentState;
     }
@@ -1515,7 +1519,7 @@ export class ApiSessionClient extends EventEmitter {
         });
     }
 
-    updateMetadata(handler: (metadata: Metadata) => Metadata, ackTimeoutMs?: number): Promise<void> {
+    updateMetadata(handler: (metadata: Metadata) => Metadata, ackTimeoutMs?: number, requireSuccess = false): Promise<void> {
         return this.metadataLock.inLock(async () => {
             const updateOnce = async () => {
                 let updated = handler(this.metadata!); // Weird state if metadata is null - should never happen but here we are
@@ -1533,7 +1537,7 @@ export class ApiSessionClient extends EventEmitter {
                     }
                     throw new Error('Metadata version mismatch');
                 } else if (answer.result === 'error') {
-                    if (ackTimeoutMs !== undefined) {
+                    if (ackTimeoutMs !== undefined || requireSuccess) {
                         throw new Error('Server rejected the metadata update');
                     }
                     // Preserve existing best-effort behavior for session hot paths.

@@ -560,6 +560,42 @@ describe('daemon session continuity', () => {
     }
   }, 90_000);
 
+  it('persists a newer account version on host re-registration and skips an unchanged repeat', async () => {
+    const actual = await vi.importActual<typeof import('@/persistence')>('@/persistence');
+    const directory = await mkdtemp(join(tmpdir(), 'registration-version-'));
+    temporaryDirectories.push(directory);
+    Object.defineProperty(configuration, 'sessionsFile', { value: join(directory, 'sessions.json') });
+    mocks.realSessionPersistence = true;
+    mocks.readPersistedSessions.mockImplementation(actual.readPersistedSessions);
+    mocks.persistSession.mockImplementation(actual.persistSession);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const metadata: Metadata = {
+      path: '/workspace', host: 'host', machineId: 'machine-1', hostPid: 4333,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'claude', providerAccount: 'one', providerAccountId: 'account-id', providerAccountCredentialVersion: 1,
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 8, metadataVersion: 2, agentStateVersion: 3,
+    };
+    await control.onHappyHerdSessionWebhook('version-session', metadata, encryption);
+    vi.mocked(renameSync).mockClear();
+    const current = { ...metadata, providerAccountCredentialVersion: 2 };
+    const currentEncryption = { ...encryption, metadataVersion: 3 };
+    await control.onHappyHerdSessionWebhook('version-session', current, currentEncryption);
+    expect(actual.readPersistedSessions()['version-session']).toMatchObject({
+      metadataVersion: 3, metadata: { providerAccountId: 'account-id', providerAccountCredentialVersion: 2 },
+    });
+    expect(vi.mocked(renameSync).mock.calls.filter(([, target]) => target === configuration.sessionsFile)).toHaveLength(1);
+    await control.onHappyHerdSessionWebhook('version-session', current, currentEncryption);
+    expect(vi.mocked(renameSync).mock.calls.filter(([, target]) => target === configuration.sessionsFile)).toHaveLength(1);
+    const notice = { sessionId: 'version-session', provider: 'claude' as const, account: 'one', accountId: 'account-id', limitedUntil: Date.now() + 60_000 };
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 1 })).toBe(false);
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 2 })).toBe(true);
+    await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce());
+  });
+
   async function localMessagingFixture(machineId = 'machine-1', provider: 'codex' | 'claude' = 'codex') {
     const sessionId = 'local-command-session';
     const metadata: Metadata = {

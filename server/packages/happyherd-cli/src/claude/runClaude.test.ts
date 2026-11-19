@@ -9,6 +9,7 @@ const {
     mockCreateSessionScanner,
     mockLoop,
     mockNotifyDaemonSessionStarted,
+    mockSetDaemonSessionRegistrationSnapshot,
     mockReadSettings,
     mockStartHappyHerdServer,
     mockStartHookServer,
@@ -18,6 +19,7 @@ const {
     mockCreateSessionScanner: vi.fn(),
     mockLoop: vi.fn(),
     mockNotifyDaemonSessionStarted: vi.fn(),
+    mockSetDaemonSessionRegistrationSnapshot: vi.fn(),
     mockReadSettings: vi.fn(),
     mockStartHappyHerdServer: vi.fn(),
     mockStartHookServer: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock('@/claude/loop', () => ({
 
 vi.mock('@/daemon/controlClient', () => ({
     notifyDaemonSessionStarted: mockNotifyDaemonSessionStarted,
+    setDaemonSessionRegistrationSnapshot: mockSetDaemonSessionRegistrationSnapshot,
 }));
 
 vi.mock('@/daemon/run', () => ({
@@ -168,6 +171,7 @@ async function startRemoteRunClaudeHarness(opts: {
         drainAttachmentsForUserMessage: vi.fn(async () => []),
         downloadAndDecryptAttachment: vi.fn(),
         getMetadata: vi.fn(() => metadata),
+        getMetadataVersion: vi.fn(() => 0),
         sendSessionEvent: vi.fn(),
         updateAgentState,
         rpcHandlerManager: {
@@ -351,8 +355,11 @@ describe('runClaude remote JSONL scanner', () => {
         vi.stubEnv('HAPPYHERD_RECONNECT_ENCRYPTION_KEY', Buffer.alloc(32).toString('base64'));
         vi.stubEnv('HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
         vi.stubEnv('HAPPYHERD_ROTATION_RESUME_ID', 'claude-session-1');
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT', 'one');
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_ID', 'account-id');
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION', '1');
         const harness = await startRemoteRunClaudeHarness({
-            metadata: { claudeSessionId: 'claude-session-1', hostPid: 12 },
+            metadata: { claudeSessionId: 'claude-session-1', hostPid: 12, providerAccount: 'old', providerAccountId: 'old-id', providerAccountCredentialVersion: 1 },
             runOptions: { permissionMode: 'plan', model: 'claude-opus-test', effort: 'high' },
         });
         try {
@@ -367,13 +374,28 @@ describe('runClaude remote JSONL scanner', () => {
             hook('claude-session-1', { source: 'resume' });
             expect(observed).toHaveBeenCalledOnce();
             await harness.loopOptions.nativeResume.onRestored();
-            expect(mockNotifyDaemonSessionStarted).toHaveBeenCalledTimes(2);
             expect(mockNotifyDaemonSessionStarted.mock.calls[1]).toEqual([
-                'happyherd-session-1', expect.objectContaining({ hostPid: process.pid }),
+                'happyherd-session-1', expect.objectContaining({ hostPid: process.pid, providerAccount: 'one', providerAccountId: 'account-id', providerAccountCredentialVersion: 1 }),
                 expect.any(Object), 'claude-session-1',
             ]);
-            await harness.loopOptions.nativeResume.onAborted();
+            harness.sessionClient.updateMetadata((current) => ({
+                ...current, providerAccount: 'one', providerAccountId: 'account-id', providerAccountCredentialVersion: 2,
+            }));
+            harness.sessionClient.getMetadataVersion.mockReturnValue(3);
+            vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION', '2');
+            const snapshot = mockSetDaemonSessionRegistrationSnapshot.mock.calls.at(-1)?.[1]();
+            expect(snapshot).toMatchObject({
+                metadata: { hostPid: process.pid, providerAccountId: 'account-id', providerAccountCredentialVersion: 2 },
+                metadataVersion: 3,
+            });
+            await harness.loopOptions.nativeResume.onRestored();
+            expect(mockNotifyDaemonSessionStarted).toHaveBeenCalledTimes(3);
             expect(mockNotifyDaemonSessionStarted.mock.calls[2]).toEqual([
+                'happyherd-session-1', expect.objectContaining({ hostPid: process.pid, providerAccountCredentialVersion: 2 }),
+                expect.objectContaining({ metadataVersion: 3 }), 'claude-session-1',
+            ]);
+            await harness.loopOptions.nativeResume.onAborted();
+            expect(mockNotifyDaemonSessionStarted.mock.calls[3]).toEqual([
                 'happyherd-session-1', expect.objectContaining({ hostPid: process.pid }),
                 undefined, 'claude-session-1', true,
             ]);
@@ -600,6 +622,7 @@ describe('runClaude remote JSONL scanner', () => {
             drainAttachmentsForUserMessage: vi.fn(async () => []),
             downloadAndDecryptAttachment: vi.fn(),
             getMetadata: vi.fn(() => ({})),
+            getMetadataVersion: vi.fn(() => 0),
             sendSessionEvent: vi.fn(),
             updateAgentState: vi.fn(),
             rpcHandlerManager: {
@@ -710,6 +733,7 @@ describe('runClaude remote JSONL scanner', () => {
             drainAttachmentsForUserMessage: vi.fn(async () => []),
             downloadAndDecryptAttachment: vi.fn(),
             getMetadata: vi.fn(() => metadata),
+            getMetadataVersion: vi.fn(() => 0),
             sendSessionEvent: vi.fn(),
             updateAgentState: vi.fn(),
             rpcHandlerManager: {
