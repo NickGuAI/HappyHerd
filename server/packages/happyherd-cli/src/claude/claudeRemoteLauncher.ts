@@ -24,6 +24,8 @@ import type { MessageQueueBatch } from '@/utils/MessageQueue2';
 import type { HappyHerdHeartbeatMessageMarker } from '@happyherd/wire';
 import { persistHeartbeatDeliveryReceipt } from '@/automations/providerOutcome';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
+import { credentialAccountEnvironment, readCredentialPoolState } from '@/credentialPool/store';
+import type { CredentialAccount } from '@/credentialPool/types';
 import {
     claudeModelUsageSnapshot,
     cumulativeCostDelta,
@@ -555,6 +557,7 @@ export async function claudeRemoteLauncher(
             session.nativeResume = undefined;
             let modeHash: string | null = nativeResume ? session.queue.modeHasher(nativeResume.mode) : null;
             let mode: EnhancedMode | null = null;
+            let refreshedAccount: Extract<CredentialAccount, { provider: 'claude' }> | undefined;
             try {
                 session.recoveryQueryActive = Boolean(session.requiredSessionId);
                 // A previous query has ended. Its setter must never receive an
@@ -591,6 +594,23 @@ export async function claudeRemoteLauncher(
                             if (nativeResume && controller.signal.aborted) {
                                 pending = msg;
                                 return null;
+                            }
+                            const accountId = process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE === 'claude'
+                                ? process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID : undefined;
+                            const version = Number(process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION);
+                            if (accountId && Number.isInteger(version) && version > 0) {
+                                try {
+                                    const state = await readCredentialPoolState(undefined, { tryOnce: true });
+                                    const account = state.accounts.find((candidate) => candidate.provider === 'claude' && candidate.id === accountId);
+                                    if (account && account.provider === 'claude' && account.credentialVersion > version
+                                        && (account.limitedUntil === null || account.limitedUntil <= Date.now())) {
+                                        pending = msg;
+                                        refreshedAccount = account;
+                                        return null;
+                                    }
+                                } catch (error) {
+                                    logger.debug('[remote]: could not read account for credential refresh', error);
+                                }
                             }
                             if (!fromPending && ((modeHash && msg.hash !== modeHash) || msg.isolate)) {
                                 logger.debug('[remote]: mode has changed, pending message');
@@ -759,6 +779,20 @@ export async function claudeRemoteLauncher(
                     signal: abortController.signal,
                 });
                 await usageReportChain;
+
+                if (refreshedAccount) {
+                    const account = refreshedAccount;
+                    await session.client.updateMetadata((metadata) => ({
+                        ...metadata,
+                        providerAccount: account.name,
+                        providerAccountId: account.id,
+                        providerAccountCredentialVersion: account.credentialVersion,
+                    }), undefined, true);
+                    Object.assign(process.env, credentialAccountEnvironment(account));
+                    if (session.claudeEnvVars && 'CLAUDE_CODE_OAUTH_TOKEN' in session.claudeEnvVars) {
+                        session.claudeEnvVars.CLAUDE_CODE_OAUTH_TOKEN = account.credential.token;
+                    }
+                }
 
                 if (remoteResult === 'quota-exhausted') {
                     await finishQuotaFailure();

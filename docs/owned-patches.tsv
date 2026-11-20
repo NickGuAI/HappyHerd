@@ -907,3 +907,7 @@ ISSUE_478_CLAUDE_LOGIN_CAPTURE	code-ready	fix(credentials): read Claude login fr
 ISSUE_478_TERMINAL_BUNDLE	code-ready	build(cli): bundle the headless terminal library	server/packages/happyherd-cli/package.json
 ISSUE_478_CHANGELOG_GOLDENS	code-ready	test(changelog): refresh Claude login capture baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_481_DAEMON_LABEL_REFRESH	code-ready	fix(daemon): avoid repeated session lists on startup	server/packages/happyherd-cli/src/daemon/run.ts
+ISSUE_480_WAITING_SESSIONS	code-ready	fix(credentials): resume sessions after account recovery	server/packages/happyherd-cli/src/daemon/providerAccountWaits.ts
+ISSUE_480_CLAUDE_RELOGIN	code-ready	fix(credentials): refresh Claude credentials between turns	server/packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts
+ISSUE_480_RECOVERY_GOLDENS	code-ready	test(changelog): refresh account recovery baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_480_CURRENT_LIMITS	code-ready	fix(daemon): handle refreshed and scheduled limit notices	server/packages/happyherd-cli/src/daemon/run.ts

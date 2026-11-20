@@ -56,6 +56,7 @@ describe('provider hard-limit daemon notices', () => {
       account: 'work-primary',
       accountId: '00000000-0000-4000-8000-000000000001',
       credentialVersion: 3,
+      sourcePid: process.pid,
       limitedUntil: 5678,
     });
   });

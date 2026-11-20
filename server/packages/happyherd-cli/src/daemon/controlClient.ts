@@ -91,6 +91,14 @@ async function daemonPost(path: string, body?: any, timeoutOverride?: number): P
 const SESSION_STARTED_RETRY_TIMEOUT_MS = 3000;
 const SESSION_STARTED_RETRY_INTERVAL_MS = 100;
 const sessionRegistrationWatchers = new Map<string, () => void>();
+const sessionRegistrationSnapshots = new Map<string, () => { metadata: Metadata; metadataVersion: number } | null>();
+
+/** Supply current host metadata to the existing daemon-restart registration. */
+export function setDaemonSessionRegistrationSnapshot(
+  sessionId: string, snapshot: () => { metadata: Metadata; metadataVersion: number } | null,
+): void {
+  sessionRegistrationSnapshots.set(sessionId, snapshot);
+}
 
 export async function notifyDaemonSessionStarted(
   sessionId: string,
@@ -118,7 +126,15 @@ export async function notifyDaemonSessionStarted(
     sessionRegistrationWatchers.set(sessionId, maintainDaemonSessionRegistration({
       initialDaemonKey,
       readState: readDaemonState,
-      register: async () => !(await daemonPost('/session-started', payload))?.error,
+      register: async () => {
+        const current = sessionRegistrationSnapshots.get(sessionId)?.();
+        const registration = current ? {
+          ...payload,
+          metadata: current.metadata,
+          ...(payload.encryption ? { encryption: { ...payload.encryption, metadataVersion: current.metadataVersion } } : {}),
+        } : payload;
+        return !(await daemonPost('/session-started', registration))?.error;
+      },
     }));
   };
 

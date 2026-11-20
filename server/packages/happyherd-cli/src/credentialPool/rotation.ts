@@ -1,6 +1,5 @@
 import {
   markCredentialAccountLimited,
-  selectCredentialAccount,
   type CredentialPoolPaths,
 } from './store';
 import type { ProviderLimitNotice } from './providerLimitNotice';
@@ -23,23 +22,15 @@ export type ProviderLimitRotationDependencies = {
     toAccount: string;
   }) => Promise<void>;
   onNoUsableAccount?: () => Promise<void>;
-  waitUntil?: (timestamp: number) => Promise<void>;
+  onWaitForAccount?: (limitedUntil: number) => Promise<void>;
 };
 
 export type ProviderLimitRotationResult =
   | { type: 'refreshed'; account: string }
   | { type: 'ignored' }
+  | { type: 'waiting' }
   | { type: 'unchanged'; account: string }
-  | { type: 'rotated'; account: string }
-  | { type: 'waited-and-rotated'; account: string };
-
-const defaultWaitUntil = async (timestamp: number): Promise<void> => {
-  const delay = Math.max(0, timestamp - Date.now());
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, delay);
-    timer.unref?.();
-  });
-};
+  | { type: 'rotated'; account: string };
 
 export async function rotateProviderSessionAfterLimit(
   notice: ManagedProviderLimitNotice,
@@ -67,6 +58,10 @@ export async function rotateProviderSessionAfterLimit(
 
   if (rotation.type === 'all-limited') await dependencies.onNoUsableAccount?.();
   await dependencies.stopProvider(notice.sessionId);
+  if (rotation.type === 'all-limited') {
+    await dependencies.onWaitForAccount?.(rotation.limitedUntil);
+    return { type: 'waiting' };
+  }
   const resumeAndAnnounce = async (): Promise<{ account: string; switched: boolean }> => {
     const toAccount = await dependencies.resumeProvider(notice.sessionId);
     if (toAccount === fromAccount) return { account: toAccount, switched: false };
@@ -78,28 +73,8 @@ export async function rotateProviderSessionAfterLimit(
     });
     return { account: toAccount, switched: true };
   };
-  if (rotation.type === 'next-account') {
-    const resumed = await resumeAndAnnounce();
-    return resumed.switched
-      ? { type: 'rotated', account: resumed.account }
-      : { type: 'unchanged', account: resumed.account };
-  }
-
-  const waitUntil = dependencies.waitUntil ?? defaultWaitUntil;
-  let limitedUntil = rotation.limitedUntil;
-  while (true) {
-    await waitUntil(limitedUntil);
-    const selection = await selectCredentialAccount(notice.provider, {
-      paths: dependencies.paths,
-      now: now(),
-    });
-    if (selection.type === 'available') {
-      const resumed = await resumeAndAnnounce();
-      return resumed.switched
-        ? { type: 'waited-and-rotated', account: resumed.account }
-        : { type: 'unchanged', account: resumed.account };
-    }
-    if (selection.type === 'unconfigured') return { type: 'ignored' };
-    limitedUntil = selection.limitedUntil;
-  }
+  const resumed = await resumeAndAnnounce();
+  return resumed.switched
+    ? { type: 'rotated', account: resumed.account }
+    : { type: 'unchanged', account: resumed.account };
 }

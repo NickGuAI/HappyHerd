@@ -214,6 +214,7 @@ export function startDaemonControlServer({
           account: z.string().min(1).optional(),
           accountId: z.string().uuid().optional(),
           credentialVersion: z.number().int().positive().optional(),
+          sourcePid: z.number().int().positive().optional(),
           limitedUntil: z.number().int().positive(),
         }),
         response: {

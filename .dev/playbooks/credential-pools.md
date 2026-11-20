@@ -20,8 +20,13 @@ account selection
 ```
 
 Rotation is reactive. It sends one literal `continue` after a successful switch
-to a different account, without replaying prior messages or retrying the
-interrupted request. It does not poll quota or own heartbeat scheduling. An accepted
+to a different account. When all accounts were limited, the daemon saves the wait
+and sends one `continue` when an account becomes usable, including after a reset
+or daemon restart. Recovery to another account posts the switch event first. A
+failed recovery is tried again after one minute; a pool with no accounts ends
+the wait. A one-shot automation run is stopped without a saved wait; its schedule
+owns the next run. A persistent session receiving heartbeats waits normally.
+It does not replay prior messages, poll quota, or own heartbeat scheduling. An accepted
 limit notice means only that the daemon owns the incident; final switched,
 exhausted, unchanged, or failed outcomes are separate evidence.
 
@@ -36,6 +41,14 @@ exhausted, unchanged, or failed outcomes are separate evidence.
 Display names are labels, not ownership keys. Stable account ID plus credential
 version owns quota attribution and auth-file writeback. Relogin increments the
 version, so an older process cannot overwrite the replacement credential.
+At the next message boundary, a Claude host picks up a newer credential for its
+bound account and restarts its provider in the same conversation. A failed pool
+read leaves the current message on the existing credential; the next message
+checks again. The existing daemon re-registration carries the current metadata
+and its version. Before re-registration, a newer version reported by the tracked
+host for the same account updates the daemon's copy and is handled normally;
+older versions and notices from another process remain stale.
+Codex and Grok do not refresh a running host after login.
 
 Managed Codex app-server authentication reads registered credentials from the native ephemeral store under the credential-pool lock without touching `CODEX_HOME/auth.json`, while managed Grok ACP authentication utilizes a credential ID and version-bound auth file in registered account storage with `GROK_AUTH_PATH` written to the child environment. Both preserve stable provider native state homes, whereas unmanaged providers retain ambient environment behavior, and stale processes are rejected by account ID and version guards. Codex and Grok activation and writeback are owned by `credentialPool/{codexAuth,grokAuth}.ts` following the removal of the obsolete runtime ownership module.
 
@@ -60,8 +73,13 @@ content. Keep live provider smokes isolated and explicitly authorized.
 Start with the focused matrix in `.dev/VERIFY.md`. Include stale/duplicate limit
 notices, stable ID/version attribution, overlapping A/B auth activation and
 writeback, Codex reconnect ownership, nondefault Grok home restoration, the
-same provider-native conversation ID, one continuation per successful switch,
-and none on failed or unchanged resumes. Then run
+same provider-native conversation ID, one continuation per successful switch or
+recovered all-limited incident, and none on failed or unchanged immediate resumes. Then run
+Claude relogin tests for the same account and conversation, an unaffected other
+account, an in-flight turn, a failed pool read, updated daemon registration, and
+new-version limits from the tracked host before re-registration. Verify that
+one-shot automation runs do not wait and persistent heartbeat sessions still do.
+Then run
 the affected CLI/app checks and required exact-head CI. A separately initiated
 turn may additionally prove resumability.
 

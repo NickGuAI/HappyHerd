@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   authoritativeActive: false,
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
+  credentialOptions: undefined as { onCooldownReset?: (provider: 'claude' | 'codex' | 'grok') => void } | undefined,
   machineClient: undefined as ({ getRunningSessionCount?: () => number } & Record<string, unknown>) | undefined,
   deactivateSession: vi.fn(),
   exitedPids: new Set<number>(),
@@ -46,11 +47,13 @@ const mocks = vi.hoisted(() => ({
   listCommanders: vi.fn(async (): Promise<any> => ({ commanders: [], globalAgentsPath: null })),
   sessionSyncClient: vi.fn(),
   findSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
+  heartbeatDependencies: undefined as { postMessage: (session: unknown, input: unknown) => Promise<unknown> } | undefined,
   persistSession: vi.fn<(id: string, session: PersistedSession) => boolean>(() => true),
   realSessionPersistence: false,
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
   postSessionTask: vi.fn(async (): Promise<{ seq: number }> => ({ seq: 9 })),
+  postHeartbeatMessage: vi.fn(async () => undefined),
   readRecentSessionMessages: vi.fn(async (): Promise<any[]> => []),
   readPersistedSessions: vi.fn(() => ({})),
   resolveLocalReconnectableSession: vi.fn(),
@@ -70,6 +73,7 @@ vi.mock('@/api/api', () => ({
       sessionSyncClient: mocks.sessionSyncClient,
       findSessionAuthoritative: mocks.findSessionAuthoritative,
       postSessionEvent: mocks.postSessionEvent,
+      postHeartbeatMessage: mocks.postHeartbeatMessage,
       postSideChatBrief: mocks.postSideChatBrief,
       postSessionTask: mocks.postSessionTask,
       readRecentSessionMessages: mocks.readRecentSessionMessages,
@@ -271,6 +275,7 @@ vi.mock('@/agentContext/commanderContext', () => ({
 
 vi.mock('@/automations/service', () => ({
   HappyHerdAutomationService: class {
+    constructor(_machine: unknown, _spawn: unknown, heartbeat: typeof mocks.heartbeatDependencies) { mocks.heartbeatDependencies = heartbeat; }
     start = vi.fn(async () => undefined);
     stop = vi.fn(async () => undefined);
     listActiveRuns = vi.fn(async () => []);
@@ -292,6 +297,7 @@ vi.mock('@/credentialPool/store', async (importOriginal) => ({
 
 vi.mock('@/credentialPool/manager', () => ({
   CredentialAccountManager: class {
+    constructor(options: typeof mocks.credentialOptions) { mocks.credentialOptions = options; }
     dispose = vi.fn(async () => undefined);
   },
 }));
@@ -411,6 +417,8 @@ describe('daemon session continuity', () => {
     vi.clearAllMocks();
     daemonRun = undefined;
     mocks.controlHandlers = undefined;
+    mocks.credentialOptions = undefined;
+    mocks.heartbeatDependencies = undefined;
     mocks.rpcHandlers = undefined;
     mocks.authoritativeActive = false;
     mocks.exitedPids.clear();
@@ -557,6 +565,42 @@ describe('daemon session continuity', () => {
     }
   }, 90_000);
 
+  it('persists a newer account version on host re-registration and skips an unchanged repeat', async () => {
+    const actual = await vi.importActual<typeof import('@/persistence')>('@/persistence');
+    const directory = await mkdtemp(join(tmpdir(), 'registration-version-'));
+    temporaryDirectories.push(directory);
+    Object.defineProperty(configuration, 'sessionsFile', { value: join(directory, 'sessions.json') });
+    mocks.realSessionPersistence = true;
+    mocks.readPersistedSessions.mockImplementation(actual.readPersistedSessions);
+    mocks.persistSession.mockImplementation(actual.persistSession);
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const metadata: Metadata = {
+      path: '/workspace', host: 'host', machineId: 'machine-1', hostPid: 4333,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'claude', providerAccount: 'one', providerAccountId: 'account-id', providerAccountCredentialVersion: 1,
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 8, metadataVersion: 2, agentStateVersion: 3,
+    };
+    await control.onHappyHerdSessionWebhook('version-session', metadata, encryption);
+    vi.mocked(renameSync).mockClear();
+    const current = { ...metadata, providerAccountCredentialVersion: 2 };
+    const currentEncryption = { ...encryption, metadataVersion: 3 };
+    await control.onHappyHerdSessionWebhook('version-session', current, currentEncryption);
+    expect(actual.readPersistedSessions()['version-session']).toMatchObject({
+      metadataVersion: 3, metadata: { providerAccountId: 'account-id', providerAccountCredentialVersion: 2 },
+    });
+    expect(vi.mocked(renameSync).mock.calls.filter(([, target]) => target === configuration.sessionsFile)).toHaveLength(1);
+    await control.onHappyHerdSessionWebhook('version-session', current, currentEncryption);
+    expect(vi.mocked(renameSync).mock.calls.filter(([, target]) => target === configuration.sessionsFile)).toHaveLength(1);
+    const notice = { sessionId: 'version-session', provider: 'claude' as const, account: 'one', accountId: 'account-id', limitedUntil: Date.now() + 60_000 };
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 1 })).toBe(false);
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 2 })).toBe(true);
+    await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce());
+  });
+
   async function localMessagingFixture(machineId = 'machine-1', provider: 'codex' | 'claude' = 'codex') {
     const sessionId = 'local-command-session';
     const metadata: Metadata = {
@@ -578,6 +622,434 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
   }
+
+  it.each(['stop', 'resume', 'message', 'archive', 'archive-requested'] as const)(
+    'removes a persisted quota wait on the actual %s path', async (action) => {
+      const root = await mkdtemp(join(tmpdir(), 'daemon-account-wait-'));
+      temporaryDirectories.push(root);
+      const originalHome = configuration.happyHomeDir;
+      const originalPool = configuration.credentialPoolFile;
+      const originalAccounts = configuration.credentialPoolDir;
+      const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+      Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+      try {
+        const { upsertCredentialAccount } = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+        const account = await upsertCredentialAccount({
+          provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') },
+          limitedUntil: action.startsWith('archive') ? null : Date.now() + 60_000,
+        }, { paths, now: 1 });
+        await writeFile(join(root, 'provider-account-waits.json'), JSON.stringify([{
+          sessionId: 'local-command-session', provider: 'codex', account: 'one',
+          accountId: account.id, incidentId: 'wait-incident', limitedUntil: Date.now() + 60_000,
+        }]));
+        if (action.startsWith('archive')) {
+          mocks.inspectSessionAuthoritative.mockImplementation(async (input: unknown) => {
+            const session = input as Session;
+            return { session: { ...session, metadata: { ...session.metadata, lifecycleState: action === 'archive' ? 'archived' : 'archiveRequested' } }, active: false };
+          });
+        }
+        const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+        if (action === 'stop') expect(control.stopSession(sessionId)).toBe(true);
+        if (action === 'message' || action === 'resume') {
+          const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+          const operation = action === 'message'
+            ? control.sendLocalMessage({ sessionId, messageId: 'user-message', text: 'hello' })
+            : rpc.resumeSession(sessionId);
+          await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+          control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+          const receipt = await operation;
+          if (action === 'message') expect(receipt).toMatchObject({ success: true });
+          else expect(receipt).toMatchObject({ type: 'success' });
+        }
+        await vi.waitFor(async () => expect(JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'))).toEqual([]));
+        if (action.startsWith('archive') || action === 'stop') expect(mocks.postSessionTask).not.toHaveBeenCalled();
+        if (action.startsWith('archive')) expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+        if (action === 'message') expect(mocks.postSessionTask).toHaveBeenCalledWith(expect.anything(), { localId: 'user-message', text: 'hello' });
+      } finally {
+        Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+        Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+        Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+      }
+    },
+  );
+
+  it.each([
+    { trigger: 'expired', target: 'one' }, { trigger: 'timer', target: 'one' },
+    { trigger: 'expired', target: 'two' },
+  ] as const)(
+    'continues a persisted quota wait after daemon start when $trigger using $target', async ({ trigger, target }) => {
+      const root = await mkdtemp(join(tmpdir(), 'daemon-recover-wait-'));
+      temporaryDirectories.push(root);
+      const originalHome = configuration.happyHomeDir;
+      const originalPool = configuration.credentialPoolFile;
+      const originalAccounts = configuration.credentialPoolDir;
+      const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+      Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+      try {
+        const { upsertCredentialAccount } = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+        const account = await upsertCredentialAccount({
+          provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') },
+          limitedUntil: trigger === 'timer' ? Date.now() + 800 : null,
+        }, { paths, now: 1 });
+        const other = target === 'two' ? await upsertCredentialAccount({
+          provider: 'codex', name: 'two', credential: { type: 'auth-file', path: join(root, 'other-auth.json') },
+        }, { paths, now: 2 }) : account;
+        await writeFile(join(root, 'provider-account-waits.json'), JSON.stringify([{
+          sessionId: 'local-command-session', provider: 'codex', account: 'one', accountId: account.id,
+          incidentId: 'wait-incident', limitedUntil: Date.now() + 800,
+        }]));
+        const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+        await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce(), { timeout: 5_000 });
+        expect(mocks.postSessionTask).not.toHaveBeenCalled();
+        control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, providerAccount: target, providerAccountId: other.id, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+        await vi.waitFor(async () => expect(JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'))).toEqual([]));
+        expect(mocks.postSessionTask).toHaveBeenCalledWith(expect.objectContaining({ id: sessionId }), {
+          localId: 'wait-incident-continue', text: 'continue',
+        });
+        expect(mocks.postSessionTask).toHaveBeenCalledOnce();
+        if (target === 'two') {
+          expect(mocks.postSessionEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+            type: 'provider-account-switched', fromAccount: 'one', toAccount: 'two', incidentId: 'wait-incident',
+          }), 'wait-incident');
+          expect(mocks.postSessionEvent.mock.invocationCallOrder[0]).toBeLessThan(mocks.postSessionTask.mock.invocationCallOrder[0]);
+        } else {
+          expect(mocks.postSessionEvent).not.toHaveBeenCalled();
+        }
+      } finally {
+        Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+        Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+        Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+      }
+    },
+  );
+
+  it.each([2, 3])('does not start a waiting session archived on recovery read %i', async (archiveAt) => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-wait-archive-race-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    const originalPool = configuration.credentialPoolFile;
+    const originalAccounts = configuration.credentialPoolDir;
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+    try {
+      const { upsertCredentialAccount } = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+      const account = await upsertCredentialAccount({
+        provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') },
+      }, { paths, now: 1 });
+      await writeFile(join(root, 'provider-account-waits.json'), JSON.stringify([{
+        sessionId: 'local-command-session', provider: 'codex', account: 'one', accountId: account.id,
+        incidentId: 'wait-incident', limitedUntil: 1,
+      }]));
+      let reads = 0;
+      mocks.inspectSessionAuthoritative.mockImplementation(async (input: unknown) => {
+        const session = input as Session;
+        reads += 1;
+        return { session: reads < archiveAt ? session : { ...session, metadata: { ...session.metadata, lifecycleState: 'archived' } }, active: false };
+      });
+      await localMessagingFixture();
+      await vi.waitFor(() => expect(reads).toBeGreaterThanOrEqual(archiveAt));
+      expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+      expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+    }
+  });
+
+  it('continues the retained conversation in a stand-in provider process after a reset', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-wait-standin-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    const originalPool = configuration.credentialPoolFile;
+    const originalAccounts = configuration.credentialPoolDir;
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+    let child: import('node:child_process').ChildProcess | undefined;
+    try {
+      const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+      const account = await store.upsertCredentialAccount({
+        provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') }, limitedUntil: Date.now() + 60_000,
+      }, { paths, now: 1 });
+      await writeFile(join(root, 'provider-account-waits.json'), JSON.stringify([{
+        sessionId: 'local-command-session', provider: 'codex', account: 'one', accountId: account.id,
+        incidentId: 'wait-incident', limitedUntil: Date.now() + 60_000,
+      }]));
+      const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+      const { spawn } = await import('node:child_process');
+      const received: unknown[] = [];
+      mocks.spawnHappyHerdCLI.mockImplementation((args: string[]) => {
+        const nativeId = args[args.indexOf('--resume') + 1];
+        child = spawn(process.execPath, ['-e', `
+          process.on('message', (message) => process.send({ nativeId: process.argv[1], message }));
+        `, nativeId], { env: {}, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+        child.on('message', (message) => received.push(message));
+        return child;
+      });
+      mocks.postSessionTask.mockImplementation(async (...args: unknown[]) => {
+        child!.send!(args[1] as any);
+        return { seq: 9 };
+      });
+      await store.resetCredentialAccountCooldown('codex', 'one', paths, { id: account.id, credentialVersion: account.credentialVersion });
+      mocks.credentialOptions!.onCooldownReset!('codex');
+      await vi.waitFor(() => expect(child?.pid).toBeDefined());
+      await control.onHappyHerdSessionWebhook(sessionId, {
+        ...metadata, hostPid: child!.pid, providerAccount: 'one', providerAccountId: account.id, spawnSettings: codexAdvertisedDefaultSettings,
+      }, encryption);
+      await vi.waitFor(() => expect(received).toEqual([{ nativeId: 'thread-local', message: { localId: 'wait-incident-continue', text: 'continue' } }]));
+      expect(mocks.postSessionTask).toHaveBeenCalledOnce();
+      await vi.waitFor(async () => expect(JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'))).toEqual([]));
+    } finally {
+      if (child?.pid) {
+        mocks.exitedPids.add(child.pid);
+        const exited = new Promise<void>((resolve) => child!.once('exit', () => resolve()));
+        child.kill('SIGTERM');
+        await exited;
+      }
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+    }
+  });
+
+  it.each(['wait', 'switch'] as const)('accepts a refreshed host limit and proceeds to %s without registration', async (outcome) => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-current-version-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    const originalPool = configuration.credentialPoolFile;
+    const originalAccounts = configuration.credentialPoolDir;
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+    try {
+      const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+      const rotation = await vi.importActual<typeof import('@/credentialPool/rotation')>('@/credentialPool/rotation');
+      const account = await store.upsertCredentialAccount({
+        provider: 'claude', name: 'one', credential: { type: 'oauth-token', token: 'old-token' },
+      }, { paths, now: 1 });
+      const other = outcome === 'switch' ? await store.upsertCredentialAccount({
+        provider: 'claude', name: 'two', credential: { type: 'oauth-token', token: 'other-token' },
+      }, { paths, now: 2 }) : undefined;
+      mocks.rotateProviderSessionAfterLimit.mockImplementation(rotation.rotateProviderSessionAfterLimit);
+      vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
+        mocks.exitedPids.add(Math.abs(pid));
+        return true;
+      }) as typeof process.kill);
+      const { sessionId, metadata, encryption, control } = await localMessagingFixture('machine-1', 'claude');
+      const bound = { ...metadata, providerAccount: 'one', providerAccountId: account.id, providerAccountCredentialVersion: account.credentialVersion };
+      await control.onHappyHerdSessionWebhook(sessionId, { ...bound, hostPid: 7331 }, encryption);
+      const refreshed = await store.upsertCredentialAccount({
+        provider: 'claude', name: 'one', credential: { type: 'oauth-token', token: 'new-token' },
+      }, { paths, now: 3 });
+      expect(refreshed.credentialVersion).toBe(account.credentialVersion + 1);
+      const notice = { sessionId, provider: 'claude' as const, account: 'one', accountId: account.id,
+        credentialVersion: refreshed.credentialVersion, sourcePid: 7331, limitedUntil: Date.now() + 60_000 };
+      expect(control.onProviderLimited({ ...notice, sourcePid: 9999 })).toBe(false);
+      expect(control.onProviderLimited({ ...notice, accountId: 'different-account' })).toBe(false);
+      expect(control.onProviderLimited({ ...notice, sourcePid: undefined })).toBe(false);
+      expect(control.onProviderLimited(notice)).toBe(true);
+      // A registration already in flight can carry the earlier host snapshot.
+      await control.onHappyHerdSessionWebhook(sessionId, { ...bound, hostPid: 7331 }, encryption);
+      expect(control.onProviderLimited({ ...notice, credentialVersion: account.credentialVersion })).toBe(false);
+      if (outcome === 'wait') {
+        await vi.waitFor(async () => expect(JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'))).toHaveLength(1));
+        await vi.waitFor(() => expect(mocks.exitedPids.has(7331)).toBe(true));
+        expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+      } else {
+        await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+        const registration = { ...bound, hostPid: 4321, providerAccount: 'two',
+          providerAccountId: other!.id, providerAccountCredentialVersion: other!.credentialVersion,
+          spawnSettings: resolveEffectiveSessionSettings(initialMachineMetadata, 'machine-1', { provider: 'claude' }) };
+        await control.onHappyHerdSessionWebhook(sessionId, registration, encryption);
+        await control.onHappyHerdSessionWebhook(sessionId, registration, encryption, metadata.claudeSessionId);
+        await vi.waitFor(() => expect(mocks.postSessionTask).toHaveBeenCalledOnce());
+        expect(mocks.postSessionEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+          type: 'provider-account-switched', fromAccount: 'one', toAccount: 'two',
+        }), expect.any(String));
+      }
+    } finally {
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+    }
+  });
+
+  it.each(['all-limited', 'alternate'] as const)('does not resume after the user stops during account selection (%s)', async (outcome) => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-stop-selecting-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    const originalPool = configuration.credentialPoolFile;
+    const originalAccounts = configuration.credentialPoolDir;
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+    try {
+      const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+      const rotation = await vi.importActual<typeof import('@/credentialPool/rotation')>('@/credentialPool/rotation');
+      const account = await store.upsertCredentialAccount({
+        provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') },
+      }, { paths, now: 1 });
+      if (outcome === 'alternate') await store.upsertCredentialAccount({
+        provider: 'codex', name: 'two', credential: { type: 'auth-file', path: join(root, 'other-auth.json') },
+      }, { paths, now: 2 });
+      let release!: () => void;
+      const selecting = new Promise<void>((resolve) => { release = resolve; });
+      mocks.rotateProviderSessionAfterLimit.mockImplementation(async (notice, dependencies) => {
+        await selecting;
+        return rotation.rotateProviderSessionAfterLimit(notice, dependencies);
+      });
+      vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
+        mocks.exitedPids.add(Math.abs(pid));
+        return true;
+      }) as typeof process.kill);
+      const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+      await control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 7331,
+        providerAccount: 'one', providerAccountId: account.id, providerAccountCredentialVersion: account.credentialVersion }, encryption);
+      expect(control.onProviderLimited({ sessionId, provider: 'codex', account: 'one', accountId: account.id,
+        credentialVersion: account.credentialVersion, sourcePid: 7331, limitedUntil: Date.now() + 60_000 })).toBe(true);
+      expect(control.stopSession(sessionId)).toBe(true);
+      release();
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalled());
+      await store.resetCredentialAccountCooldown('codex', 'one', paths, { id: account.id, credentialVersion: account.credentialVersion });
+      mocks.credentialOptions!.onCooldownReset!('codex');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await expect(readFile(join(root, 'provider-account-waits.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+      expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+    }
+  });
+
+  it('does not continue when the user stops while the switch event is posted', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    await control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 7331, providerAccount: 'two' }, encryption);
+    vi.spyOn(process, 'kill').mockImplementation((() => true) as typeof process.kill);
+    let release!: () => void;
+    const posting = new Promise<void>((resolve) => { release = resolve; });
+    mocks.postSessionEvent.mockImplementationOnce(async () => { await posting; });
+    mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (notice, dependencies) => {
+      await dependencies.onAccountSwitched!({ sessionId: notice.sessionId, provider: 'codex', fromAccount: 'one', toAccount: 'two' });
+      return { type: 'rotated', account: 'two' };
+    });
+    expect(control.onProviderLimited({ sessionId, provider: 'codex', account: 'two', limitedUntil: Date.now() + 60_000 })).toBe(true);
+    await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+    expect(control.stopSession(sessionId)).toBe(true);
+    release();
+    await mocks.rotateProviderSessionAfterLimit.mock.results[0].value;
+    expect(mocks.postSessionTask).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+  });
+
+  it('does not retain or recover an all-limited one-shot automation session', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-automation-limit-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    const originalPool = configuration.credentialPoolFile;
+    const originalAccounts = configuration.credentialPoolDir;
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+    try {
+      const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+      const rotation = await vi.importActual<typeof import('@/credentialPool/rotation')>('@/credentialPool/rotation');
+      const account = await store.upsertCredentialAccount({
+        provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') },
+      }, { paths, now: 1 });
+      mocks.rotateProviderSessionAfterLimit.mockImplementation(rotation.rotateProviderSessionAfterLimit);
+      vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
+        mocks.exitedPids.add(Math.abs(pid));
+        return true;
+      }) as typeof process.kill);
+      const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+      await control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 7331,
+        automationRunId: 'run-one', providerAccount: 'one', providerAccountId: account.id,
+        providerAccountCredentialVersion: account.credentialVersion }, encryption);
+      expect(control.onProviderLimited({ sessionId, provider: 'codex', account: 'one', accountId: account.id,
+        credentialVersion: account.credentialVersion, sourcePid: 7331, limitedUntil: Date.now() + 60_000 })).toBe(true);
+      await vi.waitFor(() => expect(mocks.exitedPids.has(7331)).toBe(true));
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledWith(expect.anything(),
+        expect.objectContaining({ type: 'provider-quota-exhausted' }), expect.any(String)));
+      await expect(readFile(join(root, 'provider-account-waits.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+      await store.resetCredentialAccountCooldown('codex', 'one', paths, { id: account.id, credentialVersion: account.credentialVersion });
+      mocks.credentialOptions!.onCooldownReset!('codex');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+      expect(mocks.postSessionTask).not.toHaveBeenCalled();
+      await expect(readFile(join(root, 'provider-account-waits.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+    }
+  });
+
+  it('waits and accepts a fresh limit after recovery for a persistent heartbeat session', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-new-limit-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    const originalPool = configuration.credentialPoolFile;
+    const originalAccounts = configuration.credentialPoolDir;
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolFile', { value: paths.stateFile, configurable: true });
+    Object.defineProperty(configuration, 'credentialPoolDir', { value: paths.accountsDir, configurable: true });
+    try {
+      const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+      const rotation = await vi.importActual<typeof import('@/credentialPool/rotation')>('@/credentialPool/rotation');
+      const account = await store.upsertCredentialAccount({
+        provider: 'codex', name: 'one', credential: { type: 'auth-file', path: join(root, 'auth.json') },
+      }, { paths, now: 1 });
+      mocks.rotateProviderSessionAfterLimit.mockImplementation(rotation.rotateProviderSessionAfterLimit);
+      vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
+        mocks.exitedPids.add(Math.abs(pid));
+        return true;
+      }) as typeof process.kill);
+      const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+      const bound = { ...metadata, providerAccount: 'one', providerAccountId: account.id, providerAccountCredentialVersion: account.credentialVersion };
+      control.onHappyHerdSessionWebhook(sessionId, { ...bound, hostPid: 7331 }, encryption);
+      await mocks.heartbeatDependencies!.postMessage({ id: sessionId }, { automationId: 'heartbeat', text: 'heartbeat' });
+      expect(mocks.postHeartbeatMessage).toHaveBeenCalledOnce();
+      const notice = { sessionId, provider: 'codex' as const, account: 'one', accountId: account.id,
+        credentialVersion: account.credentialVersion, sourcePid: 7331, limitedUntil: Date.now() + 60_000 };
+      expect(control.onProviderLimited(notice)).toBe(true);
+      await vi.waitFor(async () => expect(JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'))).toHaveLength(1));
+      const [firstWait] = JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'));
+      await vi.waitFor(() => expect(mocks.exitedPids.has(7331)).toBe(true));
+      expect(control.onProviderLimited(notice)).toBe(true);
+      expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce();
+      await store.resetCredentialAccountCooldown('codex', 'one', paths, { id: account.id, credentialVersion: account.credentialVersion });
+      mocks.credentialOptions!.onCooldownReset!('codex');
+      await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+      control.onHappyHerdSessionWebhook(sessionId, { ...bound, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+      expect(control.onProviderLimited(notice)).toBe(false);
+      expect(control.onProviderLimited({ ...notice, sourcePid: 4321 })).toBe(true);
+      await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledTimes(2));
+      await vi.waitFor(async () => {
+        const waits = JSON.parse(await readFile(join(root, 'provider-account-waits.json'), 'utf8'));
+        expect(waits).toHaveLength(1);
+        expect(waits[0].incidentId).not.toBe(firstWait.incidentId);
+      });
+      expect(mocks.postSessionTask).toHaveBeenCalledOnce();
+    } finally {
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolFile', { value: originalPool, configurable: true });
+      Object.defineProperty(configuration, 'credentialPoolDir', { value: originalAccounts, configurable: true });
+    }
+  });
 
   async function commanderRefreshFixture(overrides: Partial<Metadata>[]) {
     const commander = {
