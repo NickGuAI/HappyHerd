@@ -1,15 +1,17 @@
 import { SESSION_SCOPED_ENV_KEYS } from '@/daemon/sessionEnvironment';
+import { legacyEnvironmentKey } from '@/legacyCompatibility';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, afterEach, expect, vi } from 'vitest';
 
-const configuredHome = process.env.HAPPYHERD_HOME_DIR || process.env.HAPPY_HOME_DIR;
+const legacyHomeKey = legacyEnvironmentKey('HAPPYHERD_HOME_DIR')!;
+const configuredHome = process.env.HAPPYHERD_HOME_DIR || process.env[legacyHomeKey];
 const protectedHomes = [join(homedir(), '.happyherd'), join(homedir(), '.happy')];
 if (configuredHome) protectedHomes.push(configuredHome.replace(/^~/, homedir()));
 const unitHome = mkdtempSync(join(tmpdir(), 'happyherd-unit-'));
 process.env.HAPPYHERD_HOME_DIR = unitHome;
-process.env.HAPPY_HOME_DIR = unitHome;
+process.env[legacyHomeKey] = unitHome;
 
 let usedRealHome = false;
 vi.mock('@/daemon/providerAccountWaits', async (importOriginal) => {
