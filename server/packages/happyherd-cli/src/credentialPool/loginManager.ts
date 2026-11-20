@@ -14,6 +14,7 @@ import {
   managedProviderDirectAuthKeys,
   sanitizeSessionEnvironment,
 } from '@/daemon/sessionEnvironment';
+import { logger } from '@/ui/logger';
 
 import {
   commitCredentialLogin,
@@ -34,6 +35,12 @@ const MAX_ACTIVE_LOGIN_ATTEMPTS = 3;
 const MAX_CAPTURE_CHARS = 128 * 1_024;
 const ANSI_ESCAPE = /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][\s\S]*?(?:\u0007|\u001b\\))/g;
 const URL_PATTERN = /https:\/\/[^\s]+/g;
+
+function logTerminalFailure(action: 'read' | 'write'): void {
+  try {
+    logger.debug(`[credential login] Could not ${action} terminal output`);
+  } catch {}
+}
 
 type LoginAttempt = {
   public: CredentialLoginFlow;
@@ -245,10 +252,18 @@ export class CredentialLoginManager {
         attempt.expiryTimer.unref?.();
         if (provider === 'claude') {
           attempt.startupTimer = setTimeout(() => {
-            this.beginFinalization(attempt, () => this.finishFailure(
-              attempt,
-              'The provider login did not provide an authorization link.',
-            ));
+            // Include output received before the deadline even if xterm has not painted it yet.
+            const fail = () => {
+              if (!attempt.settled) this.beginFinalization(attempt, () => this.finishFailure(
+                attempt,
+                'The provider login did not provide an authorization link.',
+              ));
+            };
+            void Promise.resolve().then(() => attempt.terminal?.read()).then((output) => {
+              if (attempt.settled) return;
+              if (output !== undefined) this.capturePrompt(attempt, output);
+              if (!attempt.public.verificationUrl) fail();
+            }).catch(fail);
           }, this.claudeStartupTtlMs);
           attempt.startupTimer.unref?.();
         }
@@ -349,7 +364,7 @@ export class CredentialLoginManager {
           await this.terminate(attempt);
           await rm(attempt.stagingHome, { recursive: true, force: true }).catch(() => {});
         } finally {
-          await attempt.terminal?.dispose();
+          await attempt.terminal?.dispose().catch(() => {});
           attempt.terminal = undefined;
           this.releaseTarget(attempt);
         }
@@ -363,9 +378,13 @@ export class CredentialLoginManager {
   private capture(attempt: LoginAttempt, chunk: Buffer | string): void {
     if (attempt.settled) return;
     if (attempt.terminal) {
-      void attempt.terminal.write(chunk);
+      void attempt.terminal.write(chunk).catch(() => {
+        logTerminalFailure('write');
+      });
       void attempt.terminal.read().then((output) => {
         if (!attempt.settled) this.capturePrompt(attempt, output);
+      }).catch(() => {
+        logTerminalFailure('read');
       });
       return;
     }
@@ -510,7 +529,7 @@ export class CredentialLoginManager {
 
   private finish(attempt: LoginAttempt, flow: CredentialLoginFlow): void {
     attempt.output = '';
-    void attempt.terminal?.dispose();
+    void attempt.terminal?.dispose().catch(() => {});
     attempt.terminal = undefined;
     attempt.public = flow;
     this.releaseTarget(attempt);

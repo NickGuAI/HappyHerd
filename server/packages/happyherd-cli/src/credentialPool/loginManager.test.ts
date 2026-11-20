@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '@/ui/logger';
 
 import { readCredentialPoolState, upsertCredentialAccount, type CredentialPoolPaths } from './store';
 import { CredentialLoginManager } from './loginManager';
+import { LoginTerminal } from './loginTerminal';
 import { spawnPtyLoginProcess } from './ptyLoginProcess';
 import { activateGrokCredential } from './grokAuth';
 import claudeScreen from './fixtures/claudeSetupToken.json';
@@ -43,6 +45,7 @@ describe('credential provider login manager', () => {
   afterEach(async () => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
     await rm(root, { recursive: true, force: true });
   });
 
@@ -178,22 +181,36 @@ describe('credential provider login manager', () => {
   });
 
   it('waits for a complete Claude authorization URL and fails a silent startup promptly', async () => {
-    const incomplete = fakeChild();
-    const incompleteManager = new CredentialLoginManager({
-      paths,
-      spawnPty: vi.fn(() => incomplete) as any,
-      claudeStartupTtlMs: 10,
+    for (const [name, output] of [
+      ['incomplete', 'https://claude.com/cai/oauth/authorize?client_id=fixture&code=true'],
+      ['silent', ''],
+    ]) {
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({
+        paths,
+        spawnPty: vi.fn(() => child) as any,
+        claudeStartupTtlMs: 10,
+      });
+      const flow = await manager.start('claude', name);
+      if (output) child.stdout.write(output);
+      expect(manager.status(flow.id).state).toBe('starting');
+      expect(manager.status(flow.id).verificationUrl).toBeUndefined();
+      await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+        state: 'failed',
+        error: 'The provider login did not provide an authorization link.',
+      }));
+      await manager.dispose();
+    }
+
+    // Hold screen reads until after the startup deadline has fired.
+    let releaseRead!: () => void;
+    const readGate = new Promise<void>((resolve) => { releaseRead = resolve; });
+    const read = LoginTerminal.prototype.read;
+    const readSpy = vi.spyOn(LoginTerminal.prototype, 'read').mockImplementation(async function (this: LoginTerminal) {
+      await readGate;
+      return read.call(this);
     });
-    const incompleteFlow = await incompleteManager.start('claude', 'incomplete');
-    incomplete.stdout.write('https://claude.com/cai/oauth/authorize?client_id=fixture&code=true');
-    expect(incompleteManager.status(incompleteFlow.id).state).toBe('starting');
-    expect(incompleteManager.status(incompleteFlow.id).verificationUrl).toBeUndefined();
-
-    await vi.waitFor(() => expect(incompleteManager.status(incompleteFlow.id)).toMatchObject({
-      state: 'failed',
-      error: 'The provider login did not provide an authorization link.',
-    }));
-
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const ready = fakeChild();
     const readyManager = new CredentialLoginManager({
       paths,
@@ -202,13 +219,146 @@ describe('credential provider login manager', () => {
     });
     const readyFlow = await readyManager.start('claude', 'ready');
     ready.stdout.write(CLAUDE_AUTH_URL);
+    vi.advanceTimersByTime(10);
+    expect(ready.kill).not.toHaveBeenCalled();
+    releaseRead();
+    vi.useRealTimers();
     await vi.waitFor(() => expect(readyManager.status(readyFlow.id)).toMatchObject({
       state: 'waiting-user',
       verificationUrl: CLAUDE_AUTH_URL,
     }));
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    expect(readyManager.status(readyFlow.id).state).toBe('waiting-user');
     await readyManager.cancel(readyFlow.id);
+    readSpy.mockRestore();
+  });
+
+  it('fails the startup without an unhandled rejection when the screen read rejects', async () => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      vi.spyOn(LoginTerminal.prototype, 'read').mockRejectedValueOnce(new Error('read failed'));
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any, claudeStartupTtlMs: 10 });
+      const flow = await manager.start('claude', 'read-fails');
+      await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+        state: 'failed', error: 'The provider login did not provide an authorization link.',
+      }));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+      await manager.dispose();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
+  it('keeps a canceled login settled if its startup screen read rejects later', async () => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      let rejectRead!: (error: Error) => void;
+      const pendingRead = new Promise<string>((_resolve, reject) => { rejectRead = reject; });
+      const read = vi.spyOn(LoginTerminal.prototype, 'read').mockReturnValueOnce(pendingRead);
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any, claudeStartupTtlMs: 10 });
+      const flow = await manager.start('claude', 'canceled-read');
+      await vi.waitFor(() => expect(read).toHaveBeenCalled());
+      await manager.cancel(flow.id);
+      rejectRead(new Error('read failed'));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(manager.status(flow.id).state).toBe('canceled');
+      expect(unhandled).not.toHaveBeenCalled();
+      await manager.dispose();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
+  it.each(['missing terminal', 'prompt processing throws'])('fails startup when %s', async (scenario) => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any, claudeStartupTtlMs: 10 });
+      const flow = await manager.start('claude', 'screen-error');
+      if (scenario === 'missing terminal') {
+        const attempt = (manager as any).attempts.get(flow.id);
+        const terminal = attempt.terminal;
+        attempt.terminal = undefined;
+        await terminal.dispose();
+      } else {
+        vi.spyOn(LoginTerminal.prototype, 'read').mockResolvedValueOnce(CLAUDE_AUTH_URL);
+        vi.spyOn(manager as any, 'capturePrompt').mockImplementationOnce(() => { throw new Error('prompt failed'); });
+      }
+      vi.advanceTimersByTime(10);
+      vi.useRealTimers();
+      await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+        state: 'failed', error: 'The provider login did not provide an authorization link.',
+      }));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+      await manager.dispose();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
+  it.each([false, true])('ignores capture failures and accepts later output (logger throws: %s)', async (loggerThrows) => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      const debug = vi.spyOn(logger, 'debug').mockImplementation(() => {
+        if (loggerThrows) throw new Error('log failed');
+      });
+      vi.spyOn(LoginTerminal.prototype, 'write').mockRejectedValueOnce(new Error('write failed'));
+      vi.spyOn(LoginTerminal.prototype, 'read').mockRejectedValueOnce(new Error('read failed'));
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any });
+      const flow = await manager.start('claude', 'capture-fails');
+      child.stdout.write('initial output');
+      await vi.waitFor(() => expect(debug).toHaveBeenCalledTimes(2));
+      expect(debug).toHaveBeenCalledWith('[credential login] Could not write terminal output');
+      expect(debug).toHaveBeenCalledWith('[credential login] Could not read terminal output');
+      expect(manager.status(flow.id).state).toBe('starting');
+      child.stdout.write(CLAUDE_AUTH_URL);
+      await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+        state: 'waiting-user', verificationUrl: CLAUDE_AUTH_URL,
+      }));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+      await manager.cancel(flow.id);
+      await manager.dispose();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
+  it.each(['deadline', 'shutdown'])('handles a failed pending terminal write during %s', async (ending) => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      const debug = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+      vi.spyOn(LoginTerminal.prototype, 'write').mockImplementationOnce(function (this: LoginTerminal) {
+        const pending = Promise.reject(new Error('write failed'));
+        (this as any).pending = pending;
+        return pending;
+      });
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any, claudeStartupTtlMs: ending === 'deadline' ? 10 : 60_000 });
+      const flow = await manager.start('claude', 'write-fails');
+      child.stdout.write('initial output');
+      if (ending === 'deadline') {
+        await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+          state: 'failed', error: 'The provider login did not provide an authorization link.',
+        }));
+      } else {
+        await vi.waitFor(() => expect(debug).toHaveBeenCalledTimes(2));
+      }
+      await expect(manager.dispose()).resolves.toBeUndefined();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
   });
 
   it('cancels a staged login without replacing an existing account', async () => {
