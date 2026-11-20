@@ -15,6 +15,7 @@ import {
 import type { Config } from './config';
 import type { Credentials } from './credentials';
 import type { RawProject, RawSession, RawMessage } from './api';
+import { HappyHerdControlClient } from './control';
 
 // Mock axios
 vi.mock('axios', () => {
@@ -481,40 +482,66 @@ describe('api', () => {
     });
 
     describe('getSessionById', () => {
-        it('paginates beyond the recent-session window and returns the exact encrypted session', async () => {
+        it('reads and decrypts one filtered session', async () => {
             const metadata = { path: '/historical/project', marker: 'preserved' };
             const { raw } = makeRawSessionWithDataKey(creds, metadata, null, {
-                id: 'historical-session',
-                active: false,
-                metadataVersion: 17,
+                id: 'historical-session', active: false, metadataVersion: 17,
             });
-            mockedAxios.get
-                .mockResolvedValueOnce({
-                    data: {
-                        sessions: [makeRawSessionLegacy(creds, { path: '/recent' }, null, { id: 'recent-session' })],
-                        nextCursor: 'cursor_v1_recent-session',
-                    },
-                })
-                .mockResolvedValueOnce({
-                    data: { sessions: [raw], nextCursor: null },
-                });
-
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [raw], nextCursor: null } });
             const session = await getSessionById(config, creds, 'historical-session');
+            expect(session).toMatchObject({ id: 'historical-session', active: false, metadata, metadataVersion: 17 });
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+            expect(mockedAxios.get).toHaveBeenCalledWith('https://test-server.example.com/v2/sessions', { headers: authHeader, params: { limit: 200, id: 'historical-session' } });
+        });
 
-            expect(session).toMatchObject({
-                id: 'historical-session',
-                active: false,
-                metadata,
-                metadataVersion: 17,
-            });
-            expect(mockedAxios.get).toHaveBeenNthCalledWith(1,
-                'https://test-server.example.com/v2/sessions',
-                { headers: authHeader, params: { limit: 200 } },
-            );
-            expect(mockedAxios.get).toHaveBeenNthCalledWith(2,
-                'https://test-server.example.com/v2/sessions',
-                { headers: authHeader, params: { limit: 200, cursor: 'cursor_v1_recent-session' } },
-            );
+        it('pages to the match when an older server ignores the filter', async () => {
+            const { raw } = makeRawSessionWithDataKey(creds, { path: '/historical' }, null, { id: 'historical-session' });
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [{ id: 'recent' }], nextCursor: 'cursor_v1_recent' } })
+                .mockResolvedValueOnce({ data: { sessions: [{ id: 'middle' }], nextCursor: 'cursor_v1_middle' } })
+                .mockResolvedValueOnce({ data: { sessions: [raw], nextCursor: null } });
+            await expect(getSessionById(config, creds, 'historical-session')).resolves.toMatchObject({ id: 'historical-session', metadata: { path: '/historical' } });
+            expect(mockedAxios.get.mock.calls.map(call => call[1].params)).toEqual([
+                { limit: 200, id: 'historical-session' },
+                { limit: 200, id: 'historical-session', cursor: 'cursor_v1_recent' },
+                { limit: 200, id: 'historical-session', cursor: 'cursor_v1_middle' },
+            ]);
+        });
+
+        it('returns null for an empty filtered result', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [], nextCursor: null } });
+            await expect(getSessionById(config, creds, 'missing')).resolves.toBeNull();
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('control session requests', () => {
+        it('reads a full ID once and uses the v1 list only after an empty exact result', async () => {
+            const raw = makeRawSessionLegacy(creds, { path: '/project' }, null, { id: 'session-full' });
+            const client = new HappyHerdControlClient({ config, credentials: creds });
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [raw], nextCursor: null } });
+            await expect(client.resolveSession('session-full')).resolves.toMatchObject({ id: 'session-full' });
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+            expect(mockedAxios.get).toHaveBeenCalledWith('https://test-server.example.com/v2/sessions', { headers: authHeader, params: { limit: 200, id: 'session-full' } });
+            mockedAxios.get.mockClear();
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [], nextCursor: null } });
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [raw] } });
+            await expect(client.resolveSession('session-f')).resolves.toMatchObject({ id: 'session-full' });
+            expect(mockedAxios.get.mock.calls).toEqual([
+                ['https://test-server.example.com/v2/sessions', { headers: authHeader, params: { limit: 200, id: 'session-f' } }],
+                ['https://test-server.example.com/v1/sessions', { headers: authHeader }],
+            ]);
+        });
+
+        it('polls a full ID with filtered requests only', async () => {
+            const raw = makeRawSessionLegacy(creds, { path: '/project' }, null, { id: 'session-full' });
+            const client = new HappyHerdControlClient({ config, credentials: creds });
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [], nextCursor: null } });
+            mockedAxios.get.mockResolvedValueOnce({ data: { sessions: [raw], nextCursor: null } });
+            await expect(client.waitForSession('session-full')).resolves.toMatchObject({ id: 'session-full' });
+            expect(mockedAxios.get.mock.calls).toEqual([
+                ['https://test-server.example.com/v2/sessions', { headers: authHeader, params: { limit: 200, id: 'session-full' } }],
+                ['https://test-server.example.com/v2/sessions', { headers: authHeader, params: { limit: 200, id: 'session-full' } }],
+            ]);
         });
     });
 

@@ -197,16 +197,8 @@ export class HappyHerdControlClient {
     }
 
     async resolveSession(sessionId: string): Promise<DecryptedSession> {
-        try {
-            return resolveById(await this.listSessions(), sessionId, 'session');
-        } catch (error) {
-            if (!(error instanceof Error) || !error.message.startsWith('No session found matching')) {
-                throw error;
-            }
-            const exact = await getSessionById(this.config, this.credentials, sessionId);
-            if (exact) return exact;
-            throw error;
-        }
+        const exact = await getSessionById(this.config, this.credentials, sessionId);
+        return exact ?? resolveById(await this.listSessions(), sessionId, 'session');
     }
 
     async resolveMachine(machineId: string): Promise<DecryptedMachine> {
@@ -248,7 +240,9 @@ export class HappyHerdControlClient {
         let lastError: unknown;
         do {
             try {
-                return await this.resolveSession(sessionId);
+                const session = await getSessionById(this.config, this.credentials, sessionId);
+                if (session) return session;
+                throw new Error(`No session found matching "${sessionId}"`);
             } catch (error) {
                 lastError = error;
                 await delay(250);

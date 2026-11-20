@@ -132,9 +132,9 @@ function decryptSessionMetadata(session: SessionListRecord, credentials: LocalHa
     return parseResumableMetadata(session.id, metadata);
 }
 
-async function fetchSessions(credentials: LocalHappyHerdAgentCredentials): Promise<SessionListRecord[]> {
+async function fetchSessions(credentials: LocalHappyHerdAgentCredentials, exactId?: string): Promise<SessionListRecord[]> {
     try {
-        return await loadSessionRecords(credentials.token);
+        return await loadSessionRecords(credentials.token, exactId ? { exactId } : {});
     } catch (error) {
         if (error instanceof AxiosError) {
             if (error.response?.status === 401) {
@@ -148,8 +148,10 @@ async function fetchSessions(credentials: LocalHappyHerdAgentCredentials): Promi
 
 export async function resolveHappyHerdSession(sessionId: string): Promise<ResumableHappyHerdSession> {
     const credentials = readAgentCredentials();
-    const sessions = await fetchSessions(credentials);
-    const matched = resolveSessionRecordByPrefix(sessions, sessionId);
+    const trimmed = sessionId.trim();
+    if (!trimmed) throw new Error('HappyHerd session ID is required: happyherd resume <session-id>');
+    const [exact] = await fetchSessions(credentials, trimmed);
+    const matched = exact ?? resolveSessionRecordByPrefix(await fetchSessions(credentials), trimmed);
     return {
         id: matched.id,
         active: matched.active,

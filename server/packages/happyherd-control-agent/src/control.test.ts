@@ -83,7 +83,7 @@ function legacySession(): DecryptedSession {
 describe('HappyHerdControlClient machine session creation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.getSessionById.mockResolvedValue(null);
+        mocks.getSessionById.mockResolvedValue(session());
         mocks.getProjectById.mockResolvedValue(null);
         mocks.assignSessionProject.mockResolvedValue({ id: 'session-real', projectId: 'project-one' });
         mocks.invokeSpawn.mockResolvedValue({
@@ -94,9 +94,8 @@ describe('HappyHerdControlClient machine session creation', () => {
         mocks.listSessions.mockResolvedValue([session()]);
     });
 
-    it('falls back to exact paginated lookup for a session outside the recent window', async () => {
+    it('reads an exact session without listing', async () => {
         const historical = { ...session(), id: 'historical-session' };
-        mocks.listSessions.mockResolvedValueOnce([]);
         mocks.getSessionById.mockResolvedValueOnce(historical);
         const client = new HappyHerdControlClient({
             config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
@@ -108,11 +107,35 @@ describe('HappyHerdControlClient machine session creation', () => {
         });
 
         await expect(client.resolveSession('historical-session')).resolves.toBe(historical);
+        expect(mocks.listSessions).not.toHaveBeenCalled();
         expect(mocks.getSessionById).toHaveBeenCalledWith(
             client.config,
             client.credentials,
             'historical-session',
         );
+    });
+
+    it('falls back to a unique prefix only after the exact read is absent', async () => {
+        mocks.getSessionById.mockResolvedValueOnce(null);
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/test', credentialPath: '/tmp/key' },
+            credentials: { token: 'token', secret: new Uint8Array(32), contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) } },
+        });
+        await expect(client.resolveSession('session-r')).resolves.toMatchObject({ id: 'session-real' });
+        expect(mocks.getSessionById).toHaveBeenCalledOnce();
+        expect(mocks.listSessions).toHaveBeenCalledOnce();
+        expect(mocks.getSessionById.mock.invocationCallOrder[0]).toBeLessThan(mocks.listSessions.mock.invocationCallOrder[0]);
+    });
+
+    it('waits using only by-ID reads', async () => {
+        mocks.getSessionById.mockResolvedValueOnce(null).mockResolvedValueOnce(session());
+        const client = new HappyHerdControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/test', credentialPath: '/tmp/key' },
+            credentials: { token: 'token', secret: new Uint8Array(32), contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) } },
+        });
+        await expect(client.waitForSession('session-real')).resolves.toMatchObject({ id: 'session-real' });
+        expect(mocks.getSessionById).toHaveBeenCalledTimes(2);
+        expect(mocks.listSessions).not.toHaveBeenCalled();
     });
 
     it('forwards the selected machine and returns its tracked HappyHerd session', async () => {
@@ -161,7 +184,7 @@ describe('HappyHerdControlClient machine session creation', () => {
                 isSideChat: undefined,
             },
         );
-        expect(mocks.listSessions).toHaveBeenCalledTimes(1);
+        expect(mocks.listSessions).not.toHaveBeenCalled();
     });
 
     it.each([undefined, { connectTimeoutMs: 4_000, responseTimeoutMs: 4_000 }])('forwards machine RPC calls with account authority and timeouts %j', async (timeouts) => {
@@ -232,9 +255,9 @@ describe('HappyHerdControlClient machine session creation', () => {
     it('verifies the persisted Project after the server assignment response', async () => {
         const selected = { ...session(), projectId: null };
         const updated = { ...session(), projectId: 'project-one' };
-        mocks.listSessions
-            .mockResolvedValueOnce([selected])
-            .mockResolvedValueOnce([updated]);
+        mocks.getSessionById
+            .mockResolvedValueOnce(selected)
+            .mockResolvedValueOnce(updated);
         mocks.assignSessionProject.mockResolvedValueOnce({ id: 'session-real', projectId: 'project-one' });
         const client = new HappyHerdControlClient({
             config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
@@ -255,9 +278,9 @@ describe('HappyHerdControlClient machine session creation', () => {
     it('reports actual persisted Project when an assignment does not take effect', async () => {
         const selected = { ...session(), projectId: 'project-old' };
         const unchanged = { ...session(), projectId: 'project-old' };
-        mocks.listSessions
-            .mockResolvedValueOnce([selected])
-            .mockResolvedValueOnce([unchanged]);
+        mocks.getSessionById
+            .mockResolvedValueOnce(selected)
+            .mockResolvedValueOnce(unchanged);
         mocks.assignSessionProject.mockResolvedValueOnce({ id: 'session-real', projectId: 'project-one' });
         const client = new HappyHerdControlClient({
             config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
@@ -275,10 +298,7 @@ describe('HappyHerdControlClient machine session creation', () => {
     it('does not accept a Project receipt read back for a different session ID', async () => {
         const selected = { ...session(), projectId: null };
         const wrongSession = { ...session(), id: 'session-other', projectId: 'project-one' };
-        mocks.listSessions
-            .mockResolvedValueOnce([selected])
-            .mockResolvedValueOnce([]);
-        mocks.getSessionById.mockResolvedValueOnce(wrongSession);
+        mocks.getSessionById.mockResolvedValueOnce(selected).mockResolvedValueOnce(wrongSession);
         mocks.assignSessionProject.mockResolvedValueOnce({ id: 'session-real', projectId: 'project-one' });
         const client = new HappyHerdControlClient({
             config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
@@ -329,7 +349,7 @@ describe('HappyHerdControlClient machine session creation', () => {
         const target = machine();
         mocks.listMachines.mockResolvedValue([target]);
         mocks.invokeSpawn.mockResolvedValueOnce({ type: 'success', sessionId: 'session-real' });
-        mocks.listSessions.mockResolvedValueOnce([legacySession()]);
+        mocks.getSessionById.mockResolvedValueOnce(legacySession());
         const client = new HappyHerdControlClient({
             config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
             credentials: {
@@ -366,7 +386,7 @@ describe('HappyHerdControlClient machine session creation', () => {
     it('preserves generic legacy callers with optional settings and a settings-free receipt', async () => {
         const target = machine();
         mocks.invokeSpawn.mockResolvedValueOnce({ type: 'success', sessionId: 'session-real' });
-        mocks.listSessions.mockResolvedValueOnce([legacySession()]);
+        mocks.getSessionById.mockResolvedValueOnce(legacySession());
         const client = new HappyHerdControlClient({
             config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' },
             credentials: {
@@ -406,9 +426,9 @@ describe('HappyHerdControlClient machine session creation', () => {
             settings: { provider: 'grok', model: 'grok-4.6', effort: 'high', permission: 'plan' },
         });
 
-        mocks.listSessions.mockResolvedValueOnce([session({
+        mocks.getSessionById.mockResolvedValueOnce(session({
             provider: 'grok', model: 'other', effort: 'high', permission: 'plan',
-        })]);
+        }));
         await expect(client.spawnSessionOnMachineConfirmed(target, {
             directory: '/srv/project',
             approvedNewDirectoryCreation: false,
@@ -426,14 +446,14 @@ describe('HappyHerdControlClient machine session creation', () => {
                 contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
             },
         });
-        mocks.listSessions.mockResolvedValueOnce([{
+        mocks.getSessionById.mockResolvedValueOnce({
             ...session(),
             metadata: {
                 ...(session().metadata as Record<string, unknown>),
                 commanderId: 'athena',
                 isSuperSession: true,
             },
-        }]);
+        });
 
         await expect(client.spawnSessionOnMachineConfirmed(target, {
             directory: '/srv/project',
@@ -443,7 +463,7 @@ describe('HappyHerdControlClient machine session creation', () => {
             isSuperSession: true,
         })).resolves.toMatchObject({ session: { id: 'session-real' } });
 
-        mocks.listSessions.mockResolvedValueOnce([session()]);
+        mocks.getSessionById.mockResolvedValueOnce(session());
         await expect(client.spawnSessionOnMachineConfirmed(target, {
             directory: '/srv/project',
             approvedNewDirectoryCreation: false,
@@ -451,13 +471,13 @@ describe('HappyHerdControlClient machine session creation', () => {
             commanderId: 'athena',
         })).rejects.toThrow('did not persist Commander athena');
 
-        mocks.listSessions.mockResolvedValueOnce([{
+        mocks.getSessionById.mockResolvedValueOnce({
             ...session(),
             metadata: {
                 ...(session().metadata as Record<string, unknown>),
                 commanderId: 'athena',
             },
-        }]);
+        });
         await expect(client.spawnSessionOnMachineConfirmed(target, {
             directory: '/srv/project',
             approvedNewDirectoryCreation: false,

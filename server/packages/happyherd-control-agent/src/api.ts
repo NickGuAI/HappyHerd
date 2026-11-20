@@ -433,6 +433,7 @@ export async function getSessionById(
                 headers: authHeaders(creds),
                 params: {
                     limit: 200,
+                    id: sessionId,
                     ...(cursor ? { cursor } : {}),
                 },
             });

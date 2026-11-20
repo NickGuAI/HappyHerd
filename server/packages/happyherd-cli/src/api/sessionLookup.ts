@@ -34,6 +34,7 @@ export async function loadSessionRecords(
             },
             params: {
                 limit: 200,
+                ...(options.exactId ? { id: options.exactId } : {}),
                 ...(cursor ? { cursor } : {}),
             },
             ...(options.timeout ? { timeout: options.timeout } : {}),
