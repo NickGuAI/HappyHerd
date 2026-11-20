@@ -912,3 +912,4 @@ ISSUE_480_CLAUDE_RELOGIN	code-ready	fix(credentials): refresh Claude credentials
 ISSUE_480_RECOVERY_GOLDENS	code-ready	test(changelog): refresh account recovery baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_480_CURRENT_LIMITS	code-ready	fix(daemon): handle refreshed and scheduled limit notices	server/packages/happyherd-cli/src/daemon/run.ts
 ISSUE_478_LOGIN_START_DEADLINE	code-ready	fix(credentials): wait for queued Claude login output	server/packages/happyherd-cli/src/credentialPool/loginManager.ts
+ISSUE_478_LOGIN_SCREEN_ERRORS	code-ready	fix(credentials): handle login screen errors	server/packages/happyherd-cli/src/credentialPool/loginManager.ts

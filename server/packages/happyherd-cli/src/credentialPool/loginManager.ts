@@ -14,6 +14,7 @@ import {
   managedProviderDirectAuthKeys,
   sanitizeSessionEnvironment,
 } from '@/daemon/sessionEnvironment';
+import { logger } from '@/ui/logger';
 
 import {
   commitCredentialLogin,
@@ -34,6 +35,12 @@ const MAX_ACTIVE_LOGIN_ATTEMPTS = 3;
 const MAX_CAPTURE_CHARS = 128 * 1_024;
 const ANSI_ESCAPE = /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][\s\S]*?(?:\u0007|\u001b\\))/g;
 const URL_PATTERN = /https:\/\/[^\s]+/g;
+
+function logTerminalFailure(action: 'read' | 'write'): void {
+  try {
+    logger.debug(`[credential login] Could not ${action} terminal output`);
+  } catch {}
+}
 
 type LoginAttempt = {
   public: CredentialLoginFlow;
@@ -246,16 +253,17 @@ export class CredentialLoginManager {
         if (provider === 'claude') {
           attempt.startupTimer = setTimeout(() => {
             // Include output received before the deadline even if xterm has not painted it yet.
-            void attempt.terminal!.read().then((output) => {
+            const fail = () => {
+              if (!attempt.settled) this.beginFinalization(attempt, () => this.finishFailure(
+                attempt,
+                'The provider login did not provide an authorization link.',
+              ));
+            };
+            void Promise.resolve().then(() => attempt.terminal?.read()).then((output) => {
               if (attempt.settled) return;
-              this.capturePrompt(attempt, output);
-              if (!attempt.public.verificationUrl) {
-                this.beginFinalization(attempt, () => this.finishFailure(
-                  attempt,
-                  'The provider login did not provide an authorization link.',
-                ));
-              }
-            });
+              if (output !== undefined) this.capturePrompt(attempt, output);
+              if (!attempt.public.verificationUrl) fail();
+            }).catch(fail);
           }, this.claudeStartupTtlMs);
           attempt.startupTimer.unref?.();
         }
@@ -370,9 +378,13 @@ export class CredentialLoginManager {
   private capture(attempt: LoginAttempt, chunk: Buffer | string): void {
     if (attempt.settled) return;
     if (attempt.terminal) {
-      void attempt.terminal.write(chunk);
+      void attempt.terminal.write(chunk).catch(() => {
+        logTerminalFailure('write');
+      });
       void attempt.terminal.read().then((output) => {
         if (!attempt.settled) this.capturePrompt(attempt, output);
+      }).catch(() => {
+        logTerminalFailure('read');
       });
       return;
     }
