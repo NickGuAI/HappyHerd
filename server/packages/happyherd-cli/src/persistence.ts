@@ -441,12 +441,14 @@ let registrationWaiters: Array<{ resolve: () => void; reject: (error: Error) => 
 let registrationTimer: ReturnType<typeof setTimeout> | undefined;
 let registrationSnapshot: { revision: string; sessions: Record<string, PersistedSession> } | undefined;
 
-export function readPersistedSessions(): Record<string, PersistedSession> {
+export function readPersistedSessions(options?: { throwOnError?: boolean }): Record<string, PersistedSession> {
   let sessions: Record<string, PersistedSession> = {};
   try {
     const data = JSON.parse(readFileSync(configuration.sessionsFile, 'utf-8')) as SessionsFile;
     if (data?.sessions && typeof data.sessions === 'object') sessions = data.sessions;
-  } catch { }
+  } catch (error) {
+    if (options?.throwOnError && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   // Resume and other direct writers must see registrations awaiting their save.
   return Object.assign(sessions, Object.fromEntries(pendingRegistrations));
 }

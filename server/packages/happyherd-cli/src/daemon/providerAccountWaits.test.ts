@@ -153,6 +153,26 @@ describe('durable provider account waits', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('retries a temporary local store read failure after one minute', async () => {
+    const isStored = vi.fn().mockImplementationOnce(() => { throw new Error('temporary read error'); }).mockReturnValue(false);
+    const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+      isStored,
+      select: async () => ({ type: 'unconfigured' }),
+      recover: async () => 'accepted',
+      onError: vi.fn(),
+    });
+    owners.push(owner);
+    owner.add(incident);
+    owner.stopped('session');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(owner.has('session')).toBe(true);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(isStored).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(isStored).toHaveBeenCalledTimes(2);
+    expect(owner.has('session')).toBe(false);
+  });
+
   it('retries a failed account selection after one minute', async () => {
     const select = vi.fn().mockRejectedValueOnce(new Error('temporary store error'))
       .mockResolvedValueOnce({ type: 'available', account: {} as never });

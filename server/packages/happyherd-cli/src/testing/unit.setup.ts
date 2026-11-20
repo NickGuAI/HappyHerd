@@ -4,6 +4,9 @@ import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, afterEach, expect, vi } from 'vitest';
 
+const configuredHome = process.env.HAPPYHERD_HOME_DIR || process.env.HAPPY_HOME_DIR;
+const protectedHomes = [join(homedir(), '.happyherd'), join(homedir(), '.happy')];
+if (configuredHome) protectedHomes.push(configuredHome.replace(/^~/, homedir()));
 const unitHome = mkdtempSync(join(tmpdir(), 'happyherd-unit-'));
 process.env.HAPPYHERD_HOME_DIR = unitHome;
 process.env.HAPPY_HOME_DIR = unitHome;
@@ -15,7 +18,7 @@ vi.mock('@/daemon/providerAccountWaits', async (importOriginal) => {
         ...original,
         ProviderAccountWaits: class extends original.ProviderAccountWaits {
             constructor(...args: ConstructorParameters<typeof original.ProviderAccountWaits>) {
-                if (resolve(args[0]) === resolve(homedir(), '.happyherd', 'provider-account-waits.json')) {
+                if (protectedHomes.some((home) => resolve(args[0]) === resolve(home, 'provider-account-waits.json'))) {
                     usedRealHome = true;
                     throw new Error('A unit test tried to use the real HappyHerd home');
                 }
