@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readCredentialPoolState, upsertCredentialAccount, type CredentialPoolPaths } from './store';
 import { CredentialLoginManager } from './loginManager';
+import { LoginTerminal } from './loginTerminal';
 import { spawnPtyLoginProcess } from './ptyLoginProcess';
 import { activateGrokCredential } from './grokAuth';
 import claudeScreen from './fixtures/claudeSetupToken.json';
@@ -43,6 +44,7 @@ describe('credential provider login manager', () => {
   afterEach(async () => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
     await rm(root, { recursive: true, force: true });
   });
 
@@ -178,22 +180,36 @@ describe('credential provider login manager', () => {
   });
 
   it('waits for a complete Claude authorization URL and fails a silent startup promptly', async () => {
-    const incomplete = fakeChild();
-    const incompleteManager = new CredentialLoginManager({
-      paths,
-      spawnPty: vi.fn(() => incomplete) as any,
-      claudeStartupTtlMs: 10,
+    for (const [name, output] of [
+      ['incomplete', 'https://claude.com/cai/oauth/authorize?client_id=fixture&code=true'],
+      ['silent', ''],
+    ]) {
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({
+        paths,
+        spawnPty: vi.fn(() => child) as any,
+        claudeStartupTtlMs: 10,
+      });
+      const flow = await manager.start('claude', name);
+      if (output) child.stdout.write(output);
+      expect(manager.status(flow.id).state).toBe('starting');
+      expect(manager.status(flow.id).verificationUrl).toBeUndefined();
+      await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+        state: 'failed',
+        error: 'The provider login did not provide an authorization link.',
+      }));
+      await manager.dispose();
+    }
+
+    // Hold screen reads until after the startup deadline has fired.
+    let releaseRead!: () => void;
+    const readGate = new Promise<void>((resolve) => { releaseRead = resolve; });
+    const read = LoginTerminal.prototype.read;
+    const readSpy = vi.spyOn(LoginTerminal.prototype, 'read').mockImplementation(async function (this: LoginTerminal) {
+      await readGate;
+      return read.call(this);
     });
-    const incompleteFlow = await incompleteManager.start('claude', 'incomplete');
-    incomplete.stdout.write('https://claude.com/cai/oauth/authorize?client_id=fixture&code=true');
-    expect(incompleteManager.status(incompleteFlow.id).state).toBe('starting');
-    expect(incompleteManager.status(incompleteFlow.id).verificationUrl).toBeUndefined();
-
-    await vi.waitFor(() => expect(incompleteManager.status(incompleteFlow.id)).toMatchObject({
-      state: 'failed',
-      error: 'The provider login did not provide an authorization link.',
-    }));
-
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const ready = fakeChild();
     const readyManager = new CredentialLoginManager({
       paths,
@@ -202,13 +218,16 @@ describe('credential provider login manager', () => {
     });
     const readyFlow = await readyManager.start('claude', 'ready');
     ready.stdout.write(CLAUDE_AUTH_URL);
+    vi.advanceTimersByTime(10);
+    expect(ready.kill).not.toHaveBeenCalled();
+    releaseRead();
+    vi.useRealTimers();
     await vi.waitFor(() => expect(readyManager.status(readyFlow.id)).toMatchObject({
       state: 'waiting-user',
       verificationUrl: CLAUDE_AUTH_URL,
     }));
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    expect(readyManager.status(readyFlow.id).state).toBe('waiting-user');
     await readyManager.cancel(readyFlow.id);
+    readSpy.mockRestore();
   });
 
   it('cancels a staged login without replacing an existing account', async () => {

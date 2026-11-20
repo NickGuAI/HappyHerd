@@ -245,10 +245,17 @@ export class CredentialLoginManager {
         attempt.expiryTimer.unref?.();
         if (provider === 'claude') {
           attempt.startupTimer = setTimeout(() => {
-            this.beginFinalization(attempt, () => this.finishFailure(
-              attempt,
-              'The provider login did not provide an authorization link.',
-            ));
+            // Include output received before the deadline even if xterm has not painted it yet.
+            void attempt.terminal!.read().then((output) => {
+              if (attempt.settled) return;
+              this.capturePrompt(attempt, output);
+              if (!attempt.public.verificationUrl) {
+                this.beginFinalization(attempt, () => this.finishFailure(
+                  attempt,
+                  'The provider login did not provide an authorization link.',
+                ));
+              }
+            });
           }, this.claudeStartupTtlMs);
           attempt.startupTimer.unref?.();
         }
