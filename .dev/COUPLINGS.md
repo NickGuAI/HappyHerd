@@ -67,6 +67,14 @@ Changes to ordering, reconnect, delivery, completion, or visibility require
 inspection at every layer. A transport-presence signal is not a substitute for
 canonical persisted session/message state.
 
+### Single-session reads
+
+The server accepts `id` on `GET /v2/sessions` to return the caller's matching
+session without paging. CLI and account-control exact reads send this filter
+on each page. Older servers ignore the filter, so these clients keep paging and
+matching IDs as before. Prefix resolution uses the full list after no exact
+match; full-list callers do not send the filter.
+
 ### Loaded Commander context
 
 `agentContext/commanderContext.ts` records file provenance while assembling the

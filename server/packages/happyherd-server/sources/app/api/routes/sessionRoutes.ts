@@ -269,13 +269,14 @@ export function sessionRoutes(app: Fastify) {
         schema: {
             querystring: z.object({
                 cursor: z.string().optional(),
+                id: z.string().min(1).optional(),
                 limit: z.coerce.number().int().min(1).max(200).default(50),
                 changedSince: z.coerce.number().int().positive().optional()
             }).optional()
         }
     }, async (request, reply) => {
         const userId = request.userId;
-        const { cursor, limit = 50, changedSince } = request.query || {};
+        const { cursor, id, limit = 50, changedSince } = request.query || {};
 
         // Decode cursor - simple ID-based cursor
         let cursorSessionId: string | undefined;
@@ -298,7 +299,9 @@ export function sessionRoutes(app: Fastify) {
         }
 
         // Add cursor pagination - always by ID descending (most recent first)
-        if (cursorSessionId) {
+        if (id) {
+            where.id = id;
+        } else if (cursorSessionId) {
             where.id = {
                 lt: cursorSessionId  // Get sessions with ID less than cursor (for desc order)
             };

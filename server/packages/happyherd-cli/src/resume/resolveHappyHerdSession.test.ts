@@ -38,7 +38,7 @@ vi.mock('./localHappyHerdAgentAuth', async (importOriginal) => {
     };
 });
 
-import { resolveReconnectableSession, resolveSessionRecordByPrefix } from './resolveHappyHerdSession';
+import { resolveHappyHerdSession, resolveReconnectableSession, resolveSessionRecordByPrefix } from './resolveHappyHerdSession';
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -134,14 +134,32 @@ describe('resolveReconnectableSession', () => {
         expect(mocks.axiosGet).toHaveBeenNthCalledWith(
             1,
             'https://api.example.test/v2/sessions',
-            expect.objectContaining({ params: { limit: 200 } }),
+            expect.objectContaining({ params: { limit: 200, id: sessionId } }),
         );
         expect(mocks.axiosGet).toHaveBeenNthCalledWith(
             2,
             'https://api.example.test/v2/sessions',
             expect.objectContaining({
-                params: { limit: 200, cursor: 'cursor_v1_newer-session' },
+                params: { limit: 200, id: sessionId, cursor: 'cursor_v1_newer-session' },
             }),
         );
+    });
+});
+
+describe('resolveHappyHerdSession', () => {
+    it('reads a full ID first and lists for a unique prefix only when absent', async () => {
+        const record = { id: 'session-full', active: false, metadata: 'ciphertext', dataEncryptionKey: null };
+        mocks.decryptLegacy.mockReturnValue({ path: '/project' });
+        mocks.axiosGet.mockResolvedValueOnce({ data: { sessions: [record], nextCursor: null } });
+        await expect(resolveHappyHerdSession('session-full')).resolves.toMatchObject({ id: 'session-full' });
+        expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+        expect(mocks.axiosGet.mock.calls[0][1].params).toEqual({ limit: 200, id: 'session-full' });
+        mocks.axiosGet.mockClear();
+        mocks.axiosGet.mockResolvedValueOnce({ data: { sessions: [], nextCursor: null } });
+        mocks.axiosGet.mockResolvedValueOnce({ data: { sessions: [record], nextCursor: null } });
+        await expect(resolveHappyHerdSession('session-f')).resolves.toMatchObject({ id: 'session-full' });
+        expect(mocks.axiosGet.mock.calls.map(call => call[1].params)).toEqual([
+            { limit: 200, id: 'session-f' }, { limit: 200 },
+        ]);
     });
 });

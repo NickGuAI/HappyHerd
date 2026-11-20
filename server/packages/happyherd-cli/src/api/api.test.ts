@@ -328,13 +328,13 @@ describe('Api server error handling', () => {
             expect(mockGet).toHaveBeenNthCalledWith(
                 1,
                 expect.stringMatching(/\/v2\/sessions$/),
-                expect.objectContaining({ params: { limit: 200 }, timeout: 60000 }),
+                expect.objectContaining({ params: { limit: 200, id: 'session-1' }, timeout: 60000 }),
             );
             expect(mockGet).toHaveBeenNthCalledWith(
                 2,
                 expect.stringMatching(/\/v2\/sessions$/),
                 expect.objectContaining({
-                    params: { limit: 200, cursor: 'cursor_v1_newer-session' },
+                    params: { limit: 200, id: 'session-1', cursor: 'cursor_v1_newer-session' },
                     timeout: 60000,
                 }),
             );
@@ -414,9 +414,10 @@ describe('Api server error handling', () => {
                 },
             });
             expect(inspected?.session.metadata).toEqual(metadata);
+            expect(mockGet).toHaveBeenCalledTimes(1);
             expect(mockGet).toHaveBeenCalledWith(
                 'https://api.example.com/v2/sessions',
-                expect.objectContaining({ params: expect.objectContaining({ limit: 200 }) }),
+                expect.objectContaining({ params: { limit: 200, id: savedSession.id }, timeout: 60000 }),
             );
         });
 
@@ -424,6 +425,8 @@ describe('Api server error handling', () => {
             mockGet.mockResolvedValue({ data: { sessions: [] } });
             await expect(api.findSessionAuthoritative(savedSession)).resolves.toBeNull();
             await expect(api.inspectSessionAuthoritative(savedSession)).rejects.toThrow('Cannot refresh HappyHerd session session-project for reconnect');
+            expect(mockGet).toHaveBeenCalledTimes(2);
+            expect(mockGet.mock.calls.every(call => call[0] === 'https://api.example.com/v2/sessions' && call[1].params.id === savedSession.id)).toBe(true);
             expect(mockDecrypt).not.toHaveBeenCalled();
         });
 
@@ -434,6 +437,19 @@ describe('Api server error handling', () => {
             mockGet.mockRejectedValueOnce(error);
             await expect(api.findSessionAuthoritative(savedSession)).rejects.toBe(error);
             expect(mockDecrypt).not.toHaveBeenCalled();
+        });
+
+        it('finds a third-page session when an older server ignores the ID filter', async () => {
+            mockGet.mockResolvedValueOnce({ data: { sessions: [{ id: 'newer' }], nextCursor: 'cursor_v1_newer' } })
+                .mockResolvedValueOnce({ data: { sessions: [{ id: 'middle' }], nextCursor: 'cursor_v1_middle' } })
+                .mockResolvedValueOnce({ data: { sessions: [{ id: savedSession.id, seq: 7, metadata: 'encrypted', metadataVersion: 3, agentState: null, agentStateVersion: 1, active: false }], nextCursor: null } });
+            await expect(api.findSessionAuthoritative(savedSession)).resolves.toMatchObject({ session: { id: savedSession.id, seq: 7 } });
+            expect(mockGet).toHaveBeenCalledTimes(3);
+            expect(mockGet.mock.calls.map(call => call[1].params)).toEqual([
+                { limit: 200, id: savedSession.id },
+                { limit: 200, id: savedSession.id, cursor: 'cursor_v1_newer' },
+                { limit: 200, id: savedSession.id, cursor: 'cursor_v1_middle' },
+            ]);
         });
 
         it('propagates a decryption error instead of treating the row as missing', async () => {
