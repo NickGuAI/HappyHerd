@@ -427,6 +427,7 @@ export async function startDaemon(): Promise<void> {
     const cancelledResumes = new Set<string>();
     let recoverWaiting = async (_wait: ProviderAccountWait, _current: () => boolean): Promise<'accepted' | 'archived' | 'failed'> => 'failed';
     const accountWaits = new ProviderAccountWaits(join(configuration.happyHomeDir, 'provider-account-waits.json'), {
+      isStored: (sessionId) => persisted[sessionId]?.metadata.machineId === machineId,
       select: (provider) => selectCredentialAccount(provider),
       recover: (wait, current) => recoverWaiting(wait, current),
       onError: (error) => logger.warn('[CREDENTIAL POOL] Failed to recover waiting session', error),

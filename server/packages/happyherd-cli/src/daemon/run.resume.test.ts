@@ -623,6 +623,26 @@ describe('daemon session continuity', () => {
     return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
   }
 
+  it('removes a wait for a session missing from this machine before account selection', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'daemon-missing-wait-'));
+    temporaryDirectories.push(root);
+    const originalHome = configuration.happyHomeDir;
+    Object.defineProperty(configuration, 'happyHomeDir', { value: root, configurable: true });
+    try {
+      const file = join(root, 'provider-account-waits.json');
+      await writeFile(file, JSON.stringify([{
+        sessionId: 'missing', provider: 'codex', account: 'one',
+        incidentId: 'missing-incident', limitedUntil: Date.now() + 60_000,
+      }]));
+      daemonRun = startDaemon();
+      await vi.waitFor(async () => expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([]));
+      expect(mocks.inspectSessionAuthoritative).not.toHaveBeenCalled();
+      expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(configuration, 'happyHomeDir', { value: originalHome, configurable: true });
+    }
+  });
+
   it.each(['stop', 'resume', 'message', 'archive', 'archive-requested'] as const)(
     'removes a persisted quota wait on the actual %s path', async (action) => {
       const root = await mkdtemp(join(tmpdir(), 'daemon-account-wait-'));
