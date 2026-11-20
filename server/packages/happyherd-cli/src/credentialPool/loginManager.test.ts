@@ -332,6 +332,35 @@ describe('credential provider login manager', () => {
     }
   });
 
+  it.each(['deadline', 'shutdown'])('handles a failed pending terminal write during %s', async (ending) => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      const debug = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+      vi.spyOn(LoginTerminal.prototype, 'write').mockImplementationOnce(function (this: LoginTerminal) {
+        const pending = Promise.reject(new Error('write failed'));
+        (this as any).pending = pending;
+        return pending;
+      });
+      const child = fakeChild();
+      const manager = new CredentialLoginManager({ paths, spawnPty: vi.fn(() => child) as any, claudeStartupTtlMs: ending === 'deadline' ? 10 : 60_000 });
+      const flow = await manager.start('claude', 'write-fails');
+      child.stdout.write('initial output');
+      if (ending === 'deadline') {
+        await vi.waitFor(() => expect(manager.status(flow.id)).toMatchObject({
+          state: 'failed', error: 'The provider login did not provide an authorization link.',
+        }));
+      } else {
+        await vi.waitFor(() => expect(debug).toHaveBeenCalledTimes(2));
+      }
+      await expect(manager.dispose()).resolves.toBeUndefined();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
   it('cancels a staged login without replacing an existing account', async () => {
     await upsertCredentialAccount({
       provider: 'claude',

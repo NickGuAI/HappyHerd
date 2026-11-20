@@ -913,3 +913,4 @@ ISSUE_480_RECOVERY_GOLDENS	code-ready	test(changelog): refresh account recovery 
 ISSUE_480_CURRENT_LIMITS	code-ready	fix(daemon): handle refreshed and scheduled limit notices	server/packages/happyherd-cli/src/daemon/run.ts
 ISSUE_478_LOGIN_START_DEADLINE	code-ready	fix(credentials): wait for queued Claude login output	server/packages/happyherd-cli/src/credentialPool/loginManager.ts
 ISSUE_478_LOGIN_SCREEN_ERRORS	code-ready	fix(credentials): handle login screen errors	server/packages/happyherd-cli/src/credentialPool/loginManager.ts
+ISSUE_478_LOGIN_SCREEN_CLEANUP	code-ready	fix(credentials): handle login terminal cleanup errors	server/packages/happyherd-cli/src/credentialPool/loginManager.ts

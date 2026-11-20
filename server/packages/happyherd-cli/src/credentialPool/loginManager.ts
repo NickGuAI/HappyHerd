@@ -364,7 +364,7 @@ export class CredentialLoginManager {
           await this.terminate(attempt);
           await rm(attempt.stagingHome, { recursive: true, force: true }).catch(() => {});
         } finally {
-          await attempt.terminal?.dispose();
+          await attempt.terminal?.dispose().catch(() => {});
           attempt.terminal = undefined;
           this.releaseTarget(attempt);
         }
@@ -529,7 +529,7 @@ export class CredentialLoginManager {
 
   private finish(attempt: LoginAttempt, flow: CredentialLoginFlow): void {
     attempt.output = '';
-    void attempt.terminal?.dispose();
+    void attempt.terminal?.dispose().catch(() => {});
     attempt.terminal = undefined;
     attempt.public = flow;
     this.releaseTarget(attempt);
