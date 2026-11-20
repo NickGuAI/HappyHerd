@@ -918,3 +918,4 @@ ISSUE_485_SESSION_BY_ID	code-ready	fix(session): filter session lists by ID	serv
 ISSUE_480_TEST_HOME	code-ready	fix(daemon): isolate test homes and discard missing waits	server/packages/happyherd-cli/src/daemon/providerAccountWaits.ts
 ISSUE_480_WAIT_READ_FAILURES	code-ready	fix(daemon): preserve waits when session storage cannot be read	server/packages/happyherd-cli/src/persistence.ts
 ISSUE_480_LEGACY_HOME_TEST	code-ready	fix(test): use the legacy home compatibility helper	server/packages/happyherd-cli/src/testing/unit.setup.ts
+ISSUE_480_LEGACY_HOME_GUARD	code-ready	fix(test): guard the legacy default home	server/packages/happyherd-cli/src/testing/unit.setup.ts

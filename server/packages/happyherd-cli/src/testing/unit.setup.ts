@@ -7,7 +7,7 @@ import { afterAll, afterEach, expect, vi } from 'vitest';
 
 const legacyHomeKey = legacyEnvironmentKey('HAPPYHERD_HOME_DIR')!;
 const configuredHome = process.env.HAPPYHERD_HOME_DIR || process.env[legacyHomeKey];
-const protectedHomes = [join(homedir(), '.happyherd'), join(homedir(), '.happy')];
+const protectedHomes = [join(homedir(), '.happyherd'), join(homedir(), `.${legacyHomeKey.split('_')[0].toLowerCase()}`)];
 if (configuredHome) protectedHomes.push(configuredHome.replace(/^~/, homedir()));
 const unitHome = mkdtempSync(join(tmpdir(), 'happyherd-unit-'));
 process.env.HAPPYHERD_HOME_DIR = unitHome;
