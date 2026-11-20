@@ -23,6 +23,7 @@ describe('durable provider account waits', () => {
     : { type: 'all-limited', limitedUntil: 1_000 };
   const create = () => {
     const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+      isStored: () => true,
       select: async () => selection(),
       recover: async (wait, current) => {
         if (!current()) return 'failed';
@@ -115,6 +116,7 @@ describe('durable provider account waits', () => {
   it('tries a failed recovery again after one minute', async () => {
     const recover = vi.fn().mockResolvedValueOnce('failed').mockResolvedValueOnce('accepted');
     const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+      isStored: () => true,
       select: async () => ({ type: 'available', account: {} as never }),
       recover,
       onError: (error) => { throw error; },
@@ -131,12 +133,52 @@ describe('durable provider account waits', () => {
     expect(owner.has('session')).toBe(false);
   });
 
+  it('deletes a missing local session at the first look without a timer', async () => {
+    const select = vi.fn(async () => ({ type: 'all-limited' as const, limitedUntil: 100_000 }));
+    const recover = vi.fn();
+    const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+      isStored: () => false,
+      select,
+      recover,
+      onError: (error) => { throw error; },
+    });
+    owners.push(owner);
+    owner.add(incident);
+    owner.stopped('session');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(owner.has('session')).toBe(false);
+    expect(create().has('session')).toBe(false);
+    expect(select).not.toHaveBeenCalled();
+    expect(recover).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('retries a temporary local store read failure after one minute', async () => {
+    const isStored = vi.fn().mockImplementationOnce(() => { throw new Error('temporary read error'); }).mockReturnValue(false);
+    const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+      isStored,
+      select: async () => ({ type: 'unconfigured' }),
+      recover: async () => 'accepted',
+      onError: vi.fn(),
+    });
+    owners.push(owner);
+    owner.add(incident);
+    owner.stopped('session');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(owner.has('session')).toBe(true);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(isStored).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(isStored).toHaveBeenCalledTimes(2);
+    expect(owner.has('session')).toBe(false);
+  });
+
   it('retries a failed account selection after one minute', async () => {
     const select = vi.fn().mockRejectedValueOnce(new Error('temporary store error'))
       .mockResolvedValueOnce({ type: 'available', account: {} as never });
     const recover = vi.fn(async () => 'accepted' as const);
     const onError = vi.fn();
-    const owner = new ProviderAccountWaits(join(root, 'waits.json'), { select, recover, onError });
+    const owner = new ProviderAccountWaits(join(root, 'waits.json'), { isStored: () => true, select, recover, onError });
     owners.push(owner);
     owner.add(incident);
     owner.stopped('session');
@@ -151,6 +193,7 @@ describe('durable provider account waits', () => {
   it('removes the wait when there are no configured accounts', async () => {
     const recover = vi.fn();
     const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+      isStored: () => true,
       select: async () => ({ type: 'unconfigured' }),
       recover,
       onError: (error) => { throw error; },
@@ -176,6 +219,7 @@ describe('durable provider account waits', () => {
     });
     const createReal = () => {
       const owner = new ProviderAccountWaits(join(root, 'waits.json'), {
+        isStored: () => true,
         select: (provider) => selectCredentialAccount(provider, { paths }),
         recover,
         onError: (error) => { throw error; },

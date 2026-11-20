@@ -174,6 +174,13 @@ describe('session persistence', () => {
         rmSync(testDir, { recursive: true, force: true });
     });
 
+    it('distinguishes a missing session file from a failed read when requested', () => {
+        expect(readPersistedSessions({ throwOnError: true })).toEqual({});
+        writeFileSync(mockConfiguration.sessionsFile, '{');
+        expect(() => readPersistedSessions({ throwOnError: true })).toThrow();
+        expect(readPersistedSessions()).toEqual({});
+    });
+
     it('reloads recent and older-than-14-day sessions after an update rewrite', () => {
         const recent = sessionRecord(Date.now(), 'thread-recent');
         const historical = sessionRecord(Date.now() - 45 * 24 * 60 * 60 * 1000, 'thread-historical');

@@ -20,6 +20,7 @@ export class ProviderAccountWaits {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(private readonly file: string, private readonly dependencies: {
+    isStored: (sessionId: string) => boolean;
     select: (provider: CredentialProvider) => Promise<CredentialPoolSelection>;
     recover: (wait: ProviderAccountWait, current: () => boolean) => Promise<'accepted' | 'archived' | 'failed'>;
     onError: (error: unknown) => void;
@@ -93,6 +94,10 @@ export class ProviderAccountWaits {
     this.checking.add(sessionId);
     const current = () => this.waits.get(sessionId) === wait;
     try {
+      if (!this.dependencies.isStored(sessionId)) {
+        this.cancel(sessionId);
+        return;
+      }
       const selection = await this.dependencies.select(wait.provider);
       if (!current()) return;
       if (selection.type === 'all-limited') {
