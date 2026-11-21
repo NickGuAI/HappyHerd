@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { io, type Socket } from 'socket.io-client';
 import { decodeBase64, decrypt, encodeBase64, encrypt, getRandomBytes } from './encryption';
-import type { DecryptedMachine } from './api';
+import type { DecryptedMachine, DecryptedSession } from './api';
 
 class MockSocket extends EventEmitter {
     connected = true;
@@ -64,7 +64,7 @@ vi.mock('socket.io-client', () => ({
     }),
 }));
 
-import { callMachineRpc, resumeSessionOnMachine, spawnSessionOnMachine } from './machineRpc';
+import { callMachineRpc, killSession, resumeSessionOnMachine, spawnSessionOnMachine } from './machineRpc';
 
 function makeMachine(): DecryptedMachine {
     return {
@@ -314,5 +314,39 @@ describe('spawnSessionOnMachine', () => {
             'machine-other:codex-fork-thread',
             {},
         )).rejects.toThrow('Machine RPC method must contain only');
+    });
+});
+
+describe('killSession', () => {
+    const config = { serverUrl: 'https://happy.example', homeDir: '/tmp/happyherd', credentialPath: '/tmp/key' };
+    let session: Pick<DecryptedSession, 'id' | 'encryption'>;
+
+    beforeEach(() => {
+        session = { id: 'session-1', encryption: { key: getRandomBytes(32), variant: 'dataKey' } };
+        // The mock host encrypts its reply with the key of the record it serves.
+        machine = { ...makeMachine(), encryption: session.encryption };
+        rpcResultOverride = { success: true, message: 'Killing happyherd-cli process' };
+    });
+
+    it('asks the session host to stop with the session key and decrypts its reply', async () => {
+        await expect(killSession(config, session, 'account-token-secret'))
+            .resolves.toEqual({ success: true, message: 'Killing happyherd-cli process' });
+
+        expect(socket.rpcPayload?.method).toBe('session-1:killSession');
+        expect(socket.responseTimeoutMs).toBe(50_000);
+        expect(decrypt(session.encryption.key, session.encryption.variant, decodeBase64(socket.rpcPayload!.params)))
+            .toEqual({});
+        expect(decrypt(getRandomBytes(32), 'dataKey', decodeBase64(socket.rpcPayload!.params))).toBeNull();
+        expect(socket.rpcPayload?.params).not.toContain('account-token-secret');
+        expect(socket.connected).toBe(false);
+    });
+
+    it('reports a session whose host is not connected as not running', async () => {
+        const unavailable = new MockSocket(machine);
+        vi.spyOn(unavailable, 'emitWithAck').mockResolvedValue({ ok: false, error: 'RPC method not available' } as never);
+        vi.mocked(io).mockReturnValueOnce(unavailable as unknown as Socket);
+
+        await expect(killSession(config, session, 'account-token')).rejects.toThrow('Session session-1 is not running.');
+        expect(unavailable.connected).toBe(false);
     });
 });

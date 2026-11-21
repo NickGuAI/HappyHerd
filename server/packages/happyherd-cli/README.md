@@ -442,6 +442,7 @@ pause/stop-run/abandon-run actions. `server --help` describes local self-hosting
 | `happyherd context-folder set --id ID [--account EMAIL] [--json]` | Confirm an existing Drive folder and save its ID, name and selected account; use `--account` when `gog` needs an account choice |
 | `happyherd session set-project SESSION_ID PROJECT_ID\|none [--json]` | Assign, reassign, or clear the account Project |
 | `happyherd session set-settings SESSION_ID [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]` | Save provider choices for the next message or resume |
+| `happyherd session archive SESSION_ID [--json]` | Archive one session as the app does: its side chats close first, and the conversation stays resumable |
 
 ---
 

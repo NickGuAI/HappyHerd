@@ -9,6 +9,7 @@ import { requireCredentials } from './credentials';
 import {
     assignSessionProject as assignProjectInApi,
     createProject,
+    deactivateSession as deactivateSessionInApi,
     renameProject,
     getProjectById,
     getSessionById,
@@ -24,7 +25,9 @@ import {
 } from './api';
 import {
     callMachineRpc as invokeMachineRpc,
+    killSession as invokeKillSession,
     type MachineRpcTimeouts,
+    type SessionKillResult,
     resumeSessionOnMachine,
     spawnSessionOnMachine as invokeSpawnSessionOnMachine,
     type SupportedAgent,
@@ -235,6 +238,14 @@ export class HappyHerdControlClient {
         );
     }
 
+    killSession(session: DecryptedSession, timeouts?: MachineRpcTimeouts): Promise<SessionKillResult> {
+        return invokeKillSession(this.config, session, this.credentials.token, timeouts);
+    }
+
+    deactivateSession(sessionId: string): Promise<void> {
+        return deactivateSessionInApi(this.config, this.credentials, sessionId);
+    }
+
     async waitForSession(sessionId: string, timeoutMs = 15_000): Promise<DecryptedSession> {
         const deadline = Date.now() + timeoutMs;
         let lastError: unknown;
@@ -414,5 +425,6 @@ export type {
     DecryptedSession,
     SpawnSessionRuntimeContext,
     MachineRpcTimeouts,
+    SessionKillResult,
     TurnResult,
 };
