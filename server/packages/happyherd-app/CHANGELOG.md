@@ -1,3 +1,7 @@
+# November 21 — Direct Command automations continue after a daemon restart
+
+- A Direct Command automation whose command was running when the daemon restarted now runs again at its next scheduled time, instead of skipping every later run. The interrupted run is marked failed with a note that the daemon restarted.
+
 # November 21 — Archive a session from the CLI
 
 - Archive one session with `happyherd session archive SESSION_ID`, the same as Archive in the app: its side chats close first, a running session is stopped by its own session host, and a stopped session is marked archived. The conversation stays, and `happyherd resume` continues it later. The command requires the account-control link.

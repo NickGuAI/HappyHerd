@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { HappyHerdAutomationService, runHappyHerdExecCommand } from './service';
+import { HappyHerdAutomationService, runHappyHerdExecCommand, type HappyHerdExecCommandResult } from './service';
 import type { HappyHerdAutomationStore } from './store';
 import type { HappyHerdAutomationRun } from '@happyherd/wire';
 import type { Session } from '@/api/types';
@@ -819,6 +819,87 @@ describe('HappyHerdAutomationService', () => {
     await expect(service.pause(created.id)).resolves.toMatchObject({ status: 'paused' });
     await expect(service.delete(created.id)).rejects.toThrow(/currently running/);
     expect(replacementSpawn).not.toHaveBeenCalled();
+  });
+
+  it('closes an exec run left running by an earlier daemon so the next scheduled run starts', async () => {
+    const scheduled = (target: HappyHerdAutomationService, id: string) => (target as unknown as {
+      execute: (automationId: string, source: 'schedule', at: Date) => Promise<HappyHerdAutomationRun>;
+    }).execute(id, 'schedule', new Date());
+    const earlier = new HappyHerdAutomationService(
+      'machine-one', vi.fn(), undefined, undefined, vi.fn(() => new Promise<never>(() => {})),
+    );
+    service = earlier;
+    await earlier.start();
+    const created = await earlier.create(execInput());
+    void scheduled(earlier, created.id);
+    await vi.waitFor(async () => expect(await earlier.listActiveRuns()).toHaveLength(1));
+    const [interrupted] = await earlier.listActiveRuns();
+    for (let skip = 0; skip < 3; skip++) {
+      await expect(scheduled(earlier, created.id)).resolves.toMatchObject({ status: 'skipped' });
+    }
+    expect((await earlier.list()).blockedRuns).toEqual([expect.objectContaining({ runId: interrupted.id })]);
+    await earlier.stop();
+
+    const nextCommand = vi.fn().mockResolvedValue({ exitCode: 0, signal: null, stderr: '', stderrTruncated: false });
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), undefined, undefined, nextCommand);
+    await service.start();
+    const closed = (await service.history(created.id)).runs.find((run) => run.id === interrupted.id);
+    expect(closed).toMatchObject({
+      status: 'failed',
+      execution: 'exec',
+      sessionId: null,
+      startedAt: interrupted.startedAt,
+      message: 'The daemon restarted while this command was running, so its result was not recorded.',
+    });
+    expect(closed?.finishedAt).not.toBeNull();
+    expect((await service.list()).blockedRuns).toEqual([]);
+    await expect(scheduled(service, created.id)).resolves.toMatchObject({
+      status: 'completed',
+      message: 'Command exited with code 0.',
+    });
+    expect(nextCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not close an exec run that this daemon process is still running', async () => {
+    let finishCommand!: (result: HappyHerdExecCommandResult) => void;
+    const execCommand = vi.fn(() => new Promise<HappyHerdExecCommandResult>((resolve) => { finishCommand = resolve; }));
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), undefined, undefined, execCommand);
+    await service.start();
+    const created = await service.create(execInput());
+    const inFlight = await service.runNow(created.id);
+    await service.stop();
+    await service.start();
+    expect((await service.history(created.id)).runs[0]).toEqual(inFlight);
+
+    finishCommand({ exitCode: 0, signal: null, stderr: '', stderrTruncated: false });
+    await vi.waitFor(async () => {
+      expect((await service!.history(created.id)).runs[0]).toMatchObject({
+        id: inFlight.id,
+        status: 'completed',
+        message: 'Command exited with code 0.',
+      });
+    });
+  });
+
+  it('leaves an agent spawn left running by an earlier daemon for its late registration', async () => {
+    service = new HappyHerdAutomationService('machine-one', vi.fn().mockResolvedValue({
+      type: 'error',
+      errorMessage: 'webhook timeout',
+    }));
+    await service.start();
+    const created = await service.create(input());
+    const spawning = await service.runNow(created.id);
+    expect(spawning).toMatchObject({ status: 'running', execution: 'agent', sessionId: null });
+    await service.stop();
+
+    service = new HappyHerdAutomationService('machine-one', vi.fn());
+    await service.start();
+    expect((await service.history(created.id)).runs[0]).toEqual(spawning);
+    await expect(service.confirmRunStarted({
+      automationId: created.id,
+      runId: spawning.id,
+      sessionId: 'late-session',
+    })).resolves.toMatchObject({ status: 'started', sessionId: 'late-session' });
   });
 
   it('stops only the exact tracked run and waits for confirmed provider exit', async () => {
