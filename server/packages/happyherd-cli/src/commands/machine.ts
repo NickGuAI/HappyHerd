@@ -42,6 +42,7 @@ import {
 import { createDaemonDevicePairing, cancelDaemonDevicePairing, ensureDaemonAssistant, manageDaemonSideChat, spawnLocalDaemonSession } from '@/daemon/controlClient';
 import { handleLocalSessionInspectCommand, handleLocalSessionSendCommand, type LocalSessionCommandDependencies } from './localSession';
 import { handleSessionSettingsCommand } from './sessionSettings';
+import { handleSessionArchiveCommand } from './sessionArchive';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
 type Provider = HappyHerdMachineSessionProvider;
@@ -59,6 +60,8 @@ export type MachineControlClient = Pick<
   | 'resolveSession'
   | 'setSessionProject'
   | 'callMachineRpc'
+  | 'killSession'
+  | 'deactivateSession'
   | 'spawnSessionOnMachineConfirmed'
   | 'updateSessionMetadata'
 >;
@@ -160,6 +163,7 @@ Usage:
     [--super-session] [--create-dir] [--json]
   happyherd session set-commander <session-id> <commander-id|none> [--json]
   happyherd session set-project <session-id> <project-id|none> [--json]
+  happyherd session archive <session-id> [--json]
   happyherd session side-chat create <parent-session-id> <brief-options> \
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]
 
@@ -192,7 +196,13 @@ set-settings requires account-level machine control authentication; run
 "happyherd machine auth login". Use exact setting codes advertised by the
 session's owning machine. A running turn keeps
 its current settings; supported selections apply to the next message, otherwise
-on resume. Grok permission changes are confirmed through the owning daemon.`;
+on resume. Grok permission changes are confirmed through the owning daemon.
+
+archive works like Archive in the app: the session's side chats close first,
+then a running session is stopped by its own session host, and a session that
+is not running is marked archived through the server. The conversation and the
+record stay, and "happyherd resume" can continue it later. archive also
+requires account-level machine control authentication.`;
 }
 
 function parseFlags(args: string[], allowedValueFlags: Set<string>, allowedBooleanFlags: Set<string>): ParsedFlags {
@@ -856,6 +866,13 @@ export async function handleSessionCommand(
   }
   if (action === 'set-settings') {
     await handleSessionSettingsCommand(rest, {
+      createClient: dependencies?.createClient,
+      output: outputFor(dependencies),
+    });
+    return;
+  }
+  if (action === 'archive') {
+    await handleSessionArchiveCommand(rest, {
       createClient: dependencies?.createClient,
       output: outputFor(dependencies),
     });

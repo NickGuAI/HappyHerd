@@ -45,6 +45,7 @@ import {
     listActiveSessions,
     createSession,
     deleteSession,
+    deactivateSession,
     getSessionMessages,
     resolveSessionEncryption,
     listProjects,
@@ -786,6 +787,30 @@ describe('api', () => {
 
             await expect(deleteSession(config, creds, 'some-id')).rejects.toThrow(
                 'Authentication expired',
+            );
+        });
+    });
+
+    describe('deactivateSession', () => {
+        it('posts to the session archive route with auth headers', async () => {
+            mockedAxios.post.mockResolvedValueOnce({ data: { success: true } });
+
+            await deactivateSession(config, creds, 'session/1');
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://test-server.example.com/v1/sessions/session%2F1/archive',
+                {},
+                { headers: authHeader },
+            );
+        });
+
+        it('throws on 404', async () => {
+            const { AxiosError } = await import('axios');
+            const err = new (AxiosError as any)('Not Found', { response: { status: 404 } });
+            mockedAxios.post.mockRejectedValueOnce(err);
+
+            await expect(deactivateSession(config, creds, 'missing-session')).rejects.toThrow(
+                'Not found: deactivating session missing-session',
             );
         });
     });

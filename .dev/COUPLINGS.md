@@ -696,9 +696,12 @@ Explicit archive actions for a normal session use the shared app helper
 the owning machine's `happyherd-side-chat-close-all` RPC, require every child
 close receipt to succeed, then kill the parent and use the server archive
 fallback only when the parent process is unreachable. The Session quick-action
-menu and Session Info route share this helper. A failed child close keeps the
-parent visible and retryable. Bot archive continues through its owning session
-RPC, and Rig metadata continues through its externally owned lifecycle. This is
+menu and Session Info route share this helper. The CLI `happyherd session
+archive` repeats the same order through the account-control client
+(`commands/sessionArchive.ts`) and requires the archived marker on read-back.
+A failed child close keeps the parent visible and retryable. Bot archive
+continues through its owning session RPC, and Rig metadata continues through
+its externally owned lifecycle. This is
 an explicit archive flow; the raw server `/archive` route remains deactivation
 only, while the app's `sessionArchive` operation performs deactivation plus the
 parent lifecycle marker. Neither operation cascades, because ordinary stop and

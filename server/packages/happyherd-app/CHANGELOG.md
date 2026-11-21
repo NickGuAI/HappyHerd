@@ -1,3 +1,7 @@
+# November 21 — Archive a session from the CLI
+
+- Archive one session with `happyherd session archive SESSION_ID`, the same as Archive in the app: its side chats close first, a running session is stopped by its own session host, and a stopped session is marked archived. The conversation stays, and `happyherd resume` continues it later. The command requires the account-control link.
+
 # November 19 — Continue after an account recovers
 
 - Sessions waiting for an account to become available continue automatically, including after a cooldown reset or daemon restart.

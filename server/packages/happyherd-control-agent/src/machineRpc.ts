@@ -4,7 +4,7 @@ import {
     type HappyHerdMachineSessionSettings,
 } from '@happyherd/wire';
 import type { Config } from './config';
-import type { DecryptedMachine } from './api';
+import type { DecryptedMachine, DecryptedSession } from './api';
 import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 
 export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh' | 'agy';
@@ -367,6 +367,72 @@ export async function callMachineRpc<TResult = unknown>(
             throw new Error(decrypted.error);
         }
         return decrypted as TResult;
+    } finally {
+        socket.close();
+    }
+}
+
+export type SessionKillResult = {
+    success: boolean;
+    message?: string;
+};
+
+/**
+ * Ask a session's own host to stop, as the app does when archiving a live
+ * session. The host marks the session archived and exits. The request and the
+ * reply are encrypted with the session's key.
+ */
+export async function killSession(
+    config: Config,
+    session: Pick<DecryptedSession, 'id' | 'encryption'>,
+    token: string,
+    timeouts: MachineRpcTimeouts = {},
+): Promise<SessionKillResult> {
+    const socket = io(config.serverUrl, {
+        auth: {
+            token,
+        },
+        path: '/v1/updates',
+        transports: ['websocket'],
+        autoConnect: false,
+        reconnection: false,
+    });
+
+    socket.connect();
+
+    try {
+        await waitForConnect(socket, timeouts.connectTimeoutMs ?? 10_000);
+        // Match the app's 50-second wait: the server holds a call for a
+        // reconnecting host before it reports the method unavailable.
+        const response = await socket.timeout(timeouts.responseTimeoutMs ?? 50_000).emitWithAck('rpc-call', {
+            method: `${session.id}:killSession`,
+            params: encodeBase64(encrypt(session.encryption.key, session.encryption.variant, {})),
+        }) as RpcAck;
+
+        if (!response.ok) {
+            throw new Error(response.error === 'RPC method not available'
+                ? `Session ${session.id} is not running.`
+                : response.error ?? 'RPC call failed');
+        }
+        if (!response.result) {
+            throw new Error('RPC call returned no result');
+        }
+
+        const decrypted = decrypt(
+            session.encryption.key,
+            session.encryption.variant,
+            decodeBase64(response.result),
+        ) as { success?: unknown; message?: unknown; error?: unknown } | null;
+        if (typeof decrypted?.error === 'string') {
+            throw new Error(decrypted.error);
+        }
+        if (typeof decrypted?.success !== 'boolean') {
+            throw new Error('RPC call returned unexpected data');
+        }
+        return {
+            success: decrypted.success,
+            ...(typeof decrypted.message === 'string' ? { message: decrypted.message } : {}),
+        };
     } finally {
         socket.close();
     }

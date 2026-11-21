@@ -537,6 +537,24 @@ export async function deleteSession(
     }
 }
 
+/**
+ * Mark the session inactive through the server's archive route. Its record
+ * and messages stay; the archived lifecycle marker is a separate metadata write.
+ */
+export async function deactivateSession(
+    config: Config,
+    creds: Credentials,
+    sessionId: string,
+): Promise<void> {
+    try {
+        await axios.post(`${config.serverUrl}/v1/sessions/${encodeURIComponent(sessionId)}/archive`, {}, {
+            headers: authHeaders(creds),
+        });
+    } catch (err) {
+        handleApiError(err, `deactivating session ${sessionId}`);
+    }
+}
+
 export async function getSessionMessages(
     config: Config,
     creds: Credentials,
