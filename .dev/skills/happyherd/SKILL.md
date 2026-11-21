@@ -73,23 +73,26 @@ available; missing private tooling is not a stop.
 1. The parent session remains the orchestrator and integration owner. Read the
    exact task and its current comments once, define acceptance, then split only
    independent lanes with non-overlapping file or artifact ownership.
-2. Use the provider's native subagent mechanism for parallel lanes that can
-   finish inside the current conversation: Codex collaboration agents or
-   Claude Agent/Task. Give each lane one bounded objective, acceptance check,
-   allowlist, and stop condition.
-3. For a durable nested child of the current parent, use
-   `happyherd session side-chat create`. For an intentionally independent
-   top-level conversation, use `happyherd` or `happyherd codex` for a new
-   launch, or `happyherd resume <happyherd-session-id>` for an existing session.
-   Do not call it a HappyHerd worker until its actual session ID or application
-   link is available; record that identity in the handoff.
+2. Give each lane one bounded objective, acceptance check, allowlist, and stop
+   condition. Start every lane's worker, and every reviewer, as a new
+   HappyHerd Claude Code session in the parent's Project: `happyherd session
+   create --local --path <absolute-path> --provider claude --project
+   <project-id> --json`, then send its written brief as the first message with
+   `happyherd session send <session-id> --text-file <absolute-file>
+   --message-id <id> --json`. Do not call it a HappyHerd worker until its
+   actual session ID or application link is available; record that identity
+   in the handoff.
+3. Inside its lane, the worker decides whether to open provider-native
+   subagents or a nested side chat with `happyherd session side-chat create`.
 4. Record one concise dispatch comment and one final handoff comment per lane
    on the owning GitHub issue (or on TickTick only when that tracker is in
    scope and available), then read each comment back. Comments are receipts,
    not a queue: do not poll them, automate them, or create a second registry.
 5. The parent joins the delegated work, reviews the resulting artifacts,
    integrates them, and runs final verification. A worker does not merge,
-   complete the owning task, or make the final architecture decision.
+   complete the owning task, or make the final architecture decision. After
+   accepting a lane, the parent archives its worker and reviewer sessions with
+   `happyherd session archive <session-id>`; each stays resumable.
 
 `New side chat` in the HappyHerd application and the CLI route
 `happyherd session side-chat` are both actual nested side-chat surfaces. A
@@ -100,10 +103,11 @@ plus all six required flags: `--outcome`, `--scope`, `--dependencies`,
 Lifecycle commands include list, status, stop, close, and reopen; inspect
 `happyherd session side-chat --help` for their exact current forms.
 
-If the supported HappyHerd launch or resume surface is unavailable, the one
-fallback is a provider-native subagent. State that fallback and the unavailable
-surface in the handoff. Do not use `happyherd-control-agent`, start an untracked
-top-level provider process, or fabricate a session, ID, or link.
+If the supported HappyHerd launch or resume surface is unavailable, report that
+surface and its raw error in the handoff; do not substitute a provider-native
+subagent for a worker or reviewer session. Do not use `happyherd-control-agent`,
+start an untracked top-level provider process, or fabricate a session, ID, or
+link.
 
 ## Boundaries
 
