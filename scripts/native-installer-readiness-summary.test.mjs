@@ -8,10 +8,11 @@ const summary = { schemaVersion: 1, attempts: [attempt] };
 const record = value => prefix + JSON.stringify(value);
 const invalid = value => assert.deepEqual(parseReadinessSummary(record(value)), { status: 'unavailable', reason: 'invalid-record' });
 
-test('parses only the fixed record and preserves order and all six allowed readiness branches', () => {
+test('parses only the fixed record and preserves order and all eight allowed readiness branches', () => {
   const reasons = [['state-unavailable', false], ['process-check-failed', false],
     ['http-ok', true], ['http-request-failed', false],
-    ['accepted-without-port', true], ['accepted-after-http-non-ok', true]];
+    ['accepted-without-port', true], ['accepted-after-http-non-ok', true],
+    ['accepted-after-http-request-failed', true], ['accepted-without-process-identity', true]];
   const rows = reasons.map(([reason, ready], index) => ({ attempt: index + 1, reason, ready }));
   const value = { schemaVersion: 1, attempts: rows };
   const parsed = parseReadinessSummary(`Bearer sentinel-secret\nhttps://private.invalid/?token=sentinel\n${record(value)}\r\n/Users/sentinel/home pid=123 argv=secret`);

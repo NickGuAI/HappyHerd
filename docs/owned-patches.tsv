@@ -925,3 +925,4 @@ ISSUE_490_EXEC_RESTART	code-ready	fix(automations): close exec runs left running
 ISSUE_490_RESTART_GOLDENS	code-ready	test(changelog): refresh Direct Command restart baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_494_AGENTS_WORKER_SESSIONS	code-ready	docs(agents): start every worker and reviewer as a HappyHerd session	AGENTS.md
 ISSUE_497_MODEL_PRODUCT_TEXTS	code-ready	fix(cli): state the worker-session model in side-chat briefs and guides	server/packages/happyherd-cli/src/commands/sideChat.test.ts
+ISSUE_452_BUSY_DAEMON	code-ready	fix(daemon): keep a busy daemon running instead of replacing it	server/packages/happyherd-cli/src/daemon/controlClient.ts

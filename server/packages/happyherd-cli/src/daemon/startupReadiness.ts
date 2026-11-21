@@ -1,6 +1,7 @@
 // Observation only: no clock, probes, lifecycle decisions, or readiness changes.
 export type DaemonReadinessReason = 'state-unavailable' | 'process-check-failed'
-  | 'http-ok' | 'http-request-failed' | 'accepted-without-port' | 'accepted-after-http-non-ok';
+  | 'http-ok' | 'http-request-failed' | 'accepted-without-port' | 'accepted-after-http-non-ok'
+  | 'accepted-after-http-request-failed' | 'accepted-without-process-identity';
 export type DaemonReadinessObservation = { reason: DaemonReadinessReason; ready: boolean };
 type Attempt = DaemonReadinessObservation & { attempt: number };
 export const DAEMON_READINESS_PREFIX = '[HAPPYHERD_DAEMON_START_READINESS] ';
@@ -12,6 +13,8 @@ const expected = {
   'http-request-failed': false,
   'accepted-without-port': true,
   'accepted-after-http-non-ok': true,
+  'accepted-after-http-request-failed': true,
+  'accepted-without-process-identity': true,
 } as const;
 
 export function createDaemonReadinessRecorder() {

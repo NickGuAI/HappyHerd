@@ -7,9 +7,11 @@ import {
   DevicePairingCreateResponseSchema, DevicePairingCancelResponseSchema,
   type DevicePairingCreateResponse, type DevicePairingCancelResponse,
 } from '@happyherd/wire';
+import { stat } from 'node:fs/promises';
 import { logger } from '@/ui/logger';
 import type { DaemonReadinessObservation } from './startupReadiness';
-import { clearDaemonState, readDaemonState } from '@/persistence';
+import { readProcessIdentity } from './processStatus';
+import { clearDaemonState, readDaemonState, type DaemonInstance } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 import { daemonInstanceKey, maintainDaemonSessionRegistration } from './sessionRegistration';
@@ -354,12 +356,16 @@ export async function checkIfDaemonRunningAndCleanupStaleState(
     return false;
   }
 
+  // Remove only the recorded daemon's files: another daemon may have started
+  // and written its own since this state was read.
+  const recordedDaemon = { pid: state.pid, instanceId: state.instanceId };
+
   // Check if the PID is alive
   try {
     process.kill(state.pid, 0);
   } catch {
     logger.debug('[DAEMON RUN] Daemon PID not running, cleaning up state');
-    await cleanupDaemonState();
+    await cleanupDaemonState(recordedDaemon);
     observe('process-check-failed', false);
     return false;
   }
@@ -381,16 +387,54 @@ export async function checkIfDaemonRunningAndCleanupStaleState(
         return true;
       }
     } catch {
-      // HTTP check failed - the PID is not our daemon (likely reused by OS after reboot)
-      logger.debug(`[DAEMON RUN] PID ${state.pid} is alive but HTTP health check failed on port ${state.httpPort}, cleaning up stale state`);
-      await cleanupDaemonState();
-      observe('http-request-failed', false);
-      return false;
+      // A failed request does not show that the PID is not our daemon: a busy
+      // daemon answers late. Only the operating system can show that.
+      const identity = await identifyRecordedDaemon(state.pid);
+      if (identity === 'other') {
+        logger.debug(`[DAEMON RUN] PID ${state.pid} is no longer the recorded daemon, cleaning up stale state`);
+        await cleanupDaemonState(recordedDaemon);
+        observe('http-request-failed', false);
+        return false;
+      }
+      if (identity === 'unverified') {
+        // Nothing shows that the daemon is gone, so keep its state. Its PID is
+        // not identified, so stopDaemon will not signal it either.
+        logger.debug(`[DAEMON RUN] Cannot identify PID ${state.pid}; keeping its state unverified`);
+        observe('accepted-without-process-identity', true);
+        return true;
+      }
+      logger.debug(`[DAEMON RUN] Daemon PID ${state.pid} did not answer on port ${state.httpPort}; keeping its state`);
+      observe('accepted-after-http-request-failed', true);
+      return true;
     }
   }
 
   observe(acceptedReason, true);
   return true;
+}
+
+/**
+ * What the operating system shows about the recorded daemon PID: the daemon
+ * that wrote the state file, another process or none, or `unverified` when
+ * `ps` cannot answer.
+ */
+async function identifyRecordedDaemon(pid: number): Promise<'daemon' | 'other' | 'unverified'> {
+  const identity = await readProcessIdentity(pid);
+  if (identity.status === 'unavailable') return 'unverified';
+  // No process has this ID: it exited, or on Linux it names a thread of
+  // another process, which `kill(pid, 0)` cannot tell apart.
+  if (identity.status === 'absent') return 'other';
+  // Every daemon runs as `daemon start-sync` (see configuration.isDaemonProcess).
+  if (!/(?:^|\s)daemon\s+start-sync(?:\s|$)/.test(identity.commandLine)) return 'other';
+  // The daemon writes its state file after it starts, and again at every
+  // heartbeat, so a process that started after the last write is a later one.
+  let stateWrittenAtMs: number;
+  try {
+    stateWrittenAtMs = (await stat(configuration.daemonStateFile)).mtimeMs;
+  } catch {
+    return 'unverified';
+  }
+  return identity.earliestStartMs > stateWrittenAtMs ? 'other' : 'daemon';
 }
 
 /**
@@ -433,9 +477,9 @@ export async function isDaemonRunningCurrentlyInstalledHappyHerdVersion(): Promi
   return currentCliVersion === state.startedWithCliVersion;
 }
 
-export async function cleanupDaemonState(): Promise<void> {
+export async function cleanupDaemonState(owner?: DaemonInstance): Promise<void> {
   try {
-    await clearDaemonState();
+    await clearDaemonState(owner);
     logger.debug('[DAEMON RUN] Daemon state file removed');
   } catch (error) {
     logger.debug('[DAEMON RUN] Error cleaning up daemon metadata', error);
@@ -464,7 +508,12 @@ export async function stopDaemon() {
       logger.debug('HTTP stop failed, will force kill', error);
     }
 
-    // Force kill
+    // Force kill only the process identified as the daemon that wrote this
+    // state: the recorded PID may now belong to another program.
+    if (await identifyRecordedDaemon(state.pid) !== 'daemon') {
+      logger.debug(`PID ${state.pid} is not identified as the daemon; not force killing it`);
+      return;
+    }
     try {
       process.kill(state.pid, 'SIGKILL');
       logger.debug('Force killed daemon');

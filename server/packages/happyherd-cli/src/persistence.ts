@@ -321,15 +321,37 @@ export function writeDaemonState(state: DaemonLocallyPersistedState): void {
   writeFileSync(configuration.daemonStateFile, JSON.stringify(state, null, 2), 'utf-8');
 }
 
+/** One daemon process run, as its state file records it. */
+export type DaemonInstance = { pid: number; instanceId?: string };
+
+function daemonStateRecords(owner: DaemonInstance): boolean {
+  try {
+    const state = JSON.parse(readFileSync(configuration.daemonStateFile, 'utf-8')) as Partial<DaemonLocallyPersistedState>;
+    return state.pid === owner.pid && state.instanceId === owner.instanceId;
+  } catch {
+    return false;
+  }
+}
+
+function daemonLockRecords(pid: number): boolean {
+  try {
+    return readFileSync(configuration.daemonLockFile, 'utf-8').trim() === String(pid);
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Clean up daemon state file and lock file
+ * Clean up daemon state file and lock file. Given their owner, remove only the
+ * files that still record it, so a daemon that stops after another daemon
+ * started cannot delete that daemon's files.
  */
-export async function clearDaemonState(): Promise<void> {
-  if (existsSync(configuration.daemonStateFile)) {
+export async function clearDaemonState(owner?: DaemonInstance): Promise<void> {
+  if (existsSync(configuration.daemonStateFile) && (!owner || daemonStateRecords(owner))) {
     await unlink(configuration.daemonStateFile);
   }
   // Also clean up lock file if it exists (for stale cleanup)
-  if (existsSync(configuration.daemonLockFile)) {
+  if (existsSync(configuration.daemonLockFile) && (!owner || daemonLockRecords(owner.pid))) {
     try {
       await unlink(configuration.daemonLockFile);
     } catch {
@@ -404,7 +426,8 @@ export async function acquireDaemonLock(
 }
 
 /**
- * Release daemon lock by closing handle and deleting lock file
+ * Release daemon lock by closing handle and deleting lock file while it is
+ * still this process's lock
  */
 export async function releaseDaemonLock(lockHandle: FileHandle): Promise<void> {
   try {
@@ -412,7 +435,7 @@ export async function releaseDaemonLock(lockHandle: FileHandle): Promise<void> {
   } catch { }
 
   try {
-    if (existsSync(configuration.daemonLockFile)) {
+    if (daemonLockRecords(process.pid)) {
       unlinkSync(configuration.daemonLockFile);
     }
   } catch { }
