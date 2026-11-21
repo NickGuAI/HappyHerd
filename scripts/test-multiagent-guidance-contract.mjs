@@ -18,9 +18,12 @@ for (const term of [
 ]) {
   assert(rootGuidance.includes(term), `AGENTS.md must define ${term}`);
 }
+const rootDelegation = rootGuidance.replace(/\s+/g, ' ');
 assert(
-  rootGuidance.includes('default mechanism for bounded parallel work'),
-  'AGENTS.md must make provider-native subagents the bounded fan-out default',
+  rootDelegation.includes('Every worker and every reviewer is a new HappyHerd Claude Code session')
+    && rootDelegation.includes('A worker decides itself whether to open provider-native subagents or side chats')
+    && rootDelegation.includes('happyherd session archive <session-id>'),
+  'AGENTS.md must start every worker and reviewer as a new HappyHerd session, archive it after the work, and leave subagents or side chats to the worker',
 );
 assert(
   rootGuidance.includes('explicitly creates every delegated task'),
@@ -28,7 +31,7 @@ assert(
 );
 assert(
   /The Human launches a side chat/.test(rootGuidance)
-    && /The\s+Main Agent launches a delegated Worker Agent/.test(rootGuidance),
+    && /An\s+agent launches a side chat/.test(rootGuidance),
   'AGENTS.md must preserve both Human app and Main Agent CLI creation surfaces',
 );
 

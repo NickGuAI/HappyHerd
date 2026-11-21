@@ -17,10 +17,11 @@ live source remain authoritative.
 
 - `server/` is imported from `https://github.com/slopus/happy.git` with full
   history. Do not squash upstream history.
-- Commanders and agents should prefer provider-native subagents for bounded
-  fan-out. Use a HappyHerd side chat when the child work needs a durable,
-  visible, resumable conversation. The parent remains accountable for scope,
-  integration, verification, and final delivery.
+- Every worker and every reviewer is a new HappyHerd Claude Code session in
+  the parent's Project, started from a written brief; the parent archives it
+  when the work is done. A worker decides itself whether to open
+  provider-native subagents or side chats. The parent remains accountable for
+  scope, integration, verification, and final delivery.
 - The Git remote named `upstream` always points to `slopus/happy`.
 - Do not copy changes from the dirty reference checkout at
   `App/external-projects/happyherd` without reviewing and recommitting them as an
@@ -51,24 +52,26 @@ live source remain authoritative.
   children and the integrated result.
 - **Worker Agent** executes one bounded brief.
 - **Provider-native subagent** is ephemeral inline fan-out owned by a provider.
-  It is the default mechanism for bounded parallel work.
 - **HappyHerd side chat** is a durable, visible, resumable child conversation
   with stable parent lineage. Use it when work needs persistence, inspection,
   or multiple turns.
 
-An Orchestrating Agent explicitly creates every delegated task. When the Main
-Agent delegates through the CLI, its HappyHerd side-chat brief must state the
+An Orchestrating Agent explicitly creates every delegated task. It starts every
+worker and every reviewer with `happyherd session create` and sends the written
+brief as its first message with `happyherd session send`; the brief states the
 outcome, scope, dependencies, write ownership, verification, and handoff. The
-Orchestrating Agent owns child lifecycle and reviews the final handoff. Side
-chats do not create more side chats by default; use provider-native subagents
-for bounded fan-out inside a child.
+Orchestrating Agent owns child lifecycle and reviews the final handoff; when the
+work is done, it archives the worker and reviewer sessions with
+`happyherd session archive <session-id>`. A worker decides itself whether to
+open provider-native subagents or side chats. Side chats do not create more side
+chats by default.
 
 The Human launches a side chat from the app's New side chat action with one
 click and no fields. The app sends only the parent session ID through the
 dedicated `happyherd-side-chat-create` machine RPC, creates an empty durable
-child conversation, focuses and opens it, and exposes its normal composer. The
-Main Agent launches a delegated Worker Agent through `happyherd session
-side-chat create`; that CLI path requires all six non-empty brief fields and
+child conversation, focuses and opens it, and exposes its normal composer. An
+agent launches a side chat through `happyherd session side-chat create`; that
+CLI path requires all six non-empty brief fields and
 delivers the brief as the child's first queued message. Both paths enter the
 same daemon-owned lifecycle. Human creation skips `deliver-brief`; generic
 session spawn must not set `isSideChat` or bypass the dedicated lifecycle.
