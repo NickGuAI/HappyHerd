@@ -923,3 +923,4 @@ ISSUE_488_SESSION_ARCHIVE	code-ready	feat(session): archive one session from the
 ISSUE_488_CHANGELOG_BASELINES	code-ready	test(changelog): refresh session archive baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_490_EXEC_RESTART	code-ready	fix(automations): close exec runs left running by a daemon restart	server/packages/happyherd-cli/src/automations/service.ts
 ISSUE_490_RESTART_GOLDENS	code-ready	test(changelog): refresh Direct Command restart baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_494_AGENTS_WORKER_SESSIONS	code-ready	docs(agents): start every worker and reviewer as a HappyHerd session	AGENTS.md

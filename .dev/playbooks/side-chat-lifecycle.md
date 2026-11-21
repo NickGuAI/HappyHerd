@@ -1,15 +1,18 @@
 # Side-chat delegation and lifecycle
 
-Use a provider-native subagent by default for ephemeral, inline, bounded
-fan-out. Use a HappyHerd side chat when a Worker Agent needs a durable, visible,
-resumable child conversation with stable parent lineage. The Orchestrating
-Agent explicitly creates each delegated task, owns its direct children, and
-integrates their handoffs.
+Every worker and every reviewer is a new HappyHerd Claude Code session in the
+parent's Project, started from a written brief; the parent archives it with
+`happyherd session archive <session-id>` when the work is done (see the
+[`happyherd` skill](../skills/happyherd/SKILL.md)). Inside its own work, a
+worker decides itself whether to open provider-native subagents or a durable,
+visible, resumable HappyHerd side chat with stable parent lineage. The
+Orchestrating Agent explicitly creates each delegated task, owns its direct
+children, and integrates their handoffs.
 
 The Human creates a side chat from the app's New side chat action with one
 click and no fields. The app sends only `parentSessionId` through the dedicated
 `happyherd-side-chat-create` machine RPC, creates an empty durable child,
-focuses and opens it, and exposes its normal composer. The Main Agent uses the
+focuses and opens it, and exposes its normal composer. An agent uses the
 CLI command below and supplies the complete six-field brief. Both enter the
 same daemon-owned lifecycle. The app also discovers, renders, switches,
 resumes, and closes exact-parent children. Generic `spawn-happy-session` still
@@ -52,10 +55,9 @@ Human creation omits the brief, records
 `deliver-brief` as skipped, and leaves the child empty for the Human's first
 message through the normal composer. Main Agent creation validates all six
 non-empty fields and persists the rendered brief as the child's first encrypted
-queued user message. The Worker Agent executes that brief directly, does not
+queued user message. The child executes that brief directly, does not
 manage its own side-chat lifecycle, and does not create another side chat
-unless the Human or Main Agent explicitly requests it. Provider-native
-subagents remain the default bounded fan-out inside the child.
+unless the Human or Main Agent explicitly requests it.
 
 `--provider`, `--model`, `--effort`, and `--permission` are optional. When any is
 present, the owning daemon validates the selection against the child provider's
