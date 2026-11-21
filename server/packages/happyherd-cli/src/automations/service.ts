@@ -39,6 +39,7 @@ const HEARTBEAT_PERSISTED = 'Heartbeat message is persisted; waiting for runtime
 const HEARTBEAT_PERSISTED_RETRY = 'Heartbeat message was retried with the same ID; waiting for runtime queue acknowledgement.';
 const HEARTBEAT_QUEUED = 'Heartbeat is queued in the target session.';
 const HEARTBEAT_DELIVERY_RETRY = 'Heartbeat delivery acknowledgement was ambiguous; one retry remains.';
+const DAEMON_RESTARTED = 'The daemon restarted while this command was running, so its result was not recorded.';
 const COMMAND_STDERR_LIMIT = 8_000;
 type AutomationSpawnSessionOptions = Omit<SpawnSessionOptions, 'automation'> & {
   automation: NonNullable<SpawnSessionOptions['automation']> & { runId: string };
@@ -273,6 +274,7 @@ export class HappyHerdAutomationService {
   private readonly store = new HappyHerdAutomationStore();
   private readonly tasks = new Map<string, ScheduledTask>();
   private readonly inFlight = new Set<string>();
+  private readonly execRunsInProgress = new Set<string>();
   private heartbeatMutationTail: Promise<void> = Promise.resolve();
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private started = false;
@@ -291,6 +293,7 @@ export class HappyHerdAutomationService {
     this.started = true;
     try {
       const now = new Date();
+      await this.closeExecRunsLeftByEarlierDaemon(now);
       const previous = await readSchedulerState();
       if (previous) await this.recordOfflineWindows(new Date(previous.lastSeenAt), now);
       await this.reconcile();
@@ -331,6 +334,25 @@ export class HappyHerdAutomationService {
     await writeJsonAtomic(schedulerStatePath(), { schemaVersion: 1, lastSeenAt: now.toISOString() });
     await this.reconcileHeartbeats(now);
     await this.publishBlockedNotifications();
+  }
+
+  /**
+   * Only the daemon process that spawned an exec command can record its exit.
+   * A running exec row that this process is not awaiting was left by an
+   * earlier daemon process and would otherwise block every later run. Provider
+   * sessions outlive the daemon: the provider-exit reconciler closes started
+   * runs, and a provider that registers late binds its running spawn.
+   */
+  private async closeExecRunsLeftByEarlierDaemon(now: Date): Promise<void> {
+    for (const run of await this.listActiveRuns()) {
+      if (run.execution !== 'exec' || this.execRunsInProgress.has(run.id)) continue;
+      await this.store.appendRun({
+        ...run,
+        status: 'failed',
+        finishedAt: now.toISOString(),
+        message: DAEMON_RESTARTED,
+      });
+    }
   }
 
   private async recordOfflineWindows(from: Date, until: Date): Promise<void> {
@@ -378,6 +400,7 @@ export class HappyHerdAutomationService {
     automation: HappyHerdExecAutomation,
     run: HappyHerdAutomationRun,
   ): Promise<HappyHerdAutomationRun> {
+    this.execRunsInProgress.add(run.id);
     let terminal: HappyHerdAutomationRun;
     try {
       const result = await this.execCommandRunner({
@@ -400,7 +423,11 @@ export class HappyHerdAutomationService {
         message: `Command failed to start: ${detail}`.slice(0, 10_000),
       };
     }
-    await this.store.appendRun(terminal);
+    try {
+      await this.store.appendRun(terminal);
+    } finally {
+      this.execRunsInProgress.delete(run.id);
+    }
     return terminal;
   }
 
