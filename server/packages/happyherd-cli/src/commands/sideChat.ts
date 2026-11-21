@@ -270,7 +270,7 @@ export function formatSideChatDelegationPrompt(
     : '';
   return `# Delegated delivery brief
 
-You are the Worker Agent in HappyHerd side chat \`${childSessionId}\`, delegated by Orchestrating Agent session \`${parentSessionId}\`. The Human interacts directly with the Main Agent. A provider-native subagent is the default inline fan-out for bounded parallel work; this HappyHerd side chat is a durable, visible, resumable child conversation with stable parent lineage.
+You are the helper in HappyHerd side chat \`${childSessionId}\`, opened by Orchestrating Agent session \`${parentSessionId}\` for its own work. The Human interacts directly with the Main Agent. This HappyHerd side chat is a durable, visible, resumable child conversation with stable parent lineage. You decide yourself whether to open provider-native subagents.
 
 ## Outcome
 
