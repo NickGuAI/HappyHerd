@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import type { MachineMetadata, Metadata } from '@/api/types';
 import type { HappyHerdAutomationService } from '@/automations/service';
@@ -108,10 +108,15 @@ vi.mock('@/credentialPool/manager', () => ({
   CredentialAccountManager: class { dispose = vi.fn(async () => undefined); },
 }));
 
+import { cleanupDaemonState } from '@/daemon/controlClient';
+import { readDaemonState, writeDaemonState } from '@/persistence';
 import { startDaemon } from './run';
 
 let root: string;
 let daemonRun: Promise<void> | undefined;
+// Long enough that the heartbeat never fires by itself during a test.
+const heartbeatIntervalMs = 24 * 60 * 60 * 1000;
+let intervals: MockInstance<typeof setInterval>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -133,6 +138,8 @@ beforeEach(async () => {
   mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, on: vi.fn(), kill: vi.fn() });
   vi.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
   vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+  vi.stubEnv('HAPPYHERD_DAEMON_HEARTBEAT_INTERVAL', String(heartbeatIntervalMs));
+  intervals = vi.spyOn(global, 'setInterval');
   daemonRun = startDaemon();
   await vi.waitFor(() => expect(mocks.ready).toBe(true));
 });
@@ -151,6 +158,26 @@ afterEach(async () => {
     vi.unstubAllEnvs();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+it('stops when its heartbeat finds another daemon, leaving that daemon\'s state record in place', async () => {
+  const heartbeat = intervals.mock.calls.find(([, delay]) => delay === heartbeatIntervalMs)![0] as () => Promise<void>;
+  const ownState = vi.mocked(writeDaemonState).mock.calls[0][0];
+  vi.mocked(writeDaemonState).mockClear();
+  vi.mocked(readDaemonState).mockResolvedValue({
+    pid: process.pid + 1, httpPort: 39002, startTime: 'later', startedWithCliVersion: ownState.startedWithCliVersion,
+    instanceId: 'later-daemon',
+  });
+  const timers = vi.spyOn(global, 'setTimeout');
+
+  await heartbeat();
+  await daemonRun;
+  daemonRun = undefined;
+  const forcedExit = timers.mock.calls.findIndex(([, delay]) => delay === 10_000);
+  if (forcedExit >= 0) clearTimeout(timers.mock.results[forcedExit].value);
+
+  expect(writeDaemonState).not.toHaveBeenCalled();
+  expect(cleanupDaemonState).toHaveBeenCalledWith({ pid: process.pid, instanceId: ownState.instanceId });
 });
 
 function expectNoSpawn() {

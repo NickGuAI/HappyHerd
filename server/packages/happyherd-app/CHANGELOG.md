@@ -1,3 +1,9 @@
+# November 21 — A busy daemon keeps running
+
+- A daemon that is too busy to answer within five seconds, for example while sessions reconnect after a restart, is now reported as running by `happyherd daemon status`, `happyherd doctor` and `happyherd auth status`.
+- Session launches, `happyherd automation` commands and `happyherd daemon start` no longer start a second daemon beside a busy one. A daemon that has exited, or whose process ID now belongs to another program, is still replaced.
+- `happyherd daemon stop` and daemon upgrades force-stop the recorded process only when they identify it as the daemon, so another program that has since been given its process ID is never stopped.
+
 # November 21 — Direct Command automations continue after a daemon restart
 
 - A Direct Command automation whose command was running when the daemon restarted now runs again at its next scheduled time, instead of skipping every later run. The interrupted run is marked failed with a note that the daemon restarted.

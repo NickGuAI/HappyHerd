@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     acquireDaemonLock,
+    clearDaemonState,
     persistSession,
     persistSessionRegistration,
     readPersistedSessions,
@@ -140,6 +141,61 @@ describe('acquireDaemonLock', () => {
 
         expect(lockHandle).toBeNull();
         expect(readFileSync(mockConfiguration.daemonLockFile, 'utf-8')).toBe(String(process.pid));
+    });
+});
+
+describe('daemon state and lock ownership', () => {
+    let testDir: string;
+
+    beforeEach(() => {
+        testDir = mkdtempSync(join(tmpdir(), 'happyherd-daemon-files-'));
+        mockConfiguration.daemonStateFile = join(testDir, 'daemon.state.json');
+        mockConfiguration.daemonLockFile = join(testDir, 'daemon.state.json.lock');
+    });
+
+    afterEach(() => {
+        rmSync(testDir, { recursive: true, force: true });
+    });
+
+    function writeDaemonFiles(pid: number, instanceId: string): void {
+        writeFileSync(mockConfiguration.daemonStateFile, JSON.stringify({
+            pid, httpPort: 39001, startTime: 'start', startedWithCliVersion: '1.0.0', instanceId,
+        }));
+        writeFileSync(mockConfiguration.daemonLockFile, String(pid));
+    }
+
+    it.each([
+        ['its own files', 4321, 'stopping', false],
+        ['a later daemon\'s files', 5555, 'later', true],
+        ['a state file from another run of its PID', 4321, 'other-run', true],
+    ])('lets a stopping daemon clear only its own files: %s', async (_label, pid, instanceId, kept) => {
+        writeDaemonFiles(pid, instanceId);
+
+        await clearDaemonState({ pid: 4321, instanceId: 'stopping' });
+
+        expect(existsSync(mockConfiguration.daemonStateFile)).toBe(kept);
+        expect(existsSync(mockConfiguration.daemonLockFile)).toBe(pid !== 4321);
+    });
+
+    it('still clears a stale daemon\'s files when no owner is given', async () => {
+        writeDaemonFiles(5555, 'stale');
+
+        await clearDaemonState();
+
+        expect(existsSync(mockConfiguration.daemonStateFile)).toBe(false);
+        expect(existsSync(mockConfiguration.daemonLockFile)).toBe(false);
+    });
+
+    it('releases the lock file only while it is still the releasing process\'s lock', async () => {
+        const lockHandle = await acquireDaemonLock(1, 0);
+        expect(lockHandle).not.toBeNull();
+        // Another daemon took the lock after this one's lock file was deleted.
+        rmSync(mockConfiguration.daemonLockFile);
+        writeFileSync(mockConfiguration.daemonLockFile, '5555');
+
+        await releaseDaemonLock(lockHandle!);
+
+        expect(readFileSync(mockConfiguration.daemonLockFile, 'utf-8')).toBe('5555');
     });
 });
 

@@ -8,6 +8,8 @@ const expected = {
   'http-request-failed': false,
   'accepted-without-port': true,
   'accepted-after-http-non-ok': true,
+  'accepted-after-http-request-failed': true,
+  'accepted-without-process-identity': true,
 };
 const keysAre = (value, names) => value !== null && typeof value === 'object'
   && !Array.isArray(value) && Object.keys(value).length === names.length

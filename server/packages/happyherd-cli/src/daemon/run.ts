@@ -2778,7 +2778,7 @@ export async function startDaemon(): Promise<void> {
         await activeCredentialAccounts.dispose();
         await apiMachine.shutdown();
         await stopControlServer();
-        await cleanupDaemonState();
+        await cleanupDaemonState({ pid: process.pid, instanceId: daemonInstanceId });
         await releaseDaemonLock(daemonLockHandle);
         await stopCaffeinate();
 
@@ -2801,6 +2801,9 @@ export async function startDaemon(): Promise<void> {
       if (daemonState && daemonState.pid !== process.pid) {
         logger.debug('[DAEMON RUN] Somehow a different daemon was started without killing us. We should kill ourselves.')
         requestShutdown('exception', 'A different daemon was started without killing us. We should kill ourselves.')
+        // Stop here: overwriting the state file would replace the other daemon's
+        // record, which this daemon's shutdown would then delete as its own.
+        return;
       }
 
       // Heartbeat
@@ -2851,7 +2854,9 @@ export async function startDaemon(): Promise<void> {
       await activeCredentialAccounts.dispose();
       await apiMachine.shutdown();
       await stopControlServer();
-      await cleanupDaemonState();
+      // A daemon that stops after another one started must leave that
+      // daemon's state and lock files in place.
+      await cleanupDaemonState({ pid: process.pid, instanceId: daemonInstanceId });
       await stopCaffeinate();
       await releaseDaemonLock(daemonLockHandle);
 
