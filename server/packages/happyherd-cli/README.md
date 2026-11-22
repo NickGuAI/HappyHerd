@@ -440,6 +440,10 @@ pause/stop-run/abandon-run actions. `server --help` describes local self-hosting
 | `happyherd context-folder show [--json]` | Show this machine's saved Drive folder name, ID, link and account without a network call; account is null when unrecorded |
 | `happyherd context-folder ensure [--account EMAIL] [--json]` | Confirm, find or create the context folder through `gog`; save an explicit account on success and reuse it later |
 | `happyherd context-folder set --id ID [--account EMAIL] [--json]` | Confirm an existing Drive folder and save its ID, name and selected account; use `--account` when `gog` needs an account choice |
+| `happyherd setup [NAME] [--tracker ticktick\|github] [--project PROJECT --place PLACE] [--json]` | Connect Google Workspace (`gog`), GitHub (`gh`) and TickTick (`ticktick`), or only NAME: install a missing tool, add its usage skill for the agents, start its sign-in in a terminal, and pick the task tracker and the place of each account Project's tasks. With `--json` or without a terminal it asks nothing and lists the next steps; exit 0 ready, 2 the User must act |
+| `happyherd integration list [--json]` | Show each integration on this machine as ready, not signed in or not installed, with the task tracker |
+| `happyherd integration check [NAME] [--json]` | Run the tools' own checks; exit 0 only when ready |
+| `happyherd tracker show [--project PROJECT] [--json]` | Show the task tracker chosen for the account and each Project's place in it, or null; needs the account-control link |
 | `happyherd session set-project SESSION_ID PROJECT_ID\|none [--json]` | Assign, reassign, or clear the account Project |
 | `happyherd session set-settings SESSION_ID [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]` | Save provider choices for the next message or resume |
 | `happyherd session archive SESSION_ID [--json]` | Archive one session as the app does: its side chats close first, and the conversation stays resumable |

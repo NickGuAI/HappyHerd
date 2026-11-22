@@ -140,8 +140,9 @@ export class HappyHerdControlClient {
         return listMachines(this.config, this.credentials);
     }
 
-    listProjects(): Promise<DecryptedProject[]> {
-        return listProjects(this.config, this.credentials);
+    /** A caller that must not wait without bound can set timeoutMs. */
+    listProjects(options?: { timeoutMs?: number }): Promise<DecryptedProject[]> {
+        return listProjects(this.config, this.credentials, options);
     }
 
     createProject(name: string): Promise<DecryptedProject> {

@@ -288,11 +288,13 @@ export async function listSessions(
 export async function listProjects(
     config: Config,
     creds: Credentials,
+    options: { timeoutMs?: number } = {},
 ): Promise<DecryptedProject[]> {
     let data: unknown;
     try {
         const resp = await axios.get(`${config.serverUrl}/v1/projects`, {
             headers: authHeaders(creds),
+            timeout: options.timeoutMs,
         });
         data = resp.data;
     } catch (err) {

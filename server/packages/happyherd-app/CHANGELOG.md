@@ -1,3 +1,10 @@
+# November 22 — Connect your tools with one command
+
+- Run `happyherd setup` to connect Google Workspace (`gog`), GitHub (`gh`) and TickTick (`ticktick`) on a machine. It installs a missing tool with Homebrew or npm, offers to start the tool's own sign-in in your browser, and checks it. Google Workspace counts as ready only when your sign-in grants Gmail, Calendar, Drive, Docs, Sheets, Slides and Contacts. `happyherd setup NAME` sets up one of them, and tools that are ready are skipped.
+- Setup then asks which task tracker to use, TickTick or GitHub, and where each of your Projects keeps its tasks: a TickTick list or a GitHub repository. Both are saved with your account, so every machine uses the same ones; run it again to change them. This needs the account-control link from `happyherd machine auth login`.
+- Setup also adds each tool's usage skill for Claude Code, and for Codex and Antigravity when they are installed, so your agents know how to use the tools. A skills folder it cannot write is reported, and setup goes on.
+- `happyherd integration list` shows each tool as ready, not signed in or not installed, and `happyherd tracker show` shows the task tracker and each Project's place. An agent can run these commands, and setup with `--json`: setup then asks nothing and lists the steps for you to take. HappyHerd stores no token; each tool keeps its own sign-in.
+
 # November 21 — A busy daemon keeps running
 
 - A daemon that is too busy to answer within five seconds, for example while sessions reconnect after a restart, is now reported as running by `happyherd daemon status`, `happyherd doctor` and `happyherd auth status`.
