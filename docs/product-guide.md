@@ -11,6 +11,9 @@ its downloads. Happy's app-store listings and hosted services belong to upstream
 
 - **Installing a public release:** follow the [installer guide](public-launcher-release.md)
   and the notes for the exact release you choose.
+- **Connecting your tools:** the [onboarding checklist](onboarding.md) runs
+  `happyherd setup` to make Google Workspace, GitHub and TickTick ready on a
+  machine and to pick your task tracker.
 - **Organizing ongoing work:** the [Projects and Assistant guide](projects-and-assistant.md)
   describes current source, including Commander and persistent-session behavior.
 - **Running your own server:** use the [deployment guide](deployment.md).
