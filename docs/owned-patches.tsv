@@ -927,3 +927,5 @@ ISSUE_494_AGENTS_WORKER_SESSIONS	code-ready	docs(agents): start every worker and
 ISSUE_497_MODEL_PRODUCT_TEXTS	code-ready	fix(cli): state the worker-session model in side-chat briefs and guides	server/packages/happyherd-cli/src/commands/sideChat.test.ts
 ISSUE_452_BUSY_DAEMON	code-ready	fix(daemon): keep a busy daemon running instead of replacing it	server/packages/happyherd-cli/src/daemon/controlClient.ts
 ISSUE_452_CHANGELOG_BASELINES	code-ready	test(changelog): refresh busy daemon baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_500_SETUP	code-ready	feat(cli): connect external tools with happyherd setup	server/packages/happyherd-cli/src/commands/setup.test.ts
+ISSUE_500_CHANGELOG_BASELINES	code-ready	test(changelog): refresh setup baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png

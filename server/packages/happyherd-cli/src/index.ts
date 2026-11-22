@@ -44,6 +44,7 @@ import { handleCommanderCommand } from './commands/commander'
 import { handleMachineCommand, handleSessionCommand } from './commands/machine'
 import { handleProjectCommand } from './commands/project'
 import { handleContextFolderCommand } from './commands/contextFolder'
+import { handleIntegrationCommand, handleSetupCommand, handleTrackerCommand } from './commands/setup'
 import { configuration } from './configuration'
 import { activateCredentialAccount } from './credentialPool/activate'
 
@@ -177,6 +178,16 @@ Conversation history is preserved on the server, but in-flight tool calls are in
   } else if (subcommand === 'context-folder') {
     try {
       await handleContextFolderCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error');
+      process.exitCode = 1;
+    }
+    return;
+  } else if (subcommand === 'setup' || subcommand === 'integration' || subcommand === 'tracker') {
+    try {
+      if (subcommand === 'setup') await handleSetupCommand(args.slice(1));
+      else if (subcommand === 'integration') await handleIntegrationCommand(args.slice(1));
+      else await handleTrackerCommand(args.slice(1));
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error');
       process.exitCode = 1;
@@ -770,6 +781,9 @@ ${chalk.bold('Usage:')}
   happyherd machine           Discover account machines
   happyherd project           List existing account Projects
   happyherd context-folder    Show, find, create, or select the Drive context folder
+  happyherd setup             Connect Google Workspace, GitHub and TickTick; pick the task tracker
+  happyherd integration       Show each integration's state on this machine
+  happyherd tracker           Show the task tracker chosen on this machine
   happyherd session           Create, inspect, send to, and manage sessions/side chats
   happyherd resume            Resume a previous HappyHerd session by HappyHerd session ID
   happyherd codex             Start Codex mode

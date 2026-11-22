@@ -74,6 +74,9 @@ happyherd session set-project --help
 happyherd session set-settings --help
 happyherd project --help
 happyherd context-folder --help
+happyherd setup --help
+happyherd integration --help
+happyherd tracker --help
 happyherd session side-chat --help
 happyherd resume --help
 happyherd machine --help
@@ -126,6 +129,51 @@ still completes if ensure fails. When gog needs an account choice among several
 sign-ins, its message is shown with happyherd context-folder ensure --account EMAIL.
 The installer has no account option. This setting stays
 on this machine and does not move or create documents.
+
+## Integrations and the task tracker
+
+~~~sh
+happyherd integration list --json
+happyherd integration check NAME --json
+happyherd setup --json
+happyherd setup NAME --json
+happyherd setup --tracker ticktick --json
+happyherd setup --project PROJECT_ID --place PLACE --json
+happyherd tracker show --json
+happyherd tracker show --project PROJECT_ID --json
+~~~
+
+The integrations are google-workspace (gog), github (gh) and ticktick
+(ticktick). setup runs each tool's own check, installs a missing tool with
+Homebrew or npm or names the step, and copies the tool's usage skill into the
+skills folder of Claude Code, and of Codex and Antigravity when they are on the
+machine. A skills folder that cannot be written is reported with its reason,
+and setup goes on. Google Workspace is ready only when one gog sign-in grants
+gmail, calendar, drive, docs, sheets, slides and contacts. In a terminal setup
+offers to start the tool's own sign-in.
+
+A full run ends with the task tracker, ticktick or github, and the place of
+each account Project's tasks in it: a TickTick list, or a GitHub repository as
+OWNER/REPO. In a terminal setup asks for both, and running it again changes
+them; --tracker and --project with --place set them without a question. They
+are the keys taskTracker and taskPlaces of the account settings that the app
+syncs, so every machine reads the same values. Listing the Projects and
+reading or saving these needs the account-control link (happyherd machine auth
+login); without it setup names that step and tracker show exits 1.
+tracker show prints the tracker and each Project's place, or one Project's with
+--project (ID or name); null means not chosen.
+
+An agent always passes --json. setup then starts no sign-in and asks nothing:
+it returns status, each integration's state (ready, not-signed-in or
+not-installed), the tracker and nextSteps. Exit 0 means ready; exit 2 means the
+User must act, so give the User the nextSteps. A sign-in runs only in the
+User's own terminal with happyherd setup NAME, never through an agent.
+integration list and tracker show change nothing; integration check exits 0
+only when ready. Read and write tasks with the tracker's own tool, in the
+Project's place. HappyHerd stores no token. Never run ticktick auth status: it
+prints part of the token.
+
+Onboarding checklist: https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/docs/onboarding.md
 
 ## Sessions and resume
 
