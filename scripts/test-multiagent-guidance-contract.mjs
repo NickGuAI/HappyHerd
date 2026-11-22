@@ -20,11 +20,25 @@ for (const term of [
 }
 const rootDelegation = rootGuidance.replace(/\s+/g, ' ');
 assert(
-  rootDelegation.includes('Every worker and every reviewer is a new HappyHerd Claude Code session')
+  rootDelegation.includes("Every worker and every reviewer is a new HappyHerd Claude Code session in the parent's Project, started from a written brief")
     && rootDelegation.includes('A worker decides itself whether to open provider-native subagents or side chats')
-    && rootDelegation.includes('happyherd session archive <session-id>'),
+    && rootDelegation.includes('happyherd session archive <session-id>')
+    && !rootDelegation.includes('default mechanism for bounded parallel work'),
   'AGENTS.md must start every worker and reviewer as a new HappyHerd session, archive it after the work, and leave subagents or side chats to the worker',
 );
+for (const [path, session] of [
+  ['server/packages/happyherd-cli/src/agentContext/sharedKnowledgeTemplates.ts', 'HappyHerd session'],
+  ['docs/projects-and-assistant.md', 'HappyHerd Claude Code session'],
+]) {
+  const text = read(path).replace(/\s+/g, ' ');
+  assert(
+    text.includes(`Every worker and every reviewer is a new ${session} in the parent's Project, started from a written brief`)
+      && text.includes('happyherd session archive SESSION_ID')
+      && text.includes('a worker decides itself whether to open provider-native subagents')
+      && !/Prefer provider-native subagents|linked Worker Agent/.test(text),
+    `${path} must state the worker-session model, not the old delegation model`,
+  );
+}
 assert(
   rootGuidance.includes('explicitly creates every delegated task'),
   'AGENTS.md must assign explicit task creation to the Orchestrating Agent',

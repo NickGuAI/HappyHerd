@@ -202,8 +202,15 @@ detach without changing the current live conversation context.
 
 ## Side chats and delegation
 
-Prefer provider-native subagents for bounded inline work. Use a durable side
-chat when work needs a visible resumable conversation. On the parent's owning
+Every worker and every reviewer is a new HappyHerd session in the parent's
+Project, started from a written brief: session create with --project
+PROJECT_ID, then session send with the brief. When the work is done, the parent
+archives each worker and reviewer session with happyherd session archive
+SESSION_ID, which needs the account-control link. Inside its own work, a worker
+decides itself whether to open provider-native subagents or a durable, visible,
+resumable side chat.
+
+A side chat is a helper of the session that opens it. On the parent's owning
 machine, use happyherd session side-chat create PARENT_SESSION_ID with all six
 non-empty brief flags: --outcome, --scope, --dependencies, --write-ownership,
 --verification, and --handoff. Optional --model, --effort, --permission, and

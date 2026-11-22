@@ -643,11 +643,12 @@ describe('formatSideChatDelegationPrompt', () => {
   it('delivers stable lineage, every bounded field, role semantics, and handoff accountability', () => {
     const prompt = formatSideChatDelegationPrompt(parentId, 'happyherd-child', brief);
 
-    expect(prompt).toContain(`side chat \`happyherd-child\``);
-    expect(prompt).toContain(`session \`${parentId}\``);
+    expect(prompt).toContain(`helper in HappyHerd side chat \`happyherd-child\``);
+    expect(prompt).toContain(`session \`${parentId}\` for its own work`);
     for (const value of Object.values(brief)) expect(prompt).toContain(value);
     expect(prompt).toContain('Human interacts directly with the Main Agent');
-    expect(prompt).toContain('provider-native subagent is the default inline fan-out');
+    expect(prompt).toContain('You decide yourself whether to open provider-native subagents');
+    expect(prompt).not.toContain('default inline fan-out');
     expect(prompt).toContain('durable, visible, resumable child conversation');
     expect(prompt).toContain('explicitly create each delegated task');
     expect(prompt).toContain('Do not create another HappyHerd side chat');

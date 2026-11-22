@@ -89,7 +89,9 @@ happyherd session create --local --path ABSOLUTE_PATH --provider codex --command
 * Change saved provider choices using `happyherd session set-settings SESSION_ID --model MODEL --effort EFFORT --permission MODE --json`; any nonempty combination is accepted. The next message or resume uses the persisted choices. Grok permission changes use its daemon-confirmed restart/resume transition.
 * **Delivery:** Creation alone sends no prompt. Send the instructions file with `happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID --json`; reuse the same message ID after an uncertain result. Verify recent responses with `happyherd session inspect SESSION_ID --limit 20 --json`. These commands target sessions stored by the local daemon.
 
-For a linked Worker Agent with a durable child lifecycle, use `happyherd session side-chat create <parent-session-id>` with its six required brief fields as documented in the [side-chat lifecycle playbook](../.dev/playbooks/side-chat-lifecycle.md). That path inherits the parent context; the independent creation command above supports the selected Commander and workspace.
+Every worker and every reviewer is a new HappyHerd Claude Code session in the parent's Project, started from a written brief: create it with the command above, using `--provider claude` and `--project PROJECT_ID`, then send the brief as its first message. When the work is done, the parent archives each worker and reviewer session with `happyherd session archive SESSION_ID`, which needs the account-control link. Inside its own work, a worker decides itself whether to open provider-native subagents or a side chat.
+
+A side chat is a helper of the session that opens it, with a durable child lifecycle: use `happyherd session side-chat create <parent-session-id>` with its six required brief fields as documented in the [side-chat lifecycle playbook](../.dev/playbooks/side-chat-lifecycle.md). That path inherits the parent context; the independent creation command above supports the selected Commander and workspace.
 
 ## COMMANDER.md Snippet
 
