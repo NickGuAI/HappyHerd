@@ -271,7 +271,8 @@ Before removing the exact task-owned temporary directory:
    registrations. For a standalone clone or scratch folder, explicitly remove
    only the authorized exact directory after the same preservation and consumer
    checks, then verify its absence; do not pretend it is a linked worktree.
-   Resolve any dependent linked worktrees before their common Git directory.
+   Remove dependent linked worktrees before their common Git directory; while
+   any of them is retained or incomplete, retain that directory too.
 4. Record the path and registration read-backs (registration is not applicable
    for a plain clone or scratch folder). `git worktree prune` only clears stale
    registrations for missing paths; it does not remove an existing directory.
