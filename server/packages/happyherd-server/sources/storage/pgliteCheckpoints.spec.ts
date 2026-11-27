@@ -116,7 +116,10 @@ describe("PGlite checkpoints", () => {
         const stop = startPGliteCheckpoints(pg);
         try {
             await vi.advanceTimersByTimeAsync(interval);
-            expect(log).toHaveBeenCalledWith(expect.objectContaining({ level: "error" }), expect.stringContaining("checkpoint failed"));
+            expect(log).toHaveBeenCalledWith(
+                { module: "pglite", level: "error" },
+                "WAL checkpoint failed; retrying at the next interval: Error: checkpoint failure"
+            );
             await vi.advanceTimersByTimeAsync(interval);
             expect(exec).toHaveBeenCalledTimes(2);
         } finally {

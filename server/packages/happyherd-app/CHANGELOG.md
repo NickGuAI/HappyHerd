@@ -1,6 +1,6 @@
-# November 27 — Keep embedded server logs bounded
+# November 27 — Keep the embedded database's write-ahead log bounded
 
-- Self-hosted servers using the embedded database now checkpoint every five minutes, so the database can reuse its write-ahead log space during long runs. Checkpoints may briefly delay database requests; external PostgreSQL servers keep their own maintenance schedule.
+- Self-hosted servers using the embedded database now checkpoint every five minutes, so the database can reuse its write-ahead log space during long runs. Checkpoints may briefly pause the server; external PostgreSQL servers keep their own maintenance schedule.
 
 # November 22 — Connect your tools with one command
 

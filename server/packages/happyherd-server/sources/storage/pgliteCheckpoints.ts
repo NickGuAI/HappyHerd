@@ -26,7 +26,7 @@ export function startPGliteCheckpoints(pg: PGlite | null): () => Promise<void> {
             // through a transaction client or the raw wire protocol.
             await pg.exec("CHECKPOINT");
         } catch (error) {
-            log({ module: "pglite", level: "error", error }, "WAL checkpoint failed; retrying at the next interval");
+            log({ module: "pglite", level: "error" }, `WAL checkpoint failed; retrying at the next interval: ${error}`);
         } finally {
             if (!stopped) schedule();
         }
