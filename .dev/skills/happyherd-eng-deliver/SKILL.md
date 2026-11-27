@@ -144,3 +144,10 @@ Return:
    status.
 6. **Remaining effects** — every unperformed merge, deployment, installation,
    restart, cleanup, closure, or unresolved prerequisite.
+
+In the existing handoff, record the machine, exact temporary directory, owning
+repository, verified saved result outside that directory, any active consumer,
+and its disposition or concrete blocker with an owner and next check. Follow
+[temporary directory closeout](../../playbooks/development-lifecycle.md#temporary-directory-closeout)
+as the single procedure owner; directory disposal does not imply branch deletion
+or expand this skill's authority.

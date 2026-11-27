@@ -150,15 +150,29 @@ esac
 
 Keep `HEAD_OID`, `MERGE_OID`, and `BRANCH` until cleanup is complete. The SHAs
 make the branch recoverable even after its name is deleted.
+Also record the machine, exact temporary `WORK_DIRECTORY`, its
+`OWNER_REPOSITORY`, the saved result and any active consumer in the handoff.
 
 ## 5. Prove the change is permanent and main is healthy
+
+For a disposable standalone clone, run steps 5–7 from a retained checkout of
+the same repository outside the directory being removed. If none is available,
+record that blocker and retain the clone.
 
 ```bash
 test -z "$(git status --porcelain --untracked-files=normal)"
 git fetch --prune origin
 git merge-base --is-ancestor "$HEAD_OID" origin/main
 git merge-base --is-ancestor "$MERGE_OID" origin/main
+```
 
+For a linked worktree, now leave `WORK_DIRECTORY` and run the remaining steps
+from its owning retained checkout, `OWNER_REPOSITORY`. Do not switch the
+temporary worktree to `main` when `main` is already checked out there. Check
+that the owning checkout is clean before updating it:
+
+```bash
+test -z "$(git status --porcelain --untracked-files=normal)"
 git switch main
 git pull --ff-only origin main
 MAIN_SHA="$(git rev-parse HEAD)"
@@ -221,10 +235,51 @@ test "$CONTRACT_CONCLUSION" = "success"
 If a newer push advances `origin/main` and cancels these runs, fetch and repeat
 the proof for the new current `MAIN_SHA`.
 
-## 6. Delete only the feature-permanent merged PR head
+## 6. Close out the temporary directory, then delete the exact PR head
 
 Proceed only after the Quality, `Contract suite`, and ancestry proofs above
 pass. Any required-job failure blocks cleanup.
+
+### Temporary directory closeout
+
+The parent owns the directory's final disposition in the existing task record:
+removed, retained with a reason, owner and next check, or incomplete with a
+concrete blocker. Session archival does not prove directory removal. Directory
+disposal and branch deletion have separate authority: a pending PR alone does
+not require retaining an unused, durably saved temporary checkout. Separately
+authorized earlier disposal uses these same checks and keeps both branch refs.
+
+Before removing the exact task-owned temporary directory:
+
+1. Preserve useful commits, files and required evidence outside it and verify
+   that saved result. Inspect uncommitted, untracked and ignored content and
+   nested repositories; a clean tracked-file status alone is insufficient.
+2. Confirm no worker, reviewer, other session, service, installation or
+   scheduled job still uses it. Bound this check to live processes, executable
+   settings and scheduled jobs; an old document reference is not active use.
+   Check shared Git metadata and dependent worktrees before removing a clone
+   that owns them. Retain canonical, permanent and actively used directories.
+3. From outside a linked worktree, use its owning repository to remove it:
+
+   ```bash
+   git -C "$OWNER_REPOSITORY" worktree remove -- "$WORK_DIRECTORY"
+   test ! -e "$WORK_DIRECTORY" && test ! -L "$WORK_DIRECTORY"
+   git -C "$OWNER_REPOSITORY" worktree list --porcelain
+   ```
+
+   Verify the exact path is also absent from that repository's returned
+   registrations. For a standalone clone or scratch folder, explicitly remove
+   only the authorized exact directory after the same preservation and consumer
+   checks, then verify its absence; do not pretend it is a linked worktree.
+   Resolve any dependent linked worktrees before their common Git directory.
+4. Record the path and registration read-backs (registration is not applicable
+   for a plain clone or scratch folder). `git worktree prune` only clears stale
+   registrations for missing paths; it does not remove an existing directory.
+   If removal fails, stop, retain the directory and record the actual blocker.
+   Never force removal or substitute recursive deletion for a failed worktree
+   removal.
+
+### Exact branch cleanup
 
 Never bulk-delete every branch listed by `git branch --merged`; long-lived
 branches can also be ancestors of `main`.
@@ -268,6 +323,7 @@ git status --short --branch
 ```
 
 The handoff records the PR, merge SHA, Quality and `Contract suite` proof,
-deleted local/remote branch name, and final clean/synchronized status. Branch
+directory disposition and read-backs, deleted local/remote branch name, and
+final clean/synchronized status of the retained owning checkout. Branch
 deletion removes names, not commits; the recorded SHAs and merge commit retain
 recovery.

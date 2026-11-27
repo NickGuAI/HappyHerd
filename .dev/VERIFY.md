@@ -230,7 +230,15 @@ is not a team gate and does not block GitHub collaboration.
 - generated-file diffs and changelog parser result when applicable;
 - all six required PR check conclusions;
 - merge SHA, successful Quality and `Contract suite` job evidence;
-- merged head SHA, ancestry proof, and exact branch cleanup result.
+- merged head SHA, ancestry proof, and exact branch cleanup result;
+- machine, exact temporary directory, owning repository, verified saved result
+  outside the directory, and any active consumer; follow
+  [temporary directory closeout](playbooks/development-lifecycle.md#temporary-directory-closeout)
+  and record directory absence plus absence from the owning repository's
+  `git worktree list --porcelain`, or the concrete retention/blocker reason,
+  owner and next check. Identify standalone clones and scratch directories
+  explicitly; their registration check is not applicable. Session archive,
+  branch deletion and stale-registration pruning are not directory evidence.
 
 The native installer workflow runs a four-target build and smoke matrix on pull requests, tags, and manual dispatch; only `happyherd-v*` tags publish. The first prepared stable release is required before the latest installer URL can work. Published-download proof remains separate from PR build and smoke results.
 
