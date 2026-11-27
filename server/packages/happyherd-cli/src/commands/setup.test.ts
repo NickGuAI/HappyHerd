@@ -100,7 +100,9 @@ http.createServer((request, response) => {
     if ((account.stall || []).includes(request.url)) return fs.writeFileSync(stateFile, JSON.stringify(account));
     const send = (code, value) => {
       fs.writeFileSync(stateFile, JSON.stringify(account));
-      response.writeHead(code, { 'content-type': 'application/json' });
+      // In-process setup shares a fetch pool across synchronous CLI calls.
+      // Do not leave idle fixture sockets to expire while that event loop is blocked.
+      response.writeHead(code, { 'content-type': 'application/json', connection: 'close' });
       response.end(JSON.stringify(value));
     };
     if (request.headers.authorization !== 'Bearer ' + account.token) return send(401, { error: 'Invalid token' });
@@ -629,7 +631,7 @@ describe("the place of each Project's tasks", () => {
 
     // A renamed Project keeps its place; a Project that left the account is dropped.
     const later = await setupInProcess(['--json'], { interactive: false, listProjects: async () => [{ id: 'p2', name: 'Beta Two' }] });
-    expect(later.status).toBe(0);
+    expect(later.status, later.output).toBe(0);
     expect((await account()).settings?.taskPlaces).toEqual({ ticktick: { p2: { name: 'Beta Two', place: 'Home' } } });
     expect(existsSync(machineSettings())).toBe(false);
   }, 60_000);
