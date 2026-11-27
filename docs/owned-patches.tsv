@@ -934,3 +934,4 @@ ISSUE_504_PGLITE_WAL	code-ready	fix(server): checkpoint embedded PGlite during l
 ISSUE_504_CHANGELOG_BASELINES	code-ready	test(changelog): refresh embedded database maintenance baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_504_REVIEW_LOGGING	code-ready	fix(server): expose checkpoint failure causes	server/packages/happyherd-server/sources/storage/pgliteCheckpoints.spec.ts
 ISSUE_504_REVIEW_BASELINES	code-ready	test(changelog): refresh precise WAL maintenance wording	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_506_SETUP_FIXTURE	code-ready	test(setup): close idle fixture connections between CLI calls	server/packages/happyherd-cli/src/commands/setup.test.ts
