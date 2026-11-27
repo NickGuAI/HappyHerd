@@ -930,3 +930,7 @@ ISSUE_452_CHANGELOG_BASELINES	code-ready	test(changelog): refresh busy daemon ba
 ISSUE_500_SETUP	code-ready	feat(cli): connect external tools with happyherd setup	server/packages/happyherd-cli/src/commands/setup.test.ts
 ISSUE_500_CHANGELOG_BASELINES	code-ready	test(changelog): refresh setup baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_499_ONBOARDING_SOP	code-ready	docs(onboarding): add the onboarding checklist for happyherd setup	docs/onboarding.md
+ISSUE_504_PGLITE_WAL	code-ready	fix(server): checkpoint embedded PGlite during long runs	server/packages/happyherd-server/sources/storage/pgliteCheckpoints.spec.ts
+ISSUE_504_CHANGELOG_BASELINES	code-ready	test(changelog): refresh embedded database maintenance baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_504_REVIEW_LOGGING	code-ready	fix(server): expose checkpoint failure causes	server/packages/happyherd-server/sources/storage/pgliteCheckpoints.spec.ts
+ISSUE_504_REVIEW_BASELINES	code-ready	test(changelog): refresh precise WAL maintenance wording	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png

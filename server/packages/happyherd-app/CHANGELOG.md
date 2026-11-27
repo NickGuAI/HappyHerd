@@ -1,3 +1,7 @@
+# November 27 — Keep the embedded database's write-ahead log bounded
+
+- Self-hosted servers using the embedded database now checkpoint every five minutes, so the database can reuse its write-ahead log space during long runs. Checkpoints may briefly pause the server; external PostgreSQL servers keep their own maintenance schedule.
+
 # November 22 — Connect your tools with one command
 
 - Run `happyherd setup` to connect Google Workspace (`gog`), GitHub (`gh`) and TickTick (`ticktick`) on a machine. It installs a missing tool with Homebrew or npm, offers to start the tool's own sign-in in your browser, and checks it. Google Workspace counts as ready only when your sign-in grants Gmail, Calendar, Drive, Docs, Sheets, Slides and Contacts. `happyherd setup NAME` sets up one of them, and tools that are ready are skipped.

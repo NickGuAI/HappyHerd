@@ -1,6 +1,7 @@
 import "reflect-metadata";
 
-import { db } from "./storage/db";
+import { db, getPGlite } from "./storage/db";
+import { startPGliteCheckpoints } from "./storage/pgliteCheckpoints";
 import { initEncrypt } from "./modules/encrypt";
 import { initGithub } from "./modules/github";
 import { loadFiles } from "./storage/files";
@@ -26,7 +27,9 @@ export async function startServer(opts: StartServerOptions): Promise<{ port: num
     process.env.HANDY_MASTER_SECRET = opts.masterSecret;
 
     await db.$connect();
+    const stopCheckpoints = startPGliteCheckpoints(getPGlite());
     onShutdown("db", async () => {
+        await stopCheckpoints();
         await db.$disconnect();
     });
     onShutdown("activity-cache", async () => {
