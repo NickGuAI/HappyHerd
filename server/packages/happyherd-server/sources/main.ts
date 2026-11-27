@@ -1,7 +1,8 @@
 import { startApi } from "@/app/api/api";
 import { log } from "@/utils/log";
 import { awaitShutdown, onShutdown } from "@/utils/shutdown";
-import { db } from './storage/db';
+import { db, getPGlite } from './storage/db';
+import { startPGliteCheckpoints } from "./storage/pgliteCheckpoints";
 import { startTimeout } from "./app/presence/timeout";
 import { startMetricsServer } from "@/app/monitoring/metrics";
 import { activityCache } from "@/app/presence/sessionCache";
@@ -15,7 +16,9 @@ async function main() {
 
     // Storage
     await db.$connect();
+    const stopCheckpoints = startPGliteCheckpoints(getPGlite());
     onShutdown('db', async () => {
+        await stopCheckpoints();
         await db.$disconnect();
     });
     onShutdown('activity-cache', async () => {
