@@ -39,6 +39,10 @@ describe('default Assistant Commander', () => {
     expect(original).toContain('# OldBlue\n');
     expect(original).toContain("BigBoss: the User's entry point and default manager");
     expect(original).toContain('You route work and keep the overview. You do not build.');
+    expect(original).toContain('bounded, read-only inventory of temporary work directories on each reachable machine');
+    expect(original).toContain("Route project-owned leftovers to that Project's PM; you own unassigned ones.");
+    expect(original).toContain('Mark unreachable machines as unchecked.');
+    expect(original).toContain('only after reading its report back from the destination');
     expect(await ensureDefaultAssistantCommander()).toEqual(first);
     expect(await readFile(first.commanderPath, 'utf8')).toBe(original);
     expect(await readFile(path.join(first.agentContextPath, 'memory', '1-working-memory.md'), 'utf8')).toBe('');
@@ -69,9 +73,20 @@ describe('default Assistant Commander', () => {
     const settings = JSON.stringify({ assistantName: 'River', schemaVersion: 2 });
     await writeFile(path.join(directory, 'settings.json'), settings);
     const { createCommanderFromManifest } = await import('@/commands/commander');
-    const { defaultAssistantCommanderMarkdown } = await import('./defaultAssistantTemplate');
     const identity = { id, name, role: 'Custom owner role', workspace: os.homedir() };
-    const markdown = `${defaultAssistantCommanderMarkdown(identity)}\nOwner-authored instructions remain byte-faithful.\n`;
+    // A pre-existing definition must not acquire the new template instructions.
+    const markdown = [
+      '---',
+      'identity_and_scope:',
+      `  commander_id: ${JSON.stringify(id)}`,
+      `  name: ${JSON.stringify(name)}`,
+      `  role: ${JSON.stringify(identity.role)}`,
+      `  workspace: ${JSON.stringify(identity.workspace)}`,
+      '---',
+      `# ${name}`,
+      'Owner-authored instructions remain byte-faithful.',
+      '',
+    ].join('\n');
     await createCommanderFromManifest({ ...identity, commanderMarkdown: markdown, workingMemoryMarkdown: 'Existing memory' });
     const { ensureDefaultAssistantCommander } = await import('./defaultAssistant');
     const { listCommanders } = await import('./commanderContext');

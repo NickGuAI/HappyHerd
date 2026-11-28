@@ -1,3 +1,7 @@
+# November 27 — Close out temporary work
+
+- Newly created BigBoss definitions ask the existing report job to check temporary work directories on reachable machines, route leftovers to their owner, and read the report back from its destination before counting it as delivered. Existing Assistant definitions and scheduled jobs are preserved when upgrading the CLI.
+
 # November 27 — Keep the embedded database's write-ahead log bounded
 
 - Self-hosted servers using the embedded database now checkpoint every five minutes, so the database can reuse its write-ahead log space during long runs. Checkpoints may briefly pause the server; external PostgreSQL servers keep their own maintenance schedule.
